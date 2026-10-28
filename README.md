@@ -4,12 +4,12 @@
 
 ## 📌 Table of Contents
 * [About the Project](#-about-the-project)
-* [System Architecture](#-system-architecture)
-* [Technology Stack](#-technology-stack)
-* [Core Features & Roadmap](#-core-features--roadmap)
-* [Domain-Driven Design (DDD)](#-domain-driven-design-ddd)
+* [System Architecture](#%EF%B8%8F-system-architecture)
+* [Technology Stack](#%EF%B8%8F-technology-stack)
+* [Core Features & Roadmap](#%EF%B8%8F-core-features--roadmap)
+* [Domain-Driven Design (DDD)](#%EF%B8%8F-domain-driven-design-ddd)
 * [Project Structure](#-project-structure)
-* [Getting Started & Installation](#-getting-started--installation)
+* [Getting Started & Installation](#%EF%B8%8F-getting-started--installation)
 * [Privacy & Data Security](#-privacy--data-security)
 * [Contributing](#-contributing)
 * [License](#-license)
