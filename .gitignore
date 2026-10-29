@@ -1,0 +1,45 @@
+# Local-only project board (intentionally not committed)
+/PROJECT_BOARD.md
+
+# Java / Maven
+target/
+*.class
+*.jar
+*.war
+*.ear
+*.log
+hs_err_pid*
+replay_pid*
+
+# Node / frontend
+node_modules/
+dist/
+dist-ssr/
+.vite/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+.env
+.env.local
+.env.*.local
+
+# Tauri / Rust
+src-tauri/gen/
+*.rs.bk
+
+# Local databases
+*.mv.db
+*.trace.db
+*.h2.db
+
+# IDE / tooling
+.idea/
+*.iml
+.vscode/
+.qodo/
+*.swp
+
+# OS
+.DS_Store
+Thumbs.db
