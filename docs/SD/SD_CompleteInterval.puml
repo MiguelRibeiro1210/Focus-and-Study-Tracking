@@ -1,0 +1,61 @@
+@startuml
+title Sequence Diagram - UC-05 - Complete Interval
+
+autonumber
+participant "Timer / Scheduler" as Timer
+participant "CompleteIntervalUseCase" as UseCase
+participant "FocusSessionRepository" as Repo
+participant "FocusSession" as Session
+participant "SessionSettings" as Settings
+participant "TransactionalOutbox" as Events
+participant "Outbox Dispatcher" as Dispatcher
+participant "SessionWebSocketHandler" as WS
+
+Timer -> UseCase : completeInterval(sessionId, now)
+UseCase -> Repo : findById(sessionId)
+Repo --> UseCase : Optional<FocusSession>
+
+UseCase -> Session : completeInterval(now)
+activate Session
+Session -> Session : currentInterval().complete(now)
+alt current interval is WORK
+  Session -> Settings : nextBreakType(completedWorkIntervals)
+  Settings --> Session : SHORT_BREAK or LONG_BREAK
+  Session -> Session : createNextInterval(breakType, now)
+else current interval is a break
+  Session -> Session : createNextInterval(WORK, now)
+end
+alt next interval is a break and autoStartBreaks is true
+  Session -> Session : startActiveInterval(now)
+  Session -> Session : state = RUNNING
+else next interval is work and autoStartWork is true
+  Session -> Session : startActiveInterval(now)
+  Session -> Session : state = RUNNING
+else matching auto-start is false
+  Session -> Session : state = WAITING_FOR_NEXT_INTERVAL
+end
+Session --> UseCase : IntervalCompleted
+UseCase -> Repo : save(session)
+Repo --> UseCase : saved
+UseCase -> Events : appendToOutbox(IntervalCompleted)
+UseCase -> UseCase : commit aggregate and outbox atomically
+UseCase --> Timer : completed
+Dispatcher -> WS : broadcast interval.completed snapshot after commit
+deactivate Session
+
+note over Session, Settings
+  A long break replaces a short break after every
+  N completed work intervals (N is configurable).
+  The interval sequence is stored on the aggregate.
+end note
+
+note over Timer, UseCase
+  The backend scheduler invokes this use case directly
+  when an interval is due. There is no public REST route.
+end note
+
+note over Events, WS
+  WebSocket forwarding is best-effort; clients reconcile from REST snapshots.
+end note
+
+@enduml

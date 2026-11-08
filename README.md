@@ -22,14 +22,14 @@ In an era of continuous digital distractions, maintaining sustained focus during
 ## 🏗️ System Architecture
 This application utilizes a modern **hybrid desktop architecture**:
 1. **The Core Engine (Backend):** A lightweight Java Spring Boot application runs seamlessly in the background as a local process. It manages the timer logic, system hooks (for distraction blocking), and local database persistence.
-2. **The Interface (Frontend):** A modern Web UI (React/Vue) is packaged as a native desktop window using **Tauri** (or Electron). 
-3. **Communication:** The frontend communicates with the local Spring Boot backend via a local REST API and WebSockets, ensuring a 100% offline, responsive, and secure desktop experience.
+2. **The Interface (Frontend):** A React + TypeScript UI is packaged as a native desktop window using **Tauri**.
+3. **Communication:** The frontend communicates with the local Spring Boot backend via a loopback REST API and WebSocket, so product features work offline.
 
 ## 🛠️ Technology Stack
 * **Backend Core:** Java 17+, Spring Boot
-* **Desktop UI Wrapper:** Tauri (Rust-based) / Electron
-* **Frontend UI:** React.js / Vue.js (TypeScript)
-* **Database:** SQLite / H2 (Embedded local database)
+* **Desktop UI Wrapper:** Tauri (Rust-based)
+* **Frontend UI:** React (TypeScript)
+* **Database:** H2 (embedded local database for the MVP)
 * **Architecture Pattern:** Domain-Driven Design (DDD)
 
 ## 🗺️ Core Features & Roadmap
@@ -48,7 +48,7 @@ This application utilizes a modern **hybrid desktop architecture**:
 To maintain high software engineering standards, the Java backend follows **Domain-Driven Design (DDD)** principles, structured into strictly decoupled layers:
 * **Domain Layer:** Contains pure business logic, entities (e.g., `FocusSession`, `DistractionLog`), value objects, and domain services. Completely isolated from Spring/infrastructure dependencies.
 * **Application Layer:** Orchestrates use cases (e.g., `StartSessionUseCase`, `CalculateDailyStreakUseCase`).
-* **Infrastructure Layer:** Handles technical concerns such as SQLite repositories, OS-level window detection, and Spring Boot REST Controllers.
+* **Infrastructure Layer:** Handles technical concerns such as H2 persistence, OS-level window detection, and Spring Boot REST Controllers.
 
 ## 📁 Project Structure
 ```text
@@ -71,9 +71,12 @@ FocusDesktop/
 ### Prerequisites
 Ensure you have the following installed on your local machine:
 * **Java Development Kit (JDK 17 or higher)**
-* **Maven** or **Gradle**
 * **Node.js** (v16+) & npm/yarn
 * *(If using Tauri)* **Rust** environment
+
+The Maven Wrapper downloads the pinned Maven distribution on its first run, so
+Maven does not need to be installed globally. Internet access is required only
+for that first download and for dependencies not already cached.
 
 ### Setup Instructions
 
@@ -86,9 +89,13 @@ Ensure you have the following installed on your local machine:
 2. **Start the Backend Engine (Spring Boot):**
    ```bash
    cd backend
-   mvn spring-boot:run
+   ./mvnw spring-boot:run
    # The backend will start on localhost (e.g., port 8080)
    ```
+   On Windows, run `mvnw.cmd spring-boot:run` from `backend/`.
+
+   The H2 database is stored in the platform's local application-data directory.
+   Set `FOCUSDESKTOP_DATA_DIR` to use a different directory.
 
 3. **Start the Desktop Interface (Frontend):**
    ```bash
@@ -105,4 +112,5 @@ FocusDesktop adheres strictly to a **local-first philosophy**. All user producti
 Contributions, feature suggestions, and architectural feedback are highly welcome! Feel free to open an issue or submit a pull request.
 
 ## 📄 License
-This project is open-source and available under the [MIT License](LICENSE).
+The repository does not yet include a license file. The license choice and
+copyright notice remain to be recorded before distribution.

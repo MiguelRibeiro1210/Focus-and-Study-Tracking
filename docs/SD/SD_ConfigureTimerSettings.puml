@@ -1,0 +1,47 @@
+@startuml
+title Sequence Diagram - UC-10 - Configure Timer Settings
+
+autonumber
+actor Learner
+participant "Desktop UI" as UI
+participant "SettingsController" as Controller
+participant "UpdateTimerSettingsUseCase" as UseCase
+participant "AppSettingsRepository" as Repo
+participant "AppSettings" as Settings
+participant "TimerPreferences" as TimerSettings
+participant "SettingsMapper" as Mapper
+
+Learner -> UI : edit durations and click "Save"
+UI -> Controller : PUT /api/v1/settings/timer\n{workSeconds, shortBreakSeconds, ...}
+Controller -> UseCase : update(command)
+UseCase -> Repo : load()
+Repo --> UseCase : AppSettings
+UseCase -> TimerSettings : fromCommand(command)
+activate TimerSettings
+TimerSettings -> TimerSettings : validate()
+TimerSettings --> UseCase : TimerPreferences
+UseCase -> Settings : updateTimerSettings(timerSettings)
+Settings --> UseCase : updated
+UseCase -> Repo : save(settings)
+Repo --> UseCase : saved
+UseCase -> Mapper : toDto(settings)
+Mapper --> UseCase : SettingsDto
+UseCase --> Controller : SettingsDto
+Controller --> UI : 200 OK\n{...}
+deactivate TimerSettings
+
+note over TimerSettings
+  Validation rules:
+  - work: 1..180 minutes
+  - short break: 1..60 minutes
+  - long break: 1..120 minutes
+  - intervalsBeforeLongBreak: 1..12
+  - long break >= short break
+end note
+
+note over Settings
+  Settings changes apply to new sessions.
+  The active session keeps its snapshotted settings.
+end note
+
+@enduml

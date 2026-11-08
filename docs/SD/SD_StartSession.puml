@@ -1,0 +1,54 @@
+@startuml
+title Sequence Diagram - UC-01 - Start Focus Session
+
+autonumber
+actor Learner
+participant "Desktop UI" as UI
+participant "SessionController" as Controller
+participant "StartSessionUseCase" as UseCase
+participant "FocusSessionRepository" as SessionRepo
+participant "AppSettingsRepository" as SettingsRepo
+participant "FocusSession" as Session
+participant "TransactionalOutbox" as Events
+participant "Outbox Dispatcher" as Dispatcher
+participant "SessionWebSocketHandler" as WS
+
+Learner -> UI : click "Start focus"
+UI -> Controller : POST /api/v1/sessions\n{type: WORK}
+Controller -> UseCase : start(command)
+UseCase -> SessionRepo : findActive()
+SessionRepo --> UseCase : Optional.empty()
+
+UseCase -> SettingsRepo : load()
+SettingsRepo --> UseCase : AppSettings
+UseCase -> UseCase : sessionSettings = SessionSettings.from(settings.timer())
+UseCase -> Session : create(type, sessionSettings, now)
+activate Session
+UseCase -> Session : start(now)
+Session --> UseCase : SessionStarted
+UseCase -> SessionRepo : save(session)
+SessionRepo --> UseCase : saved
+UseCase -> Events : appendToOutbox(SessionStarted)
+Dispatcher -> WS : broadcast("session.started")
+WS --> UI : session.started\n{sessionId, state, remainingSeconds}
+UseCase --> Controller : SessionDto
+Controller --> UI : 201 Created\n{sessionId, state, plannedSeconds}
+deactivate Session
+
+note over Events, Dispatcher
+  Events commit atomically with the aggregate; the dispatcher
+  delivers them only after commit and retries failed consumers.
+end note
+
+note over UseCase
+  Transaction boundary: active-session check,
+  aggregate mutation and persistence happen in
+  one local transaction.
+end note
+
+note over UI, WS
+  The timer screen starts its local countdown from
+  remainingSeconds and reconciles from snapshots, with periodic polling and reconnect reconciliation.
+end note
+
+@enduml

@@ -1,0 +1,42 @@
+@startuml
+title Sequence Diagram - UC-06 - Skip Break
+
+autonumber
+actor Learner
+participant "Desktop UI" as UI
+participant "SessionController" as Controller
+participant "SkipBreakUseCase" as UseCase
+participant "FocusSessionRepository" as Repo
+participant "FocusSession" as Session
+participant "TransactionalOutbox" as Events
+participant "Outbox Dispatcher" as Dispatcher
+participant "SessionWebSocketHandler" as WS
+
+Learner -> UI : click "Skip break"
+UI -> Controller : POST /api/v1/sessions/{id}/skip-break
+Controller -> UseCase : skip(command)
+UseCase -> Repo : findById(sessionId)
+Repo --> UseCase : Optional<FocusSession>
+
+UseCase -> Session : skipBreak(now)
+activate Session
+Session -> Session : currentInterval().skip(now)
+Session -> Session : createWorkInterval(now)
+Session -> Session : startActiveInterval(now)
+Session --> UseCase : IntervalCompleted
+UseCase -> Repo : save(session)
+Repo --> UseCase : saved
+UseCase -> Events : appendToOutbox(IntervalCompleted)
+Dispatcher -> WS : broadcast("interval.completed")
+WS --> UI : interval.completed\n{nextType: WORK, remainingSeconds}
+UseCase --> Controller : SessionDto
+Controller --> UI : 200 OK
+deactivate Session
+
+note over Session
+  Skipping a break records the break as SKIPPED.
+  It does not count toward break time and does not
+  break the focus streak.
+end note
+
+@enduml

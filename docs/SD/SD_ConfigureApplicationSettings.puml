@@ -1,0 +1,43 @@
+@startuml
+title Sequence Diagram - UC-11 - Configure Application Settings
+
+autonumber
+actor Learner
+participant "Desktop UI" as UI
+participant "SettingsController" as Controller
+participant "UpdateApplicationSettingsUseCase" as UseCase
+participant "AppSettingsRepository" as Repo
+participant "AppSettings" as Settings
+participant "SettingsMapper" as Mapper
+
+Learner -> UI : edit theme, notifications or retention
+UI -> Controller : PUT /api/v1/settings/application\n{theme, notifications, retentionDays}
+Controller -> UseCase : update(command)
+UseCase -> UseCase : validate(command)
+
+UseCase -> Repo : load()
+Repo --> UseCase : AppSettings
+UseCase -> Settings : updateTheme(theme)
+UseCase -> Settings : updateNotifications(notifications)
+UseCase -> Settings : updatePrivacy(retention)
+Settings --> UseCase : updated
+UseCase -> Repo : save(settings)
+Repo --> UseCase : saved
+UseCase -> Mapper : toDto(settings)
+Mapper --> UseCase : SettingsDto
+UseCase --> Controller : SettingsDto
+Controller --> UI : 200 OK\n{...}
+
+note over UseCase
+  Data erasure is a separate confirmed command:
+  it delegates to a maintenance port, deletes
+  sessions, intervals, distraction logs,
+  progress and settings, then recreates defaults.
+end note
+
+note over Settings
+  Settings changes apply to new sessions.
+  The active session keeps its snapshotted settings.
+end note
+
+@enduml

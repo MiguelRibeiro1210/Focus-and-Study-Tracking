@@ -1,0 +1,132 @@
+@startuml
+
+autonumber
+
+title Sequence Diagram - US042 - Import Bulk Weather Data
+
+actor "Weather\nPerson" as WP
+participant ":ImportBulkWeatherDataUI" as UI
+participant ":ImportBulkWeatherDataController" as CTRL
+participant ":AuthorizationService" as AUTH
+participant "csvProvider\n:CsvWeatherDataImportProvider" as CSV
+participant ":WeatherDataService" as SERVICE
+participant "airControlAreaRepository\n:AirControlAreaRepository" as ACAR
+participant ":WeatherDataBuilder" as BUILDER
+participant "weatherDataRepository\n:WeatherDataRepository" as WDR
+participant ":ParsedWeatherDataLine" as LINE
+participant ":WeatherImportException" as EXC
+participant ":BulkImportResult" as RES
+
+activate WP
+
+WP -> UI : requests to import bulk weather data
+activate UI
+
+UI --> WP : asks for CSV file path
+WP -> UI : provides CSV file path
+
+UI -> CTRL : importBulkWeatherData(filePath)
+activate CTRL
+
+CTRL -> AUTH : ensureAuthenticatedUserHasAnyOf(WEATHER_PERSON)
+activate AUTH
+AUTH --> CTRL : ok
+deactivate AUTH
+
+CTRL -> CSV ** : new CsvWeatherDataImportProvider(filePath)
+
+CTRL -> CSV : getWeatherData()
+activate CSV
+
+CSV -> CSV : reads header line
+
+loop for each data line
+
+    CSV -> CSV : parse row\n(airControlAreaCode, date,\nwindDirection, windSpeed)
+
+    alt parse succeeds
+
+        CSV -> LINE ** : ParsedWeatherDataLine(code,\ndate, windDir, windSpeed, line)
+
+    else parse fails (missing field, invalid number, empty code)
+
+        CSV -> RES ** : new WeatherImportError(PARSE_ERROR, line, msg)
+
+    end
+
+end
+
+CSV --> CTRL : ParseResult(parsedLines, errors)
+deactivate CSV
+
+CTRL -> SERVICE : buildBulkWeatherData(parseResult)
+activate SERVICE
+
+SERVICE -> RES ** : BulkImportResult(successCount, allErrors)
+note right: initialises with\nprovider errors
+
+loop for each ParsedWeatherDataLine
+
+    SERVICE -> ACAR : findByCode(code)
+    activate ACAR
+
+    alt area not found
+
+        ACAR --> SERVICE : empty
+        deactivate ACAR
+
+        SERVICE -> EXC ** : WeatherImportException(AREA_NOT_FOUND, msg)
+        SERVICE -> RES : catches exception,\nadds to errors list
+
+    else area found
+
+        ACAR --> SERVICE : airControlArea
+        deactivate ACAR
+
+        SERVICE -> SERVICE : validates windDirection (0-360)
+        alt windDirection invalid
+            SERVICE -> EXC ** : WeatherImportException(INVALID_WIND_DIRECTION, msg)
+            SERVICE -> RES : catches, adds to errors
+        else windSpeed invalid (< 0)
+            SERVICE -> EXC ** : WeatherImportException(INVALID_WIND_SPEED, msg)
+            SERVICE -> RES : catches, adds to errors
+        else date invalid (parse error)
+            SERVICE -> EXC ** : WeatherImportException(INVALID_DATE, msg)
+            SERVICE -> RES : catches, adds to errors
+        else date in future
+            SERVICE -> EXC ** : WeatherImportException(FUTURE_DATE, msg)
+            SERVICE -> RES : catches, adds to errors
+        else all valid
+
+            SERVICE -> BUILDER ** : new WeatherDataBuilder()
+            activate BUILDER
+
+            SERVICE -> BUILDER : with(area, date,\nwindDirection, windSpeed)
+            note right : creates WindCondition\nand WeatherDate internally;\nvalidates on construction
+
+            SERVICE -> BUILDER : build()
+            BUILDER --> SERVICE : weatherData
+            deactivate BUILDER
+
+            SERVICE -> WDR : save(weatherData)
+            activate WDR
+            WDR --> SERVICE : weatherData
+            deactivate WDR
+
+            SERVICE -> SERVICE : increments successCount
+
+        end
+    end
+
+end
+
+SERVICE --> CTRL : BulkImportResult(successCount, errors)
+deactivate SERVICE
+
+CTRL --> UI : result
+deactivate CTRL
+
+UI --> WP : shows import summary\n(X records imported,\nY errors with category + detail)
+deactivate UI
+
+@enduml

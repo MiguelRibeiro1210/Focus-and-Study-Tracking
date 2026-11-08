@@ -1,0 +1,18 @@
+@startuml
+title SSD - UC-01 - Start Focus Session
+
+autonumber
+actor Learner
+participant "FocusDesktop System" as System
+
+Learner -> System : startFocusSession(type, plannedDuration?)
+System --> Learner : sessionStarted(sessionId, type, plannedSeconds, remainingSeconds)
+System --> Learner : timerSnapshot(state, intervalType, remainingSeconds)
+
+note right of System
+  The system owns timer accuracy. The client counts
+  locally between snapshots, polls every 30 seconds
+  while running, and reconciles after reconnect.
+end note
+
+@enduml

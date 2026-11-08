@@ -1,0 +1,44 @@
+@startuml
+title Sequence Diagram - UC-08 - View Daily Streak
+
+autonumber
+actor Learner
+participant "Desktop UI" as UI
+participant "AnalyticsController" as Controller
+participant "CalculateDailyStreakUseCase" as UseCase
+participant "DailyProgressReadRepository" as Repo
+participant "HourStreakCalculator" as Calculator
+participant "StreakMapper" as Mapper
+
+Learner -> UI : open Dashboard
+UI -> Controller : GET /api/v1/analytics/streak?date=2026-11-01
+Controller -> UseCase : calculate(StreakQuery)
+UseCase -> Repo : findRange(today.minusDays(365), today)
+Repo --> UseCase : List<DailyProgress>
+
+UseCase -> Calculator : calculate(days)
+activate Calculator
+Calculator -> Calculator : sortByDate()
+Calculator -> Calculator : countConsecutiveDays()
+Calculator --> UseCase : HourStreak
+deactivate Calculator
+
+UseCase -> Mapper : toDto(streak, date)
+Mapper --> UseCase : StreakDto
+UseCase --> Controller : StreakDto
+Controller --> UI : 200 OK\n{date, current, longest}
+
+note over Calculator
+  A day counts when it has at least one completed
+  WORK interval of 5 minutes or more. The current
+  day is still "open": it does not break a streak
+  until the day ends.
+end note
+
+note over Repo
+  The read model is updated by the
+  SessionCompleted projection, so this query
+  stays fast even with years of history.
+end note
+
+@enduml

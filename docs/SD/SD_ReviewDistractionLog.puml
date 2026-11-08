@@ -1,0 +1,40 @@
+@startuml
+title Sequence Diagram - UC-15 - Review Distraction Log
+
+autonumber
+actor Learner
+participant "Desktop UI" as UI
+participant "DistractionController" as Controller
+participant "QueryDistractionLogUseCase" as UseCase
+participant "DistractionLogReadRepository" as Repo
+participant "DistractionLogMapper" as Mapper
+
+Learner -> UI : open session detail or Analytics > Distractions
+UI -> Controller : GET /api/v1/distractions?sessionId=...&from=...&to=...
+Controller -> UseCase : list(query)
+UseCase -> UseCase : validate(query)
+
+alt session filter
+  UseCase -> Repo : findBySession(sessionId)
+else range filter
+  UseCase -> Repo : findByRange(from, to)
+end
+Repo --> UseCase : List<DistractionLog>
+UseCase -> Mapper : toDtos(logs)
+Mapper --> UseCase : List<DistractionDto>
+UseCase --> Controller : List<DistractionDto>
+Controller --> UI : 200 OK\n{items}
+
+note over Repo
+  DistractionLog is a read model.
+  The query is read-only; entries are
+  append-only and retention-aware.
+end note
+
+note over UI
+  Entries can be grouped by category and
+  filtered by action. Window titles are
+  redacted when the category policy requires it.
+end note
+
+@enduml

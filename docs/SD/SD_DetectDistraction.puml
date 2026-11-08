@@ -1,0 +1,64 @@
+@startuml
+title Sequence Diagram - UC-13 - Detect Distracting Application
+
+autonumber
+participant "Operating System" as OS
+participant "ActiveWindowMonitor" as Monitor
+participant "DetectDistractionUseCase" as UseCase
+participant "ActiveWindowPort" as WindowPort
+participant "BlockingPolicyRepository" as PolicyRepo
+participant "DistractionPolicyService" as PolicyService
+participant "TransactionalOutbox" as Events
+participant "Outbox Dispatcher" as Dispatcher
+participant "DistractionLogProjection" as LogProjection
+participant "DailyProgressProjection" as ProgressProjection
+participant "BlockDistractionUseCase" as BlockUseCase
+participant "SessionWebSocketHandler" as WS
+
+loop every monitoring tick while session is RUNNING
+  Monitor -> UseCase : detect(now)
+  UseCase -> WindowPort : currentWindow()
+  WindowPort --> UseCase : ActiveWindowInfo
+  UseCase -> PolicyRepo : findActive()
+  PolicyRepo --> UseCase : Optional<BlockingPolicy>
+
+  UseCase -> PolicyService : decide(window, activePolicy)
+  activate PolicyService
+  PolicyService -> PolicyService : matchRules()
+  PolicyService --> UseCase : BlockingDecision(action = BLOCK)
+  deactivate PolicyService
+  UseCase -> UseCase : detectionId = newId()
+  UseCase -> Events : appendToOutbox(DistractionDetected)
+  Dispatcher -> LogProjection : onDistractionDetected(event)
+  activate LogProjection
+  LogProjection -> LogProjection : upsert(DistractionLog read model)
+  deactivate LogProjection
+  Dispatcher -> ProgressProjection : onDistractionDetected(event)
+  activate ProgressProjection
+  ProgressProjection -> ProgressProjection : incrementDistractionCount()
+  deactivate ProgressProjection
+  Dispatcher -> WS : broadcast("distraction.detected")
+  WS --> Monitor : distraction.detected\n{detectionId, app, category, action}
+  UseCase -> BlockUseCase : block(detectionId, app)
+  BlockUseCase --> UseCase : DistractionDto{blocked: true}
+  UseCase --> Monitor : DistractionDto
+end
+
+note over Monitor
+  Monitoring is disabled outside an active focus
+  session and while the session is PAUSED.
+end note
+
+note over PolicyService
+  Matching precedence: exact executable path,
+  process name, then window title pattern.
+  First matching enabled rule wins.
+end note
+
+note over LogProjection
+  The DistractionLog is a read model.
+  It is append-only and idempotent.
+  The write side never saves it directly.
+end note
+
+@enduml

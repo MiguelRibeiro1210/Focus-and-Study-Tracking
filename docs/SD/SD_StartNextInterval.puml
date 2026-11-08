@@ -1,0 +1,37 @@
+@startuml
+title Sequence Diagram - UC-05 - Start Next Interval
+
+autonumber
+actor Learner
+participant "Desktop UI" as UI
+participant "SessionController" as Controller
+participant "StartNextIntervalUseCase" as UseCase
+participant "FocusSessionRepository" as Repo
+participant "FocusSession" as Session
+participant "TransactionalOutbox" as Outbox
+participant "Outbox Dispatcher" as Dispatcher
+participant "SessionWebSocketHandler" as WS
+
+Learner -> UI : click "Start next interval"
+UI -> Controller : POST /api/v1/sessions/{id}/intervals/start
+Controller -> UseCase : start(sessionId)
+UseCase -> Repo : findById(sessionId)
+Repo --> UseCase : Optional<FocusSession>
+
+UseCase -> Session : startNextInterval(now)
+Session -> Session : start pending interval
+Session --> UseCase : IntervalStarted
+UseCase -> Repo : save(session)
+UseCase -> Outbox : appendToOutbox(IntervalStarted)
+UseCase -> UseCase : commit transaction
+UseCase --> Controller : SessionDto
+Controller --> UI : 200 OK + snapshot
+Outbox -> Dispatcher : dispatch after commit
+Dispatcher -> WS : broadcast interval.started + snapshot
+
+note over UI, WS
+  The UI begins its local countdown from the returned
+  backend snapshot and reconciles on the event/poll.
+end note
+
+@enduml

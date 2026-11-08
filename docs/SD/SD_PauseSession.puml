@@ -1,0 +1,45 @@
+@startuml
+title Sequence Diagram - UC-02 - Pause Session
+
+autonumber
+actor Learner
+participant "Desktop UI" as UI
+participant "SessionController" as Controller
+participant "PauseSessionUseCase" as UseCase
+participant "FocusSessionRepository" as Repo
+participant "FocusSession" as Session
+participant "TransactionalOutbox" as Events
+participant "Outbox Dispatcher" as Dispatcher
+participant "SessionWebSocketHandler" as WS
+
+Learner -> UI : click "Pause"
+UI -> Controller : POST /api/v1/sessions/{id}/pause
+Controller -> UseCase : pause(command)
+UseCase -> Repo : findById(sessionId)
+Repo --> UseCase : Optional<FocusSession>
+
+UseCase -> Session : pause(now)
+activate Session
+Session -> Session : requireState(RUNNING)
+Session --> UseCase : SessionPaused
+UseCase -> Repo : save(session)
+Repo --> UseCase : saved
+UseCase -> Events : appendToOutbox(SessionPaused)
+Dispatcher -> WS : broadcast("session.paused")
+WS --> UI : session.paused\n{remainingSeconds, pausedAt}
+UseCase --> Controller : SessionDto
+Controller --> UI : 200 OK
+deactivate Session
+
+note over Events, Dispatcher
+  Events commit atomically with the aggregate; the dispatcher
+  delivers them only after commit and retries failed consumers.
+end note
+
+note over UseCase
+  Pausing freezes the active interval. Elapsed
+  time is computed from the domain timestamps,
+  not from the UI countdown.
+end note
+
+@enduml

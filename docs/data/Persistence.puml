@@ -1,0 +1,182 @@
+@startuml
+title Persistence Model - FocusDesktop
+
+hide circle
+skinparam linetype ortho
+skinparam entity {
+  BackgroundColor #F8F8F8
+  BorderColor #333333
+  ArrowColor #333333
+}
+
+entity "focus_session" as focus_session {
+  * id : UUID <<PK>>
+  --
+  * session_type : VARCHAR(20)
+  * state : VARCHAR(32)
+  * started_at : TIMESTAMP
+  ended_at : TIMESTAMP
+  * planned_seconds : BIGINT
+  * actual_seconds : BIGINT
+  * settings_snapshot : CLOB
+  study_material_id : UUID <<FK>>
+  * created_at : TIMESTAMP
+  * updated_at : TIMESTAMP
+  * version : BIGINT
+}
+
+entity "session_interval" as session_interval {
+  * id : UUID <<PK>>
+  --
+  * session_id : UUID <<FK>>
+  * sequence_no : INT
+  * interval_type : VARCHAR(20)
+  * state : VARCHAR(20)
+  * planned_seconds : BIGINT
+  * actual_seconds : BIGINT
+  started_at : TIMESTAMP
+  ended_at : TIMESTAMP
+  paused_at : TIMESTAMP
+  * remaining_seconds : BIGINT
+}
+
+entity "domain_event_outbox" as domain_event_outbox {
+  * event_id : UUID <<PK>>
+  --
+  * event_type : VARCHAR(120)
+  * aggregate_id : UUID
+  * occurred_at : TIMESTAMP
+  * payload : CLOB
+  delivered_at : TIMESTAMP
+  * attempt_count : INT
+}
+
+entity "projection_event_receipt" as projection_event_receipt {
+  * projection_name : VARCHAR(120) <<PK>>
+  * event_id : UUID <<PK>>
+  * processed_at : TIMESTAMP
+}
+
+entity "distraction_log" as distraction_log {
+  * id : UUID <<PK>>
+  --
+  session_id : UUID <<FK>>
+  * occurred_at : TIMESTAMP
+  * app_identifier : VARCHAR(255)
+  window_title : VARCHAR(512)
+  * category : VARCHAR(30)
+  * action : VARCHAR(20)
+  * blocked : BOOLEAN
+  reason : VARCHAR(512)
+}
+
+entity "blocking_policy" as blocking_policy {
+  * id : UUID <<PK>>
+  --
+  * name : VARCHAR(120)
+  * active : BOOLEAN
+  * created_at : TIMESTAMP
+  * updated_at : TIMESTAMP
+}
+
+entity "blocking_rule" as blocking_rule {
+  * id : UUID <<PK>>
+  --
+  * policy_id : UUID <<FK>>
+  * pattern : VARCHAR(255)
+  * action : VARCHAR(20)
+  * category : VARCHAR(30)
+  * enabled : BOOLEAN
+  * created_at : TIMESTAMP
+}
+
+entity "daily_progress" as daily_progress {
+  * id : UUID <<PK>>
+  --
+  * progress_date : DATE <<UK>>
+  * completed_sessions : INT
+  * focus_seconds : BIGINT
+  * break_seconds : BIGINT
+  * distraction_count : INT
+  * current_streak : INT
+  * longest_streak : INT
+  * updated_at : TIMESTAMP
+}
+
+entity "app_settings" as app_settings {
+  * id : UUID <<PK>>
+  --
+  * work_seconds : INT
+  * short_break_seconds : INT
+  * long_break_seconds : INT
+  * intervals_before_long_break : INT
+  * auto_start_breaks : BOOLEAN
+  * auto_start_work : BOOLEAN
+  * theme : VARCHAR(20)
+  * notifications_enabled : BOOLEAN
+  * retention_days : INT
+  * updated_at : TIMESTAMP
+}
+
+entity "study_material" as study_material {
+  * id : UUID <<PK>>
+  --
+  * title : VARCHAR(255)
+  * category : VARCHAR(30)
+  * created_at : TIMESTAMP
+  * updated_at : TIMESTAMP
+}
+
+entity "detected_content" as detected_content {
+  * id : UUID <<PK>>
+  --
+  * material_id : UUID <<FK>>
+  * reference : VARCHAR(512)
+  * confidence : DOUBLE
+  * detected_at : TIMESTAMP
+}
+
+focus_session ||--o{ session_interval : "contains"
+focus_session ||--o{ domain_event_outbox : "emits"
+blocking_policy ||--o{ domain_event_outbox : "emits"
+domain_event_outbox ||--o{ projection_event_receipt : "processed by"
+focus_session ||--o{ distraction_log : "correlates"
+blocking_policy ||--o{ blocking_rule : "contains"
+study_material ||--o{ detected_content : "contains"
+focus_session }o--o| study_material : "studies"
+
+note right of focus_session
+  Active session is recovered on startup
+  by querying state IN ('RUNNING', 'PAUSED',
+  'WAITING_FOR_NEXT_INTERVAL'). The current
+  interval stores remaining_seconds and paused_at.
+  study_material_id is nullable and is only
+  populated when Content Intelligence is enabled.
+end note
+
+note right of distraction_log
+  Read model. It is projected from
+  DistractionDetected, DistractionBlocked
+  and DistractionBlockFailed; it is not a
+  domain aggregate table.
+end note
+
+note bottom of daily_progress
+  Derived read model; rebuilt from
+  retained outbox events. Dates use the
+  operating system's current time zone.
+  ProductivitySummary is computed on read and
+  is not persisted as a separate table.
+end note
+
+note bottom of study_material
+  Phase 3 only; the tables are created behind
+  the content-intelligence feature flag.
+end note
+
+note right of domain_event_outbox
+  Written atomically with domain changes;
+  retained with source data for projection replay.
+end note
+
+@enduml

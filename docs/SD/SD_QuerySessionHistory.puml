@@ -1,0 +1,36 @@
+@startuml
+title Sequence Diagram - UC-07 - View Session History
+
+autonumber
+actor Learner
+participant "Desktop UI" as UI
+participant "HistoryController" as Controller
+participant "QuerySessionHistoryUseCase" as UseCase
+participant "SessionQueryRepository" as Repo
+participant "SessionMapper" as Mapper
+
+Learner -> UI : open History and select date range
+UI -> Controller : GET /api/v1/sessions?from=...&to=...&page=0&size=20
+Controller -> UseCase : query(SessionHistoryQuery)
+UseCase -> UseCase : validateRange()
+UseCase -> Repo : findSummaries(range)
+Repo --> UseCase : List<SessionSummary>
+loop for each session
+  UseCase -> Mapper : toSummary(session)
+  Mapper --> UseCase : SessionSummaryDto
+end
+UseCase --> Controller : Page<SessionSummaryDto>
+Controller --> UI : 200 OK\n{items, total, page, size}
+
+note over Repo
+  Read-only query. Uses a projection so the
+  history screen does not load full aggregates
+  or their interval collections.
+end note
+
+note over UI
+  Filters: date range, session type, completed
+  only. Sorting is newest first by default.
+end note
+
+@enduml

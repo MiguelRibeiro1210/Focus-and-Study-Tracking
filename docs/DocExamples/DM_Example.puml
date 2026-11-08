@@ -1,0 +1,199 @@
+@startuml
+
+hide circle
+hide methods
+
+skinparam packageStyle rectangle
+skinparam classAttributeIconSize zero
+skinparam padding 3
+skinparam nodesep 85
+skinparam ranksep 110
+skinparam backgroundColor white
+skinparam arrowColor Black
+skinparam titleFontSize 20
+skinparam packageFontSize 16
+skinparam packageFontStyle bold
+skinparam padding 10
+
+skinparam class {
+    BackgroundColor White
+    BorderColor Black
+    ArrowColor Black
+}
+
+title Domain Model
+
+'AIRCRAFT CONFIGURATION GROUP'
+package AircraftConfiguration <<Folder>> {
+    class AircraftModel <<AggregateRoot>>
+
+    class EngineModel <<AggregateRoot>>
+    class Maker <<AggregateRoot>>
+
+    class AircraftModelID <<VO>>
+    class AircraftModelType <<VO>>
+    class AircraftModelName <<VO>>
+    class MaximumRange <<VO>>
+    class EngineModelID <<VO>>
+    class EngineModelName <<VO>>
+    class EngineModelType <<VO>>
+    class EngineModelPower <<VO>>
+    class EngineModelFuel <<VO>>
+    class EngineModelEfficiency <<VO>>
+    class MakerName <<VO>>
+    class MakerCountry <<VO>>
+    class PhysicsData <<VO>>
+}
+
+AircraftModel "1" -- "1" AircraftModelID : is identified by >
+AircraftModel "1" -- "1..*" EngineModel : certifies >
+AircraftModel "1" -- "1" Maker : is made by >
+AircraftModel "1" -- "1" AircraftModelType : has >
+AircraftModel "1" -- "1" AircraftModelName : has >
+AircraftModel "1" -- "1" MaximumRange : has >
+AircraftModel "1" o-- "1" PhysicsData : has >
+EngineModel "1" -- "1" EngineModelID : is identified by >
+EngineModel "1" -- "1" EngineModelName : is identified by >
+EngineModel "1" -- "1" EngineModelEfficiency: has >
+EngineModel "1" -right- "1" EngineModelType : has >
+EngineModel "1" -- "1" EngineModelPower : has >
+EngineModel "1" -- "1" EngineModelFuel : has >
+EngineModel "1" -up- "1" Maker : is made by >
+Maker "1" -- "1" MakerName : is identified by >
+Maker "1" -- "1" MakerCountry : comes from >
+
+'FLEET MANAGEMENT GROUP'
+package FleetManagement <<Folder>> {
+    class Aircraft <<AggregateRoot>>
+
+    class CrewElement <<Entity>>
+
+    class AircraftCountry <<VO>>
+    class RegistrationID <<VO>>
+    class CabinConfiguration <<VO>>
+    class MaintenanceStatus <<VO>>
+}
+
+Aircraft "1" -- "1" RegistrationID : is identified by >
+Aircraft "1"-- "1" EngineModel : uses >
+Aircraft "1" *-- "1..*" CrewElement : has >
+Aircraft "1" -- "1" CabinConfiguration : has >
+Aircraft "1" -- "1" MaintenanceStatus : has >
+Aircraft "1" -- "1" AircraftCountry : is registered at >
+
+'AIR INFRASTRUCTURE GROUP'
+package AirInfrastructure <<Folder>> {
+    class Airport <<AggregateRoot>>{
+        airportName
+    }
+
+    class AirTransportCompany <<AggregateRoot>> {
+        name
+    }
+
+    class AirControlArea <<AggregateRoot>> {
+        name
+    }
+
+    class Node <<Entity>>
+    class WeatherData <<AggregateRoot>>
+
+    class WeatherDate <<VO>>
+    class WindConditions <<VO>>
+
+
+    class AirportIATA <<VO>>
+    class AirportICAO <<VO>>
+    class IATACompanyCode <<VO>>
+    class ICAOCompanyCode <<VO>>
+    class AirControlAreaID <<VO>>
+    class AirControlAreaBoundaries <<VO>>
+    class AirControlAreaMinimumFuel <<VO>>
+    class Coordinates <<VO>>
+    class Altitude <<VO>>
+}
+
+Airport "1" -- "1" AirportIATA : is identified by >
+Airport "1" -- "1" AirportICAO : is identified by >
+Airport "1" o-- "1" AirControlArea : belongs to >
+Airport "1" o-- "1" Node : is located at >
+AirTransportCompany "1" -- "1" IATACompanyCode : is identified by >
+AirTransportCompany "1" -- "1" ICAOCompanyCode : is identified by >
+AirControlArea "1" -- "1" AirControlAreaID : is identified by >
+AirControlArea "1" -- "1" AirControlAreaBoundaries : is delimited >
+AirControlArea "1" -- "1" AirControlAreaMinimumFuel : has >
+Node "1" -- "1" Coordinates : has >
+Node "1" -- "1" Altitude : has >
+WeatherData "1" *-- "1" AirControlArea : is associated with >
+WeatherData "1" -- "1" WeatherDate : is recorded at >
+WeatherData "1" -- "1" WindConditions : has >
+
+
+'FLIGHT AND ROUTE GROUP'
+
+
+
+'FLIGHT SIMULATION GROUP'
+package FlightSimulation <<Folder>> {
+    class FlightsSimulation <<AggregateRoot>>
+    class Flight <<AggregateRoot>>
+
+    class FlightPlan <<Entity>>
+
+    class FlightDesignator <<VO>>
+    class Departure <<VO>>
+    class Arrival <<VO>>
+    class ApprovalStatus <<VO>>
+    class SimulationReport <<VO>>
+}
+
+FlightsSimulation "1" -left- "1" ApprovalStatus : results in >
+FlightsSimulation "1" -- "1" SimulationReport : produces >
+FlightsSimulation "1" -- "1..*" Flight : simulates >
+Flight "1" -- "1" FlightDesignator : is identified by >
+Flight "1" -- "1" FlightPlan : is guided by >
+Flight "1" -- "1" Departure : has >
+Flight "1" -- "1" Arrival : has >
+
+'USER AND ACCESS GROUP'
+package UserAndAccess <<Folder>> {
+    class AlSafeUser <<AggregateRoot>>{
+        phoneNumber
+    }
+
+    class SystemUser <<AggregateRoot>>
+
+    class EmailAddress <<VO>>
+
+    class Pilot <<AggregateRoot>>
+
+    class AlSafeUserEmail <<VO>>
+    class SecurityClearance <<VO>>
+    class SkillsAssessment <<VO>>
+    class Role <<VO>>
+
+    class CollaboratorATCC <<AggregateRoot>>
+    class CollaboratorFCO <<AggregateRoot>>
+
+}
+
+AlSafeUser "1" -- "1" AlSafeUserEmail : has >
+AlSafeUser "1" -- "1" SecurityClearance : has >
+AlSafeUser "1" -- "1" SkillsAssessment : is tested by >
+SystemUser "1" -- "1" Role : has >
+Pilot "1" *-- "1" SystemUser : is >
+Pilot "1" -- "1" AirTransportCompany : belongs to >
+Pilot "1" -- "1..*" AircraftModel : is certified for >
+AlSafeUser "1" *-left- "1" SystemUser : is >
+SystemUser "1" -- "1" EmailAddress : has >
+CollaboratorATCC "1" *-- "1" SystemUser : is >
+CollaboratorFCO "1" *-- "1" SystemUser : is >
+CollaboratorATCC "1" -- "1" AirTransportCompany : belongs to >
+CollaboratorFCO "1" -- "1" AirControlArea : operates >
+
+'OTHER RELATIONSHIPS'
+Aircraft "1..*" *-- "1" AircraftModel : has >
+Aircraft "1..*" -- "1" AirTransportCompany : belongs to >
+FlightsSimulation "1" -- "0..1" AirControlArea : occurs in >
+
+@enduml

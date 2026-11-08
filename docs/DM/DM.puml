@@ -1,0 +1,147 @@
+@startuml
+
+hide circle
+hide methods
+
+skinparam packageStyle rectangle
+skinparam classAttributeIconSize zero
+skinparam ClassStereotypeFontSize 14
+skinparam classFontSize 16
+skinparam nodesep 85
+skinparam ranksep 110
+skinparam backgroundColor white
+skinparam arrowColor Black
+skinparam titleFontSize 20
+skinparam packageFontSize 16
+skinparam packageFontStyle bold
+skinparam padding 10
+
+skinparam class {
+    BackgroundColor White
+    BorderColor Black
+    ArrowColor Black
+}
+
+title Domain Model
+
+' NOTE: multiplicities are provisional and will be reviewed separately.
+' Read models are projections; ..> dependencies are not aggregate associations.
+
+' PROGRESS AND ANALYTICS (READ MODELS)'
+package ProgressAnalytics <<Folder>> {
+    class ProductivitySummary <<ReadModel>>
+    class ProductivitySummaryId <<VO>>
+
+    class DailyProgress <<ReadModel>>
+    class DailyProgressId <<VO>>
+    class DistractionLog <<ReadModel>>
+    class DistractionLogId <<VO>>
+    class HourStreak <<VO>>
+    class DateRange <<VO>>
+    class FocusScore <<VO>>
+}
+
+' DISTRACTION CONTROL'
+package DistractionControl <<Folder>> {
+    class BlockingPolicy <<AggregateRoot>>
+    class BlockingRule <<Entity>>
+
+    class BlockingPolicyId <<VO>>
+    class BlockingRuleId <<VO>>
+    class BlockingDecision <<VO>>
+    class ActiveWindowInfo <<VO>>
+    class AppIdentifier <<VO>>
+    class WindowTitle <<VO>>
+    class BlockingAction <<Enum>>
+    class DistractionCategory <<Enum>>
+}
+
+' SESSION TRACKING'
+package SessionTracking <<Folder>> {
+    class FocusSession <<AggregateRoot>>
+    class SessionInterval <<Entity>>
+
+    class SessionSettings <<VO>>
+    class SessionId <<VO>>
+    class IntervalId <<VO>>
+    class SessionType <<Enum>>
+    class SessionState <<Enum>>
+    class IntervalState <<Enum>>
+}
+
+' CONTENT INTELLIGENCE (PHASE 3)'
+package ContentIntelligence <<Folder>> {
+    class StudyMaterial <<AggregateRoot>>
+    class DetectedContent <<Entity>>
+
+    class StudyMaterialId <<VO>>
+    class DetectedContentId <<VO>>
+    class ContentCategory <<Enum>>
+}
+
+' PREFERENCES'
+package Preferences <<Folder>> {
+    class AppSettings <<AggregateRoot>>
+
+    class TimerPreferences <<VO>>
+    class NotificationPreference <<VO>>
+    class DataRetentionPolicy <<VO>>
+    class SettingsId <<VO>>
+    class Theme <<Enum>>
+}
+
+' SESSION TRACKING RELATIONSHIPS'
+FocusSession "1" *-- "1..*" SessionInterval : contains >
+FocusSession "1" *-- "1" SessionSettings : snapshots >
+FocusSession "1" -- "1" SessionId : is identified by >
+FocusSession "1" -- "1" SessionType : has >
+FocusSession "1" -- "1" SessionState : has >
+SessionInterval "1" -- "1" IntervalId : is identified by >
+SessionInterval "1" -- "1" SessionType : has >
+SessionInterval "1" -- "1" IntervalState : has >
+
+' DISTRACTION CONTROL RELATIONSHIPS'
+BlockingPolicy "1" *-- "0..*" BlockingRule : contains >
+BlockingPolicy "1" -- "1" BlockingPolicyId : is identified by >
+BlockingPolicy "1" -- "1" BlockingDecision : produces >
+BlockingPolicy "1" -- "1" ActiveWindowInfo : evaluates >
+BlockingRule "1" -- "1" BlockingRuleId : is identified by >
+BlockingRule "1" -- "1" BlockingAction : has >
+BlockingRule "1" -- "1" DistractionCategory : has >
+ActiveWindowInfo "1" -- "1" AppIdentifier : has >
+ActiveWindowInfo "1" -- "1" WindowTitle : has >
+BlockingDecision "1" -- "1" BlockingAction : has >
+BlockingDecision "1" -- "1" BlockingRuleId : refers to >
+BlockingDecision "1" -- "1" DistractionCategory : has >
+
+' PROGRESS AND ANALYTICS RELATIONSHIPS (READ MODELS)'
+ProductivitySummary "1" *-- "1" DailyProgress : compiles >
+ProductivitySummary "1" -- "1" DateRange : covers >
+ProductivitySummary "1" *-- "1" FocusScore : contains >
+ProductivitySummary "1" -- "1" ProductivitySummaryId : is identified by >
+DailyProgress "1" -- "1" DailyProgressId : is identified by >
+DailyProgress "1" *-- "1" HourStreak : owns >
+DailyProgress "1" *-- "1" DistractionLog : includes >
+DistractionLog "1" -- "1" DistractionLogId : is identified by >
+DistractionLog "1" *-- "1" ActiveWindowInfo : records >
+DistractionLog "1" *-- "1" BlockingDecision : records >
+DailyProgress ..> FocusSession : aggregates
+
+' PREFERENCES RELATIONSHIPS'
+AppSettings "1" *-- "1" TimerPreferences : configures >
+AppSettings "1" *-- "1" NotificationPreference : configures >
+AppSettings "1" *-- "1" DataRetentionPolicy : configures >
+AppSettings "1" -- "1" SettingsId : is identified by >
+AppSettings "1" -- "1" Theme : has >
+
+' CONTENT INTELLIGENCE RELATIONSHIPS'
+StudyMaterial "1" *-- "0..*" DetectedContent : contains >
+StudyMaterial "1" -- "1" StudyMaterialId : is identified by >
+StudyMaterial "1" -- "1" ContentCategory : has >
+DetectedContent "1" -- "1" DetectedContentId : is identified by >
+
+' CROSS-AGGREGATE RELATIONSHIPS'
+AppSettings "1" -left- "1" FocusSession : provides defaults for >
+FocusSession "1" -right- "1" StudyMaterial : studies >
+
+@enduml

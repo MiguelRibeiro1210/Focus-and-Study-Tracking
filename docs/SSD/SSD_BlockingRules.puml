@@ -1,0 +1,22 @@
+@startuml
+title SSD - UC-12 - Manage Blocking Rules (Phase 2)
+
+autonumber
+actor Learner
+participant "FocusDesktop System" as System
+
+Learner -> System : requestBlockingRules()
+System --> Learner : blockingRules(items)
+
+Learner -> System : createBlockingRule(pattern, action, category)
+System --> Learner : blockingRuleCreated(rule)
+
+Learner -> System : deleteBlockingRule(ruleId)
+System --> Learner : blockingRuleDeleted(ruleId)
+
+note right of System
+  Rules are evaluated only while a focus session is
+  RUNNING. Monitoring is suspended during breaks.
+end note
+
+@enduml

@@ -1,0 +1,22 @@
+@startuml
+title SSD - UC-10 / UC-11 - Settings
+
+autonumber
+actor Learner
+participant "FocusDesktop System" as System
+
+Learner -> System : requestSettings()
+System --> Learner : settings(timer, theme, notifications, retention)
+
+Learner -> System : updateTimerSettings(workSeconds, shortBreakSeconds, longBreakSeconds, intervalsBeforeLongBreak, autoStartBreaks, autoStartWork)
+System --> Learner : settingsUpdated(settings)
+
+Learner -> System : updateApplicationSettings(theme, notifications, retentionDays)
+System --> Learner : settingsUpdated(settings)
+
+note right of System
+  Timer changes apply to new sessions only.
+  Active sessions keep their snapshotted settings.
+end note
+
+@enduml

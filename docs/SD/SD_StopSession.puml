@@ -1,0 +1,65 @@
+@startuml
+title Sequence Diagram - UC-04 - Stop Session
+
+autonumber
+actor Learner
+participant "Desktop UI" as UI
+participant "SessionController" as Controller
+participant "StopSessionUseCase" as UseCase
+participant "FocusSessionRepository" as SessionRepo
+participant "FocusSession" as Session
+participant "TransactionalOutbox" as Events
+participant "Outbox Dispatcher" as Dispatcher
+participant "DailyProgressProjection" as Projection
+participant "DailyProgressReadRepository" as ProgressRepo
+participant "SessionWebSocketHandler" as WS
+
+Learner -> UI : click "Stop"
+UI -> Controller : POST /api/v1/sessions/{id}/stop
+Controller -> UseCase : stop(command)
+UseCase -> SessionRepo : findById(sessionId)
+SessionRepo --> UseCase : Optional<FocusSession>
+
+UseCase -> Session : stop(now)
+activate Session
+alt session is RUNNING
+  Session -> Session : closeActiveInterval(now)
+else session is PAUSED
+  Session -> Session : closePausedIntervalFromRecordedElapsed()
+else session is WAITING_FOR_NEXT_INTERVAL
+  note right of Session : no active interval to close
+end
+Session -> Session : recordActualDuration(now)
+Session --> UseCase : SessionCompleted
+UseCase -> SessionRepo : save(session)
+SessionRepo --> UseCase : saved
+UseCase -> Events : append SessionCompleted to outbox
+UseCase -> UseCase : commit session and outbox atomically
+Dispatcher -> Projection : onSessionCompleted(event)
+Projection -> ProgressRepo : upsertDailyProgress(event)
+ProgressRepo --> Projection : saved
+Dispatcher -> WS : broadcast("session.completed")
+WS --> UI : session.completed\n{actualSeconds, completedAt}
+UseCase --> Controller : SessionDto
+Controller --> UI : 200 OK\n{summary}
+deactivate Session
+
+note over Events, Dispatcher
+  Events commit atomically with the aggregate; the dispatcher
+  delivers them only after commit and retries failed consumers.
+end note
+
+note over UseCase
+  Stopping early completes the session with the
+  actual elapsed focus time. Paused time is never
+  counted; a waiting session has no active interval.
+  This success flow assumes the session meets the
+  configured minimum duration for completion.
+end note
+
+note over Projection, ProgressRepo
+  The projection is idempotent and runs after the
+  session transaction commits.
+end note
+
+@enduml

@@ -1,0 +1,21 @@
+@startuml
+title SSD - UC-02 / UC-03 - Pause and Resume Session
+
+autonumber
+actor Learner
+participant "FocusDesktop System" as System
+
+Learner -> System : pauseSession(sessionId)
+System --> Learner : sessionPaused(remainingSeconds, pausedAt)
+
+Learner -> System : resumeSession(sessionId)
+System --> Learner : sessionResumed(remainingSeconds, resumedAt)
+System --> Learner : timerSnapshot(state, intervalType, remainingSeconds)
+
+note right of System
+  Pause and resume affect the same interval.
+  Remaining time is preserved across the pause.
+  The backend persists remainingSeconds and pausedAt.
+end note
+
+@enduml

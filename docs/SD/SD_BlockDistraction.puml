@@ -1,0 +1,47 @@
+@startuml
+title Sequence Diagram - UC-14 - Block Distracting Application
+
+autonumber
+participant "DetectDistractionUseCase" as DetectUseCase
+participant "BlockDistractionUseCase" as UseCase
+participant "DistractionBlockerPort" as Blocker
+participant "Operating System" as OS
+participant "TransactionalOutbox" as Events
+participant "Outbox Dispatcher" as Dispatcher
+participant "DistractionLogProjection" as LogProjection
+participant "SessionWebSocketHandler" as WS
+
+DetectUseCase -> UseCase : block(command{detectionId, app})
+UseCase -> Blocker : block(app)
+Blocker -> OS : request application block
+OS --> Blocker : BlockingResult
+
+Blocker --> UseCase : BlockingResult.success()
+UseCase -> Events : appendToOutbox(DistractionBlocked)
+Events -> LogProjection : onDistractionBlocked(event)
+activate LogProjection
+LogProjection -> LogProjection : markBlocked(detectionId)
+deactivate LogProjection
+Dispatcher -> WS : broadcast("distraction.blocked")
+WS --> DetectUseCase : distraction.blocked\n{detectionId, blockedAt}
+UseCase --> DetectUseCase : DistractionDto{blocked: true}
+
+note over Blocker, OS
+  Platform-specific adapters:
+  - Windows: process suspend / foreground window
+  - macOS: NSWorkspace / Accessibility APIs
+  - Linux: X11 / Wayland compositor hooks
+end note
+
+note over Events, Dispatcher
+  Events commit atomically with the aggregate; the dispatcher
+  delivers them only after commit and retries failed consumers.
+end note
+
+note over LogProjection
+  The DistractionLog is a read model. The block use
+  case publishes the outcome; it never updates the
+  log repository directly.
+end note
+
+@enduml

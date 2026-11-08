@@ -1,0 +1,89 @@
+@startuml
+title Use Cases - FocusDesktop
+
+left to right direction
+skinparam packageStyle rectangle
+skinparam usecase {
+  BackgroundColor #F8F8F8
+  BorderColor #333333
+  ArrowColor #333333
+}
+
+actor "Learner\n(Student / Professional)" as Learner
+actor "Operating System" as OS
+actor "Timer / Scheduler" as Timer
+
+rectangle "FocusDesktop" {
+  package "Session Tracking (MVP)" {
+    usecase "UC-01\nStart focus session" as UC01
+    usecase "UC-02\nPause session" as UC02
+    usecase "UC-03\nResume session" as UC03
+    usecase "UC-04\nStop session" as UC04
+    usecase "UC-05\nComplete interval" as UC05
+    usecase "UC-06\nSkip break" as UC06
+  }
+
+  package "History & Progress (MVP)" {
+    usecase "UC-07\nView session history" as UC07
+    usecase "UC-08\nView daily streak" as UC08
+    usecase "UC-09\nView productivity analytics" as UC09
+  }
+
+  package "Settings (MVP)" {
+    usecase "UC-10\nConfigure timer settings" as UC10
+    usecase "UC-11\nConfigure application settings" as UC11
+  }
+
+  package "Distraction Control (Phase 2)" {
+    usecase "UC-12\nManage blocking rules" as UC12
+    usecase "UC-13\nDetect distracting application" as UC13
+    usecase "UC-14\nBlock distracting application" as UC14
+    usecase "UC-15\nReview distraction log" as UC15
+  }
+
+  package "Content Intelligence (Phase 3)" {
+    usecase "UC-16\nCapture session screenshot" as UC16
+    usecase "UC-17\nRecognize study content" as UC17
+    usecase "UC-18\nCategorize session automatically" as UC18
+  }
+}
+
+Learner --> UC01
+Learner --> UC02
+Learner --> UC03
+Learner --> UC04
+Learner --> UC06
+Learner --> UC07
+Learner --> UC08
+Learner --> UC09
+Learner --> UC10
+Learner --> UC11
+Learner --> UC12
+Learner --> UC15
+
+Timer --> UC05
+Learner --> UC05 : start pending interval
+OS --> UC13
+OS --> UC14
+OS --> UC16
+
+UC02 .> UC01 : <<extend>>
+UC03 .> UC02 : <<extend>>
+UC04 .> UC01 : <<extend>>
+UC05 .> UC01 : <<extend>>
+UC06 .> UC05 : <<extend>>
+UC14 .> UC13 : <<extend>>
+UC18 .> UC17 : <<extend>>
+UC17 .> UC16 : <<extend>>
+
+note right of UC13
+  Active-window monitoring runs
+  only while a session is RUNNING.
+end note
+
+note bottom of UC18
+  Phase 3 capabilities are documented
+  for roadmap completeness only.
+end note
+
+@enduml

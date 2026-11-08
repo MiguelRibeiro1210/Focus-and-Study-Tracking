@@ -1,0 +1,64 @@
+@startuml
+title Sequence Diagram - UC-12 - Manage Blocking Rules
+
+autonumber
+actor Learner
+participant "Desktop UI" as UI
+participant "BlockingRuleController" as Controller
+participant "ManageBlockingRulesUseCase" as UseCase
+participant "BlockingPolicyRepository" as Repo
+participant "BlockingPolicy" as Policy
+participant "BlockingRule" as Rule
+participant "BlockingRuleMapper" as Mapper
+
+group List rules
+  Learner -> UI : open Blocking settings
+  UI -> Controller : GET /api/v1/blocking-rules
+  Controller -> UseCase : list()
+  UseCase -> Repo : findActive()
+  Repo --> UseCase : BlockingPolicy
+  UseCase -> Mapper : toDtos(policy.rules())
+  Mapper --> UseCase : List<BlockingRuleDto>
+  UseCase --> Controller : List<BlockingRuleDto>
+  Controller --> UI : 200 OK
+end
+
+group Create rule
+  Learner -> UI : add app pattern and action
+  UI -> Controller : POST /api/v1/blocking-rules\n{pattern, action, category}
+  Controller -> UseCase : create(command)
+  UseCase -> Rule : create(pattern, action, category)
+  activate Rule
+  Rule -> Rule : validatePattern()
+  Rule --> UseCase : BlockingRule
+  UseCase -> Repo : findActive()
+  Repo --> UseCase : BlockingPolicy
+  UseCase -> Policy : addRule(rule)
+  Policy --> UseCase : added
+  UseCase -> Repo : save(policy)
+  Repo --> UseCase : saved
+  UseCase -> Mapper : toDto(rule)
+  Mapper --> UseCase : BlockingRuleDto
+  UseCase --> Controller : BlockingRuleDto
+  Controller --> UI : 201 Created
+  deactivate Rule
+end
+
+group Delete rule
+  Learner -> UI : remove rule
+  UI -> Controller : DELETE /api/v1/blocking-rules/{id}
+  Controller -> UseCase : delete(ruleId)
+  UseCase -> Repo : findActive()
+  Repo --> UseCase : BlockingPolicy
+  UseCase -> Policy : removeRule(ruleId)
+  UseCase -> Repo : save(policy)
+  Controller --> UI : 204 No Content
+end
+
+note over Policy
+  Only one policy is active at a time. The UI edits
+  the active policy; future versions may support
+  multiple named profiles.
+end note
+
+@enduml

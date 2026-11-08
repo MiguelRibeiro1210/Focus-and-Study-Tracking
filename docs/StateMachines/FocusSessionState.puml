@@ -1,0 +1,56 @@
+@startuml
+title Focus Session State Machine
+
+skinparam state {
+  BackgroundColor #F8F8F8
+  BorderColor #333333
+  ArrowColor #333333
+}
+
+state "IDLE" as IDLE
+state "RUNNING" as RUNNING
+state "PAUSED" as PAUSED
+state "WAITING_FOR_NEXT_INTERVAL" as WAITING
+state "COMPLETED" as COMPLETED
+state "ABANDONED" as ABANDONED
+
+[*] --> IDLE : create(settings, now)
+IDLE --> RUNNING : start(now)
+RUNNING --> PAUSED : pause(now)
+PAUSED --> RUNNING : resume(now)
+RUNNING --> RUNNING : completeInterval(now)\n[auto-start enabled]
+RUNNING --> WAITING : completeInterval(now)\n[auto-start disabled]
+WAITING --> RUNNING : startNextInterval(now)
+RUNNING --> COMPLETED : stop(now)\n[actual duration recorded]
+PAUSED --> COMPLETED : stop(now)\n[actual duration recorded]
+RUNNING --> ABANDONED : abandon(reason)
+PAUSED --> ABANDONED : abandon(reason)
+WAITING --> COMPLETED : stop(now)\n[actual duration recorded]
+WAITING --> ABANDONED : abandon(reason)
+COMPLETED --> [*]
+ABANDONED --> [*]
+
+note right of RUNNING
+  Only one interval is active at a time.
+  A work interval is followed by a short
+  break, or a long break after the
+  configured number of work intervals.
+end note
+
+note right of WAITING
+  The previous interval is complete and the next
+  interval is pending. No countdown runs until the
+  learner starts it.
+end note
+
+note right of COMPLETED
+  Completed sessions are immutable and
+  feed history, streak and analytics.
+end note
+
+note bottom of ABANDONED
+  Abandoned sessions are retained for
+  diagnostics but excluded from streaks.
+end note
+
+@enduml

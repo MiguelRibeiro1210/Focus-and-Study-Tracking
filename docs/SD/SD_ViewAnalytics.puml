@@ -1,0 +1,55 @@
+@startuml
+title Sequence Diagram - UC-09 - View Productivity Analytics
+
+autonumber
+actor Learner
+participant "Desktop UI" as UI
+participant "AnalyticsController" as Controller
+participant "GetProductivityAnalyticsUseCase" as UseCase
+participant "SessionQueryRepository" as SessionRepo
+participant "DailyProgressReadRepository" as ProgressRepo
+participant "DistractionLogReadRepository" as DistractionRepo
+participant "AnalyticsSummaryAssembler" as Assembler
+participant "AnalyticsMapper" as Mapper
+
+Learner -> UI : open Analytics and select range
+UI -> Controller : GET /api/v1/analytics/summary?from=...&to=...
+Controller -> UseCase : get(AnalyticsQuery)
+UseCase -> UseCase : validateRange(max 366 days)
+
+UseCase -> SessionRepo : findSummaries(range)
+SessionRepo --> UseCase : List<SessionSummary>
+UseCase -> ProgressRepo : findRange(from, to)
+ProgressRepo --> UseCase : List<DailyProgress>
+UseCase -> DistractionRepo : countByRange(from, to)
+DistractionRepo --> UseCase : long
+UseCase -> Assembler : summarize(sessions, distractions, daily, range)
+activate Assembler
+Assembler -> Assembler : totalFocus()
+Assembler -> Assembler : averageSession()
+Assembler -> Assembler : focusScore()
+Assembler --> UseCase : ProductivitySummary
+deactivate Assembler
+UseCase -> Mapper : toDto(summary, range)
+Mapper --> UseCase : AnalyticsDto
+UseCase --> Controller : AnalyticsDto
+Controller --> UI : 200 OK\n{totals, focusScore, distractionCount}
+
+note over ProgressRepo, DistractionRepo
+  Both are read-model ports. The query is
+  read-only and can be rebuilt from the
+  persisted sessions and distraction events.
+end note
+
+note over Assembler
+  Focus score = completed focus time / planned
+  focus time, reduced by distraction density.
+  Value is clamped to 0..100.
+end note
+
+note over UI
+  Charts: daily focus minutes, sessions per day,
+  distraction categories, best focus window.
+end note
+
+@enduml

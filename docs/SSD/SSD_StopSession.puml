@@ -1,0 +1,18 @@
+@startuml
+title SSD - UC-04 - Stop Session
+
+autonumber
+actor Learner
+participant "FocusDesktop System" as System
+
+Learner -> System : stopSession(sessionId)
+System --> Learner : sessionCompleted(sessionId, actualSeconds, completedAt)
+System --> Learner : sessionSummary(totalFocusSeconds, completedSessions, currentStreak)
+
+note right of System
+  Stopping early records actual elapsed focus time.
+  This success flow assumes the session meets the
+  configured minimum duration for completion.
+end note
+
+@enduml

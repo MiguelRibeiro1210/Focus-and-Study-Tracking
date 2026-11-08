@@ -1,0 +1,20 @@
+@startuml
+title SSD - UC-07 / UC-08 - History and Daily Streak
+
+autonumber
+actor Learner
+participant "FocusDesktop System" as System
+
+Learner -> System : requestSessionHistory(from, to, page, size)
+System --> Learner : sessionPage(items, total, page, size)
+
+Learner -> System : requestDailyStreak(date)
+System --> Learner : streak(date, current, longest)
+
+note right of System
+  History is read-only and paginated.
+  Streak is derived from completed work intervals
+  of at least five minutes.
+end note
+
+@enduml

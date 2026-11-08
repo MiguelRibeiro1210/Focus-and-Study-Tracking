@@ -1,0 +1,61 @@
+@startuml
+title System Architecture - FocusDesktop
+
+skinparam componentStyle rectangle
+skinparam node {
+  BackgroundColor #FFFFFF
+  BorderColor #333333
+}
+skinparam component {
+  BackgroundColor #F1F1F1
+  BorderColor #333333
+}
+skinparam database {
+  BackgroundColor #F1F1F1
+  BorderColor #333333
+}
+
+node "Learner Workstation" {
+  node "Desktop Client (Tauri)" {
+    component "React + TypeScript UI\nTimer · History · Analytics · Settings" as UI
+    component "Tauri Shell\nwindow · tray · OS integration" as Tauri
+  }
+
+  node "Local Backend Process (Spring Boot)" {
+    component "Inbound Adapters\nREST Controllers + WebSocket" as Inbound
+    component "Application Layer\nUse Cases · DTOs · Ports" as App
+    component "Domain Layer\nAggregates · VOs · Services · Events" as Domain
+    component "Outbound Adapters\nJPA · OS hooks · Clock · Event Publisher" as Outbound
+  }
+
+  database "Local Database\nH2 (MVP) / SQLite (later)" as DB
+  component "Operating System\nActive window · process control\nscreen capture (Phase 3)" as OS
+}
+
+UI --> Inbound : HTTP/JSON\n127.0.0.1 + token
+UI <--> Inbound : WebSocket\ntimer + domain events
+Tauri ..> UI : hosts
+
+Inbound --> App : commands / queries
+App --> Domain : business rules
+App --> Outbound : ports
+Outbound --> DB : JDBC / JPA
+Outbound --> OS : native APIs
+
+note right of DB
+  No cloud dependency.
+  All productivity data stays
+  on the learner's workstation.
+end note
+
+note bottom of Domain
+  Dependency rule: the domain layer has
+  no dependency on Spring or infrastructure.
+end note
+
+note bottom of Inbound
+  The local API binds to 127.0.0.1 only
+  and requires a per-installation token.
+end note
+
+@enduml

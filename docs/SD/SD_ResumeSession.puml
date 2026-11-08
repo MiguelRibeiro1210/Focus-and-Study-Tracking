@@ -1,0 +1,41 @@
+@startuml
+title Sequence Diagram - UC-03 - Resume Session
+
+autonumber
+actor Learner
+participant "Desktop UI" as UI
+participant "SessionController" as Controller
+participant "ResumeSessionUseCase" as UseCase
+participant "FocusSessionRepository" as Repo
+participant "FocusSession" as Session
+participant "TransactionalOutbox" as Events
+participant "Outbox Dispatcher" as Dispatcher
+participant "SessionWebSocketHandler" as WS
+
+Learner -> UI : click "Resume"
+UI -> Controller : POST /api/v1/sessions/{id}/resume
+Controller -> UseCase : resume(command)
+UseCase -> Repo : findById(sessionId)
+Repo --> UseCase : Optional<FocusSession>
+
+UseCase -> Session : resume(now)
+activate Session
+Session -> Session : requireState(PAUSED)
+Session -> Session : startActiveInterval(now)
+Session --> UseCase : SessionResumed
+UseCase -> Repo : save(session)
+Repo --> UseCase : saved
+UseCase -> Events : appendToOutbox(SessionResumed)
+Dispatcher -> WS : broadcast("session.resumed")
+WS --> UI : session.resumed\n{remainingSeconds, resumedAt}
+UseCase --> Controller : SessionDto
+Controller --> UI : 200 OK
+deactivate Session
+
+note over Session
+  Resume restarts the same interval; it does not
+  create a new interval and does not reset the
+  remaining time.
+end note
+
+@enduml

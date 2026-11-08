@@ -1,0 +1,17 @@
+@startuml
+title SSD - UC-09 - Productivity Analytics
+
+autonumber
+actor Learner
+participant "FocusDesktop System" as System
+
+Learner -> System : requestAnalytics(from, to)
+System --> Learner : analytics(from, to, totalFocusSeconds, completedSessions, averageSessionSeconds, focusScore, distractionCount)
+System --> Learner : dailyBreakdown(days)
+
+note right of System
+  Analytics are computed from completed sessions
+  and distraction logs. No data leaves the device.
+end note
+
+@enduml
