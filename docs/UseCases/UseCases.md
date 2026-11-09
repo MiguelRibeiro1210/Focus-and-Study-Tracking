@@ -71,8 +71,8 @@ there is no active or waiting session.
 4. The UI sends `POST /api/v1/sessions` with the session type.
 5. The system validates the request and checks for an active session.
 6. The system loads the current timer settings.
-7. The system creates a `FocusSession` in `IDLE`, snapshots the settings and
-   starts the first `WORK` interval.
+7. `FocusSessionFactory` creates a `FocusSession` in `IDLE` with a settings
+   snapshot; the aggregate starts its first `WORK` interval.
 8. The system persists the session and appends `SessionStarted` to the outbox
    in the same transaction.
 9. The system returns the session DTO; after commit the dispatcher broadcasts
@@ -217,9 +217,9 @@ FR-SES-03.
 6. If an interval is running, the system closes it at the stop time. If paused,
    it closes it using the elapsed time recorded at pause. If the session is
    waiting, there is no active interval to close. Focus duration is calculated
-   from completed work intervals only.
+   from work intervals only; break time is excluded.
 7. The system marks the session `COMPLETED`, or `ABANDONED` when the focus time
-   is below the configured minimum.
+   is below five minutes. Exactly five minutes is sufficient for `COMPLETED`.
 8. The system persists the session and appends `SessionCompleted` or
    `SessionAbandoned` to the outbox in the same transaction.
 9. After commit, the daily-progress projection updates the read model
@@ -231,7 +231,7 @@ FR-SES-03.
 
 - **5a. Session not found.** `404 SESSION_NOT_FOUND`.
 - **5b. Session already finished.** `422 INVALID_SESSION_STATE`.
-- **7a. Focus time is below the minimum.** The session is `ABANDONED`; it is
+- **7a. Focus time is below five minutes.** The session is `ABANDONED`; it is
   stored for diagnostics but excluded from streaks and completed-session totals.
 - **8a. Outbox delivery fails after commit.** The terminal session remains
   persisted; the event remains pending and is retried by the dispatcher.
@@ -272,8 +272,10 @@ start the pending interval.
 2. The system loads the session.
 3. The system verifies the session is `RUNNING`.
 4. The aggregate completes the current interval and records its actual duration.
-5. After work, the aggregate chooses a short break or a long break after N
-   completed work intervals. After a break, it creates the next work interval.
+5. After work, the scheduling service chooses a short break, or a long break
+   after N completed work intervals. Short breaks do not count toward N; after
+   the long break, the work-interval count starts a new cycle. After a break,
+   it chooses the next work interval.
 6. If the corresponding auto-start setting (`autoStartBreaks` or
    `autoStartWork`) is enabled, the new interval starts immediately; otherwise
    it remains `PENDING` and the session enters `WAITING_FOR_NEXT_INTERVAL`.
@@ -301,8 +303,8 @@ start the pending interval.
   The tick is ignored; no interval is created.
 - **3b. Manual start is requested outside `WAITING_FOR_NEXT_INTERVAL`.** The
   API returns `422 INVALID_SESSION_STATE`.
-- **5a. The work limit is reached.** A `LONG_BREAK` is created instead of a
-  `SHORT_BREAK`.
+- **5a. The configured number of work intervals is reached.** A `LONG_BREAK`
+  is created instead of a `SHORT_BREAK`.
 - **6a. Auto-start is disabled.** The session enters
   `WAITING_FOR_NEXT_INTERVAL`; the UI shows a *Start break* or *Start work*
   action. The backend does not run a countdown until the learner starts it.

@@ -9,21 +9,26 @@
 | **Auto-start** | A timer preference that starts the next work or break interval immediately after the current interval completes. |
 | **Bounded context** | A boundary within which a domain model and its terms have a specific meaning. |
 | **Command** | A request to change system state, such as starting or pausing a session. |
+| **Completed session** | A stopped session with at least five minutes of actual work time; paused and break time do not count toward the threshold. |
+| **Domain service** | A stateless domain operation for a rule that does not belong to one entity; the interval scheduler selects the next interval type. |
 | **Domain event** | A durable record of a domain change, appended to the outbox in the same transaction as that change. |
 | **Distraction** | An observation of the foreground application while distraction monitoring is active. |
 | **Distraction log** | An append-only read model of detected applications and the resulting policy and blocking outcomes. |
 | **Distraction policy** | The active set of rules that determines whether an observed application is logged, warned about or blocked. |
 | **Focus session** | A learner's work period containing an ordered sequence of work and break intervals. |
+| **Factory** | A domain object that creates or reconstitutes entities and validates their initial structure. |
 | **Interval** | A timed work period, short break or long break within a focus session. |
 | **Idempotency** | The property that processing the same command or event more than once has the same effect as processing it once. |
 | **Local-first** | The application stores and processes product data on the user's device and needs no cloud service to operate. |
-| **Long break** | A rest interval selected after the configured number of completed work intervals. |
+| **Long break** | A rest interval after the configured number of completed work intervals; short breaks are excluded from the count, which repeats after each long break. |
 | **Outbox** | A table of domain events committed atomically with writes and dispatched after commit with retry. |
 | **Port / adapter** | A port describes an application-facing capability; an adapter implements it for a concrete technology such as the operating system or database. |
 | **Projection / read model** | A query-oriented representation updated from source records and domain events. |
 | **Read/write model separation** | Keeping query-oriented projections separate from domain objects that enforce and change business state. |
 | **Remaining time** | The interval time still due according to backend timestamps; the UI may animate a local countdown between authoritative snapshots. |
+| **Reconstitution snapshot** | Persistence-neutral values used by a factory to rebuild an aggregate or entity and validate its consistency. |
 | **Session settings snapshot** | The timer settings copied into a session at creation so later preference changes do not alter that active session. |
+| **Abandoned session** | A stopped session with less than five minutes of actual work time; it is retained but excluded from completed-session totals and streaks. |
 | **Short break** | A rest interval that follows a work interval when the long-break threshold has not been reached. |
 | **Snapshot (timer)** | An authoritative server response containing session state, interval type, remaining time and relevant timestamps. |
 | **Streak** | Consecutive local calendar days containing at least one completed work interval of five minutes or more. |

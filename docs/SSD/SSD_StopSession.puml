@@ -10,9 +10,8 @@ System --> Learner : sessionCompleted(sessionId, actualSeconds, completedAt)
 System --> Learner : sessionSummary(totalFocusSeconds, completedSessions, currentStreak)
 
 note right of System
-  Stopping early records actual elapsed focus time.
-  This success flow assumes the session meets the
-  configured minimum duration for completion.
+  This success flow records at least five minutes of
+  actual work time. Paused and break time do not count.
 end note
 
 @enduml

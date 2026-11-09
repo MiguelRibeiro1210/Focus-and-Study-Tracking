@@ -68,9 +68,21 @@ created.
   then `COMPLETED` or `ABANDONED`).
 - Paused time never counts as focus time.
 - A completed or abandoned session is immutable.
+- Stopping with less than five minutes of actual work time marks the session
+  `ABANDONED`; five minutes or more marks it `COMPLETED`. Break time is excluded.
 - The actual focus duration is the sum of completed work intervals, within one
   second.
 - The settings snapshot is never rewritten by later preference changes.
+
+`FocusSessionFactory` creates and reconstitutes the aggregate from immutable
+snapshots; it validates interval ordering and consistency between session and
+interval states. `SessionIntervalFactory` creates and reconstitutes interval
+entities. State transitions remain on `FocusSession` and `SessionInterval`.
+`SessionIntervalScheduleService` selects the next interval type without
+mutating the aggregate. `intervalsBeforeLongBreak` counts completed work
+intervals only: for a value of four, the first three completed work intervals
+are followed by short breaks and the fourth by a long break. The cycle then
+repeats.
 
 **Events:** `SessionStarted`, `SessionPaused`, `SessionResumed`,
 `SessionCompleted`, `SessionAbandoned`, `IntervalCompleted`, `IntervalStarted`.

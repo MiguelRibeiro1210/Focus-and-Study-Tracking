@@ -51,10 +51,9 @@ end note
 
 note over UseCase
   Stopping early completes the session with the
-  actual elapsed focus time. Paused time is never
+  actual elapsed focus time. This success flow requires
+  at least five minutes of work time. Paused time is never
   counted; a waiting session has no active interval.
-  This success flow assumes the session meets the
-  configured minimum duration for completion.
 end note
 
 note over Projection, ProgressRepo

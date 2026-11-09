@@ -22,7 +22,11 @@ integration tests for adapters, and a small E2E suite for desktop flows.
 - Every aggregate invariant has a positive and a negative test.
 - `FocusSession` state transitions are table-driven; invalid transitions return
   `INVALID_SESSION_STATE`.
+- Session factories reject inconsistent snapshots and preserve valid interval
+  order and state on reconstitution.
 - Paused time is excluded from focus duration; break time never counts as focus.
+- Stopping at 299 seconds of work abandons a session; stopping at 300 or more completes it.
+- Long-break scheduling counts work intervals only, excludes short breaks, and repeats after a long break.
 - The settings snapshot is immutable after creation.
 - `BlockingPolicy` rule precedence and first-match-wins are tested.
 - `BlockingDecision` is read-only; no policy mutation during evaluation.

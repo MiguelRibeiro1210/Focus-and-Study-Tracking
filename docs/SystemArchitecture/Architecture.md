@@ -61,13 +61,15 @@ runtime interactions and persistence are described in the sequence diagrams and
 
 1. The UI sends `POST /api/v1/sessions`.
 2. `StartSessionUseCase` loads `AppSettings`, maps `TimerPreferences` to a
-   `SessionSettings` snapshot, creates `FocusSession` and saves it.
+   `SessionSettings` snapshot, creates `FocusSession` through
+   `FocusSessionFactory` and saves it.
 3. The session and `SessionStarted` outbox record commit atomically; the
    dispatcher forwards the event to projections and WebSocket after commit.
-4. The backend scheduler invokes interval completion internally. The client
-   explicitly starts a pending interval through REST when auto-start is
-   disabled. Other changes follow the command → aggregate → outbox →
-   projection/WebSocket path.
+4. The backend scheduler invokes interval completion internally. The
+   `SessionIntervalScheduleService` selects the next interval type; the
+   aggregate applies the transition. The client explicitly starts a pending
+   interval through REST when auto-start is disabled. Other changes follow the
+   command → aggregate → outbox → projection/WebSocket path.
 
 The timer is server-authoritative. The client renders the remaining time from
 the latest snapshot and counts locally between snapshots. It polls the active

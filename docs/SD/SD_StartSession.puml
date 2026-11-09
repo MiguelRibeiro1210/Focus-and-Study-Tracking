@@ -8,6 +8,7 @@ participant "SessionController" as Controller
 participant "StartSessionUseCase" as UseCase
 participant "FocusSessionRepository" as SessionRepo
 participant "AppSettingsRepository" as SettingsRepo
+participant "FocusSessionFactory" as Factory
 participant "FocusSession" as Session
 participant "TransactionalOutbox" as Events
 participant "Outbox Dispatcher" as Dispatcher
@@ -22,7 +23,8 @@ SessionRepo --> UseCase : Optional.empty()
 UseCase -> SettingsRepo : load()
 SettingsRepo --> UseCase : AppSettings
 UseCase -> UseCase : sessionSettings = SessionSettings.from(settings.timer())
-UseCase -> Session : create(type, sessionSettings, now)
+UseCase -> Factory : create(sessionSettings, now)
+Factory --> UseCase : FocusSession (IDLE)
 activate Session
 UseCase -> Session : start(now)
 Session --> UseCase : SessionStarted

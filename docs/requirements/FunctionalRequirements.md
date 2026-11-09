@@ -20,7 +20,7 @@ Every requirement is traced to a use case and to the project board in
 | FR-SES-08 | A running, paused or waiting session is recovered after an application restart, including remaining time. | Must | MVP | UC-01 | FST-005, FST-013 |
 | FR-SES-09 | The system exposes the current interval type, state and remaining time at any moment. | Must | MVP | UC-01 | FST-006, FST-015 |
 | FR-SES-10 | Each session stores a snapshot of the timer settings used to create it. | Must | MVP | UC-01 | FST-005 |
-| FR-SES-11 | A session shorter than the configured minimum is marked abandoned and excluded from streaks. | Should | MVP | UC-04 | FST-005, FST-011 |
+| FR-SES-11 | A stopped session with less than 5 minutes of actual work time is marked abandoned; 5 minutes or more is completed. Paused and break time do not count. | Should | MVP | UC-04 | FST-005, FST-011 |
 
 ### Acceptance criteria — session lifecycle
 
@@ -32,6 +32,9 @@ Every requirement is traced to a use case and to the project board in
   remaining time within one second.
 - The sum of completed work-interval durations equals the session's recorded
   focus duration (± 1 second).
+- Stopping with 299 seconds of actual work marks the session `ABANDONED`; 300
+  seconds marks it `COMPLETED`. Break and paused time do not count toward this
+  threshold.
 - With auto-start disabled, the completed interval is persisted, the session
   enters `WAITING_FOR_NEXT_INTERVAL`, and the next interval starts only after
   `POST /sessions/{id}/intervals/start`.
