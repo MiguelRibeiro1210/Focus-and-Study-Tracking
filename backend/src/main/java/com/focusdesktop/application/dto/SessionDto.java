@@ -18,6 +18,7 @@ public record SessionDto(
         int intervalSequence,
         Duration plannedDuration,
         Duration actualDuration,
+        Duration actualFocusDuration,
         Duration remainingDuration,
         TimeStamp createdAt,
         TimeStamp startedAt,
@@ -31,17 +32,19 @@ public record SessionDto(
         Objects.requireNonNull(intervalState, "intervalState");
         Objects.requireNonNull(plannedDuration, "plannedDuration");
         Objects.requireNonNull(actualDuration, "actualDuration");
+        Objects.requireNonNull(actualFocusDuration, "actualFocusDuration");
         Objects.requireNonNull(remainingDuration, "remainingDuration");
         Objects.requireNonNull(createdAt, "createdAt");
         Objects.requireNonNull(startedAt, "startedAt");
     }
 
-    public static SessionDto from(FocusSession session) {
+    public static SessionDto from(FocusSession session, TimeStamp asOf) {
         Objects.requireNonNull(session, "session");
+        Objects.requireNonNull(asOf, "asOf");
         var interval = session.currentInterval();
         return new SessionDto(session.id(), session.sessionType(), session.state(), interval.type(),
                 interval.state(), interval.sequenceNumber(), interval.plannedDuration(),
-                interval.actualDuration(), interval.remainingDuration(), session.createdAt(),
-                session.startedAt(), session.endedAt());
+                interval.actualDuration(), session.actualFocusDuration(asOf), interval.remainingDuration(),
+                session.createdAt(), session.startedAt(), session.endedAt());
     }
 }

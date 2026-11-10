@@ -14,6 +14,7 @@ import com.focusdesktop.domain.model.Duration;
 import com.focusdesktop.domain.model.FocusSession;
 import com.focusdesktop.domain.model.IntervalState;
 import com.focusdesktop.domain.model.SessionSettings;
+import com.focusdesktop.domain.model.SessionId;
 import com.focusdesktop.domain.model.SessionState;
 import com.focusdesktop.domain.model.SessionType;
 import com.focusdesktop.domain.model.TimeStamp;
@@ -44,6 +45,7 @@ class StartSessionUseCaseTest {
         assertEquals(IntervalState.RUNNING, result.intervalState());
         assertEquals(1, result.intervalSequence());
         assertEquals(60, result.plannedDuration().seconds());
+        assertEquals(0, result.actualFocusDuration().seconds());
         assertEquals(60, result.remainingDuration().seconds());
         assertEquals(NOW, result.createdAt());
         assertEquals(NOW, result.startedAt());
@@ -161,6 +163,17 @@ class StartSessionUseCaseTest {
         public Optional<FocusSession> findActive() {
             lookups++;
             return Optional.ofNullable(active);
+        }
+
+        @Override
+        public Optional<FocusSession> findById(SessionId sessionId) {
+            if (active != null && active.id().equals(sessionId)) {
+                return Optional.of(active);
+            }
+            if (saved != null && saved.id().equals(sessionId)) {
+                return Optional.of(saved);
+            }
+            return Optional.empty();
         }
 
         @Override

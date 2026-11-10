@@ -138,8 +138,8 @@ Connect to `/ws` with the same bearer token. The server sends JSON envelopes:
 | `session.started` | Session started | `sessionId`, `type`, `startedAt` |
 | `session.paused` | Session paused | `sessionId`, `pausedAt` |
 | `session.resumed` | Session resumed | `sessionId`, `resumedAt` |
-| `session.completed` | Session completed or stopped | `sessionId`, `actualDuration`, `completedAt` |
-| `session.abandoned` | Session abandoned | `sessionId`, `reason` |
+| `session.completed` | Session completed or stopped | `sessionId`, `actualFocusDuration`, `completedAt` |
+| `session.abandoned` | Session abandoned | `sessionId`, `actualFocusDuration`, `reason` |
 | `interval.completed` | Work/break interval completed | `sessionId`, `intervalType`, `completedAt`, `sessionState`, `remainingSeconds` |
 | `interval.started` | A pending interval starts | `sessionId`, `intervalType`, `startedAt`, `remainingSeconds`, `sessionState` |
 | `distraction.detected` | A rule matched | `detectionId`, `app`, `category`, `action` |
@@ -152,6 +152,9 @@ send a WebSocket tick every second. On reconnect the client fetches
 `GET /sessions/active` and `GET /analytics/summary` to reconcile state. The
 notification is forwarded from the durable outbox after commit; a lost
 notification is repaired by polling or reconnect reconciliation.
+
+When a session is abandoned because it ended before the five-minute minimum,
+`reason` is `BELOW_MINIMUM_FOCUS_TIME`.
 
 ## 8. Error contract
 

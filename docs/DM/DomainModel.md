@@ -191,7 +191,7 @@ distraction review.
 | `SessionStarted` | `FocusSession` | WebSocket, diagnostics | Timer screen update |
 | `SessionPaused` / `SessionResumed` | `FocusSession` | WebSocket | Timer screen update |
 | `SessionCompleted` | `FocusSession` | `DailyProgressProjection`, WebSocket | Analytics and history |
-| `SessionAbandoned` | `FocusSession` | History, diagnostics | Exclude from streaks |
+| `SessionAbandoned` | `FocusSession` | History, diagnostics | Exclude from streaks; carries `BELOW_MINIMUM_FOCUS_TIME` when stopped below the five-minute minimum |
 | `IntervalCompleted` | `FocusSession` | WebSocket | Work/break transition with state and remaining-time snapshot |
 | `IntervalStarted` | `FocusSession` | WebSocket | Manually started pending interval with remaining-time snapshot |
 | `DistractionDetected` | `DistractionControl` | `DistractionLogProjection`, `DailyProgressProjection`, WebSocket | Log entry and distraction count |

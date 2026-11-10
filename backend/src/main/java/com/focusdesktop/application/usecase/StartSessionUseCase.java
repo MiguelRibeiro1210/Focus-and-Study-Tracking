@@ -55,7 +55,7 @@ public class StartSessionUseCase {
 
         sessions.save(session);
         outbox.append(new SessionStarted(session.id(), session.sessionType(), now));
-        return SessionDto.from(session);
+        return SessionDto.from(session, now);
     }
 
     private static SessionSettings defaultSettingsWithWarning() {

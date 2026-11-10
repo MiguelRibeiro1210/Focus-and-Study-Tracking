@@ -232,7 +232,8 @@ FR-SES-03.
 - **5a. Session not found.** `404 SESSION_NOT_FOUND`.
 - **5b. Session already finished.** `422 INVALID_SESSION_STATE`.
 - **7a. Focus time is below five minutes.** The session is `ABANDONED`; it is
-  stored for diagnostics but excluded from streaks and completed-session totals.
+  stored for diagnostics but excluded from streaks and completed-session totals;
+  the event reason is `BELOW_MINIMUM_FOCUS_TIME`.
 - **8a. Outbox delivery fails after commit.** The terminal session remains
   persisted; the event remains pending and is retried by the dispatcher.
 
