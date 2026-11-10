@@ -1,4 +1,4 @@
-package com.focusdesktop.application.usecase;
+package com.focusdesktop.application.usecase.commands;
 
 import com.focusdesktop.domain.model.SessionType;
 import java.util.Objects;

@@ -3,6 +3,8 @@ package com.focusdesktop.application.usecase;
 import com.focusdesktop.application.dto.SessionDto;
 import com.focusdesktop.application.port.DomainEventOutbox;
 import com.focusdesktop.application.port.SessionSettingsProvider;
+import com.focusdesktop.application.usecase.commands.StartSessionCommand;
+import com.focusdesktop.application.usecase.exeptions.ActiveSessionExistsException;
 import com.focusdesktop.domain.event.SessionStarted;
 import com.focusdesktop.domain.factories.FocusSessionFactory;
 import com.focusdesktop.domain.model.Duration;

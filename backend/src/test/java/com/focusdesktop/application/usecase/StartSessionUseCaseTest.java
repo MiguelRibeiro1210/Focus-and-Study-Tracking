@@ -5,25 +5,19 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.focusdesktop.application.dto.SessionDto;
-import com.focusdesktop.application.port.DomainEventOutbox;
 import com.focusdesktop.application.port.SessionSettingsProvider;
-import com.focusdesktop.domain.event.DomainEvent;
+import com.focusdesktop.application.usecase.commands.StartSessionCommand;
+import com.focusdesktop.application.usecase.exeptions.ActiveSessionExistsException;
 import com.focusdesktop.domain.event.SessionStarted;
 import com.focusdesktop.domain.factories.FocusSessionFactory;
 import com.focusdesktop.domain.model.Duration;
 import com.focusdesktop.domain.model.FocusSession;
 import com.focusdesktop.domain.model.IntervalState;
 import com.focusdesktop.domain.model.SessionSettings;
-import com.focusdesktop.domain.model.SessionId;
 import com.focusdesktop.domain.model.SessionState;
 import com.focusdesktop.domain.model.SessionType;
 import com.focusdesktop.domain.model.TimeStamp;
-import com.focusdesktop.domain.repository.FocusSessionRepository;
-import java.time.Clock;
 import java.time.Instant;
-import java.time.ZoneOffset;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.Test;
 
@@ -34,9 +28,8 @@ class StartSessionUseCaseTest {
 
     @Test
     void startsAndPersistsWorkSessionAndAppendsStartedEvent() {
-        InMemorySessions sessions = new InMemorySessions();
-        RecordingOutbox outbox = new RecordingOutbox();
-        StartSessionUseCase useCase = useCase(sessions, () -> Optional.of(SETTINGS), outbox);
+        SessionUseCaseTestFixtures.Fixture fixture = SessionUseCaseTestFixtures.fixture();
+        StartSessionUseCase useCase = useCase(fixture, () -> Optional.of(SETTINGS));
 
         SessionDto result = useCase.execute(new StartSessionCommand(SessionType.WORK));
 
@@ -49,10 +42,10 @@ class StartSessionUseCaseTest {
         assertEquals(60, result.remainingDuration().seconds());
         assertEquals(NOW, result.createdAt());
         assertEquals(NOW, result.startedAt());
-        assertEquals(result.sessionId(), sessions.saved.id());
-        assertEquals(SETTINGS, sessions.saved.settings());
-        assertEquals(1, outbox.events.size());
-        SessionStarted event = (SessionStarted) outbox.events.get(0);
+        assertEquals(result.sessionId(), fixture.lastSaved.id());
+        assertEquals(SETTINGS, fixture.lastSaved.settings());
+        assertEquals(1, fixture.events.size());
+        SessionStarted event = (SessionStarted) fixture.events.get(0);
         assertEquals(result.sessionId(), event.sessionId());
         assertEquals(SessionType.WORK, event.sessionType());
         assertEquals(NOW, event.occurredAt());
@@ -60,31 +53,29 @@ class StartSessionUseCaseTest {
 
     @Test
     void usesSpecifiedDefaultsWhenProviderHasNoValidSettings() {
-        InMemorySessions sessions = new InMemorySessions();
-        StartSessionUseCase useCase = useCase(sessions, () -> Optional.empty(), new RecordingOutbox());
+        SessionUseCaseTestFixtures.Fixture fixture = SessionUseCaseTestFixtures.fixture();
+        StartSessionUseCase useCase = useCase(fixture, Optional::empty);
 
         useCase.execute(new StartSessionCommand(SessionType.WORK));
 
         assertEquals(new SessionSettings(Duration.ofSeconds(60), Duration.ofSeconds(300),
-                Duration.ofSeconds(600), 5, false, false), sessions.saved.settings());
+                Duration.ofSeconds(600), 5, false, false), fixture.lastSaved.settings());
     }
 
     @Test
     void rejectsAnExistingActiveSessionBeforeLoadingSettingsOrWriting() {
-        InMemorySessions sessions = new InMemorySessions();
         FocusSession active = FocusSessionFactory.create(SETTINGS, NOW);
         active.start(NOW);
-        sessions.active = active;
-        RecordingOutbox outbox = new RecordingOutbox();
+        SessionUseCaseTestFixtures.Fixture fixture = SessionUseCaseTestFixtures.fixture(active, 0);
         SessionSettingsProvider settingsProvider = () -> {
             throw new AssertionError("Settings should not be loaded when a session is active");
         };
-        StartSessionUseCase useCase = useCase(sessions, settingsProvider, outbox);
+        StartSessionUseCase useCase = useCase(fixture, settingsProvider);
 
         assertThrows(ActiveSessionExistsException.class,
                 () -> useCase.execute(new StartSessionCommand(SessionType.WORK)));
-        assertEquals(0, sessions.saves);
-        assertTrue(outbox.events.isEmpty());
+        assertEquals(0, fixture.saves);
+        assertTrue(fixture.events.isEmpty());
     }
 
     @Test
@@ -92,110 +83,56 @@ class StartSessionUseCaseTest {
         FocusSession paused = FocusSessionFactory.create(SETTINGS, NOW);
         paused.start(NOW);
         paused.pause(new TimeStamp(NOW.value().plusSeconds(10)));
-        InMemorySessions pausedSessions = new InMemorySessions();
-        pausedSessions.active = paused;
+        SessionUseCaseTestFixtures.Fixture pausedFixture = SessionUseCaseTestFixtures.fixture(paused, 0);
         FocusSession waiting = FocusSessionFactory.create(SETTINGS, NOW);
         waiting.start(NOW);
         waiting.completeInterval(SessionType.SHORT_BREAK,
                 new TimeStamp(NOW.value().plusSeconds(60)));
-        InMemorySessions waitingSessions = new InMemorySessions();
-        waitingSessions.active = waiting;
+        SessionUseCaseTestFixtures.Fixture waitingFixture = SessionUseCaseTestFixtures.fixture(waiting, 0);
 
         assertThrows(ActiveSessionExistsException.class,
-                () -> useCase(pausedSessions, () -> Optional.of(SETTINGS), new RecordingOutbox())
+                () -> useCase(pausedFixture, () -> Optional.of(SETTINGS))
                         .execute(new StartSessionCommand(SessionType.WORK)));
         assertThrows(ActiveSessionExistsException.class,
-                () -> useCase(waitingSessions, () -> Optional.of(SETTINGS), new RecordingOutbox())
+                () -> useCase(waitingFixture, () -> Optional.of(SETTINGS))
                         .execute(new StartSessionCommand(SessionType.WORK)));
     }
 
     @Test
     void rejectsNonWorkSessionTypeWithoutSideEffects() {
-        InMemorySessions sessions = new InMemorySessions();
-        RecordingOutbox outbox = new RecordingOutbox();
-        StartSessionUseCase useCase = useCase(sessions, () -> Optional.of(SETTINGS), outbox);
+        SessionUseCaseTestFixtures.Fixture fixture = SessionUseCaseTestFixtures.fixture();
+        StartSessionUseCase useCase = useCase(fixture, () -> Optional.of(SETTINGS));
 
         assertThrows(IllegalArgumentException.class,
                 () -> useCase.execute(new StartSessionCommand(SessionType.SHORT_BREAK)));
-        assertEquals(0, sessions.lookups);
-        assertEquals(0, sessions.saves);
-        assertTrue(outbox.events.isEmpty());
+        assertEquals(0, fixture.activeLookups);
+        assertEquals(0, fixture.saves);
+        assertTrue(fixture.events.isEmpty());
     }
 
     @Test
     void propagatesPersistenceFailureWithoutAppendingStartedEvent() {
-        InMemorySessions sessions = new InMemorySessions();
-        sessions.failOnSave = true;
-        RecordingOutbox outbox = new RecordingOutbox();
-        StartSessionUseCase useCase = useCase(sessions, () -> Optional.of(SETTINGS), outbox);
+        SessionUseCaseTestFixtures.Fixture fixture = SessionUseCaseTestFixtures.fixture();
+        fixture.failOnSave = true;
+        StartSessionUseCase useCase = useCase(fixture, () -> Optional.of(SETTINGS));
 
         assertThrows(IllegalStateException.class,
                 () -> useCase.execute(new StartSessionCommand(SessionType.WORK)));
-        assertTrue(outbox.events.isEmpty());
+        assertTrue(fixture.events.isEmpty());
     }
 
     @Test
     void propagatesOutboxFailure() {
-        InMemorySessions sessions = new InMemorySessions();
-        RecordingOutbox outbox = new RecordingOutbox();
-        outbox.failOnAppend = true;
-        StartSessionUseCase useCase = useCase(sessions, () -> Optional.of(SETTINGS), outbox);
+        SessionUseCaseTestFixtures.Fixture fixture = SessionUseCaseTestFixtures.fixture();
+        fixture.failOnAppend = true;
+        StartSessionUseCase useCase = useCase(fixture, () -> Optional.of(SETTINGS));
 
         assertThrows(IllegalStateException.class,
                 () -> useCase.execute(new StartSessionCommand(SessionType.WORK)));
     }
 
-    private static StartSessionUseCase useCase(InMemorySessions sessions,
-                                               SessionSettingsProvider settingsProvider,
-                                               RecordingOutbox outbox) {
-        Clock clock = Clock.fixed(NOW.value(), ZoneOffset.UTC);
-        return new StartSessionUseCase(sessions, settingsProvider, outbox, clock);
-    }
-
-    private static final class InMemorySessions implements FocusSessionRepository {
-        private FocusSession active;
-        private FocusSession saved;
-        private int lookups;
-        private int saves;
-        private boolean failOnSave;
-
-        @Override
-        public Optional<FocusSession> findActive() {
-            lookups++;
-            return Optional.ofNullable(active);
-        }
-
-        @Override
-        public Optional<FocusSession> findById(SessionId sessionId) {
-            if (active != null && active.id().equals(sessionId)) {
-                return Optional.of(active);
-            }
-            if (saved != null && saved.id().equals(sessionId)) {
-                return Optional.of(saved);
-            }
-            return Optional.empty();
-        }
-
-        @Override
-        public void save(FocusSession session) {
-            saves++;
-            if (failOnSave) {
-                throw new IllegalStateException("Persistence failed");
-            }
-            saved = session;
-        }
-    }
-
-    private static final class RecordingOutbox implements DomainEventOutbox {
-        private final List<DomainEvent> events = new ArrayList<>();
-        private boolean failOnAppend;
-
-        @Override
-        public void append(DomainEvent event) {
-            if (failOnAppend) {
-                throw new IllegalStateException("Outbox append failed");
-            }
-            events.add(event);
-        }
+    private static StartSessionUseCase useCase(SessionUseCaseTestFixtures.Fixture fixture,
+                                               SessionSettingsProvider settingsProvider) {
+        return new StartSessionUseCase(fixture, settingsProvider, fixture, fixture.clock());
     }
 }

@@ -1,4 +1,4 @@
-package com.focusdesktop.application.usecase;
+package com.focusdesktop.application.usecase.exeptions;
 
 public final class ActiveSessionExistsException extends RuntimeException {
     public ActiveSessionExistsException() {
