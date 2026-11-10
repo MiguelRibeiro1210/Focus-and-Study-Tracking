@@ -78,6 +78,42 @@ class FocusSessionTest {
     }
 
     @Test
+    void disabledBreakAutoStartLeavesTheCompletedWorkFollowUpPending() {
+        FocusSession session = runningSession(false, true);
+
+        session.completeInterval(SessionType.SHORT_BREAK, at("2026-01-01T00:01:00Z"));
+
+        assertEquals(SessionState.WAITING_FOR_NEXT_INTERVAL, session.state());
+        assertEquals(IntervalState.PENDING, session.currentInterval().state());
+    }
+
+    @Test
+    void disabledWorkAutoStartLeavesTheCompletedBreakFollowUpPending() {
+        FocusSession session = runningSession(false, false);
+        session.completeInterval(SessionType.SHORT_BREAK, at("2026-01-01T00:01:00Z"));
+        session.startNextInterval(at("2026-01-01T00:01:00Z"));
+
+        session.completeInterval(SessionType.WORK, at("2026-01-01T00:02:00Z"));
+
+        assertEquals(SessionState.WAITING_FOR_NEXT_INTERVAL, session.state());
+        assertEquals(SessionType.WORK, session.currentInterval().type());
+        assertEquals(IntervalState.PENDING, session.currentInterval().state());
+    }
+
+    @Test
+    void skippingBreakStartsWorkEvenWhenWorkAutoStartIsDisabled() {
+        FocusSession session = runningSession(false, false);
+        session.completeInterval(SessionType.SHORT_BREAK, at("2026-01-01T00:01:00Z"));
+
+        session.skipBreak(at("2026-01-01T00:01:05Z"));
+
+        assertEquals(SessionState.RUNNING, session.state());
+        assertEquals(SessionType.WORK, session.currentInterval().type());
+        assertEquals(IntervalState.RUNNING, session.currentInterval().state());
+        assertEquals(IntervalState.SKIPPED, session.intervals().get(1).state());
+    }
+
+    @Test
     void terminalSessionCannotBeChanged() {
         FocusSession session = runningSession();
         session.stop(at("2026-01-01T00:05:00Z"));
@@ -86,9 +122,13 @@ class FocusSessionTest {
     }
 
     private static FocusSession runningSession() {
+        return runningSession(true, true);
+    }
+
+    private static FocusSession runningSession(boolean autoStartBreaks, boolean autoStartWork) {
         FocusSession session = FocusSessionFactory.create(new SessionSettings(
                 Duration.ofSeconds(60), Duration.ofSeconds(60), Duration.ofSeconds(120),
-                4, true, true), T0);
+                4, autoStartBreaks, autoStartWork), T0);
         session.start(T0);
         return session;
     }

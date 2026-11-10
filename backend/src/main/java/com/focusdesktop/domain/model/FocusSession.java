@@ -97,12 +97,8 @@ public final class FocusSession {
         currentInterval().skip(now);
         SessionInterval nextWork = newInterval(SessionType.WORK);
         intervals.add(nextWork);
-        if (settings.autoStartWork()) {
-            nextWork.start(now);
-            state = SessionState.RUNNING;
-        } else {
-            state = SessionState.WAITING_FOR_NEXT_INTERVAL;
-        }
+        nextWork.start(now);
+        state = SessionState.RUNNING;
     }
 
     public void stop(TimeStamp now) {
