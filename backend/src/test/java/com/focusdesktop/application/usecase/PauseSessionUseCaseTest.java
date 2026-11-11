@@ -29,6 +29,7 @@ class PauseSessionUseCaseTest {
         assertEquals(1, fixture.events.size());
         var event = (SessionPausedOrResumed) fixture.events.get(0);
         assertEquals(session.id(), event.sessionId());
+        assertEquals(SessionState.PAUSED, event.resultingState());
         assertEquals(at(120), event.occurredAt());
         assertEquals(480, event.remainingDuration().seconds());
         assertEquals(java.util.List.of("save", "append"), fixture.writes);

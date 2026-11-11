@@ -29,11 +29,13 @@ SQLite is a future option; see [ADR-005](../decisions/ADR-005-H2VsSQLite.md).
 | `started_at`, `ended_at` | TIMESTAMP | UTC. |
 | `planned_seconds`, `actual_seconds` | BIGINT | Planned and recorded focus duration. |
 | `settings_snapshot` | CLOB/JSON | Immutable `SessionSettings` snapshot. |
+| `active_slot` | SMALLINT, nullable | `1` for an active session; unique across the table to enforce one active session. |
 | `study_material_id` | UUID FK, nullable | Phase 3 only. |
 | `created_at`, `updated_at` | TIMESTAMP | Audit columns. |
-| `version` | BIGINT | Optimistic locking. |
+| `version` | BIGINT | JPA optimistic version; stale concurrent writes are rejected. |
 
-Indexes: `(state)` for active-session recovery, `(started_at)` for history.
+Indexes: `(state)` for active-session recovery, `(started_at)` for history, and
+a unique constraint on `active_slot` for the single-active-session invariant.
 Recovery queries include `RUNNING`, `PAUSED` and
 `WAITING_FOR_NEXT_INTERVAL` sessions.
 
@@ -85,6 +87,9 @@ cleanup deletes an event when its source data expires. Delete-all removes the
 outbox in the same operation so pending events cannot recreate deleted data.
 Projection acknowledgement controls durable delivery; WebSocket forwarding is
 best-effort and does not delay outbox completion.
+
+FST-013 persists outbox records atomically with session writes. The dispatcher
+that processes pending records is tracked separately under FST-015.
 
 ### `projection_event_receipt`
 
@@ -148,6 +153,8 @@ events, that data can no longer be reconstructed.
 
 ## 7. Migrations
 
+- Flyway applies versioned migrations from `db/migration` and records applied
+  versions in its schema-history table.
 - Schema changes use versioned migrations; never rely on Hibernate
   `ddl-auto=update` in production builds.
 - Migrations are forward-only and tested against a database created by the

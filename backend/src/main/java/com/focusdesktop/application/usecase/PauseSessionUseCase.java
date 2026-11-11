@@ -7,6 +7,7 @@ import com.focusdesktop.application.usecase.exeptions.InvalidSessionStateExcepti
 import com.focusdesktop.application.usecase.exeptions.SessionNotFoundException;
 import com.focusdesktop.domain.event.SessionPausedOrResumed;
 import com.focusdesktop.domain.model.FocusSession;
+import com.focusdesktop.domain.model.SessionState;
 import com.focusdesktop.domain.model.TimeStamp;
 import com.focusdesktop.domain.repository.FocusSessionRepository;
 import java.time.Clock;
@@ -36,7 +37,8 @@ public class PauseSessionUseCase {
             throw new InvalidSessionStateException("pause", exception);
         }
         sessions.save(session);
-        outbox.append(new SessionPausedOrResumed(session.id(), now, session.currentInterval().remainingDuration()));
+        outbox.append(new SessionPausedOrResumed(session.id(), SessionState.PAUSED, now,
+                session.currentInterval().remainingDuration()));
         return SessionDto.from(session, now);
     }
 }

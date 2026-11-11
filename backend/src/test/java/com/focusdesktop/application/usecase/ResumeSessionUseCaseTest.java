@@ -31,7 +31,9 @@ class ResumeSessionUseCaseTest {
         assertEquals(120, result.actualFocusDuration().seconds());
         assertEquals(480, result.remainingDuration().seconds());
         assertEquals(1, fixture.events.size());
-        assertEquals(at(300), ((SessionPausedOrResumed) fixture.events.get(0)).occurredAt());
+        var event = (SessionPausedOrResumed) fixture.events.get(0);
+        assertEquals(SessionState.RUNNING, event.resultingState());
+        assertEquals(at(300), event.occurredAt());
         assertEquals(java.util.List.of("save", "append"), fixture.writes);
     }
 

@@ -78,6 +78,18 @@ The Maven Wrapper downloads the pinned Maven distribution on its first run, so
 Maven does not need to be installed globally. Internet access is required only
 for that first download and for dependencies not already cached.
 
+The wrapper is a launcher; Maven goals specify the task. Run these commands from
+`backend/`:
+
+| Goal | Command | Purpose |
+|---|---|---|
+| Run the backend | `./mvnw spring-boot:run` | Start the local Spring Boot application. |
+| Run tests | `./mvnw test` | Compile and run the test suite. |
+| Verify the project | `./mvnw verify` | Run the full Maven verification lifecycle. |
+| Package the backend | `./mvnw package` | Build the application JAR. |
+
+On Windows, use `mvnw.cmd` with the same Maven goals.
+
 ### Setup Instructions
 
 1. **Clone the repository:**

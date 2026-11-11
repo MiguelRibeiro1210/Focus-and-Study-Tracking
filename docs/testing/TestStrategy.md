@@ -51,6 +51,8 @@ deterministic and does not mutate `DailyProgress` or `DistractionLog`.
 
 ## 4. Integration tests
 
+- JPA adapter tests use an isolated H2 in-memory database and apply the same
+  Flyway migrations as the file-backed application database.
 - Repository round-trips preserve value objects and interval order.
 - Active-session recovery finds exactly one `RUNNING`, `PAUSED` or
   `WAITING_FOR_NEXT_INTERVAL` session after restart and preserves the interval's
