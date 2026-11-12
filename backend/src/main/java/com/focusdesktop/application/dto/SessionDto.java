@@ -44,7 +44,7 @@ public record SessionDto(
         var interval = session.currentInterval();
         return new SessionDto(session.id(), session.sessionType(), session.state(), interval.type(),
                 interval.state(), interval.sequenceNumber(), interval.plannedDuration(),
-                interval.actualDuration(), session.actualFocusDuration(asOf), interval.remainingDuration(),
+                interval.actualDuration(asOf), session.actualFocusDuration(asOf), interval.remainingDuration(asOf),
                 session.createdAt(), session.startedAt(), session.endedAt());
     }
 }

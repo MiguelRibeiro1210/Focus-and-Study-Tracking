@@ -103,6 +103,17 @@ public final class SessionInterval {
     public IntervalState state() { return state; }
     public Duration actualDuration() { return actualDuration; }
     public Duration remainingDuration() { return remainingDuration; }
+    public Duration actualDuration(TimeStamp asOf) {
+        java.util.Objects.requireNonNull(asOf, "asOf");
+        if (state != IntervalState.RUNNING || pausedAt != null) {
+            return actualDuration;
+        }
+        return Duration.ofSeconds(Math.addExact(actualDuration.seconds(), startedAt.secondsUntil(asOf)));
+    }
+    public Duration remainingDuration(TimeStamp asOf) {
+        long elapsed = actualDuration(asOf).seconds();
+        return Duration.ofSeconds(Math.max(0, plannedDuration.seconds() - elapsed));
+    }
     public TimeStamp startedAt() { return startedAt; }
     public TimeStamp endedAt() { return endedAt; }
     public TimeStamp pausedAt() { return pausedAt; }

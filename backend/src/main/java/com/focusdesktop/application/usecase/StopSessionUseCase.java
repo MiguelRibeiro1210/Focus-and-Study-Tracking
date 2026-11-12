@@ -19,16 +19,26 @@ public class StopSessionUseCase {
     private final FocusSessionRepository sessions;
     private final DomainEventOutbox outbox;
     private final Clock clock;
+    private final CompleteDueIntervalsUseCase completeDueIntervals;
 
     public StopSessionUseCase(FocusSessionRepository sessions, DomainEventOutbox outbox, Clock clock) {
+        this(sessions, outbox, clock, null);
+    }
+
+    public StopSessionUseCase(FocusSessionRepository sessions, DomainEventOutbox outbox, Clock clock,
+                             CompleteDueIntervalsUseCase completeDueIntervals) {
         this.sessions = Objects.requireNonNull(sessions, "sessions");
         this.outbox = Objects.requireNonNull(outbox, "outbox");
         this.clock = Objects.requireNonNull(clock, "clock");
+        this.completeDueIntervals = completeDueIntervals;
     }
 
     @Transactional
     public SessionDto execute(SessionIdCommand command) {
         Objects.requireNonNull(command, "command");
+        if (completeDueIntervals != null) {
+            completeDueIntervals.execute();
+        }
         FocusSession session = sessions.findById(command.sessionId())
                 .orElseThrow(() -> new SessionNotFoundException(command.sessionId()));
         TimeStamp now = new TimeStamp(clock.instant());

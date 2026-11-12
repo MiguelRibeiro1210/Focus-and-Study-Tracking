@@ -1,6 +1,8 @@
 package com.focusdesktop.infrastructure.web;
 
 import com.focusdesktop.application.usecase.GetActiveSessionUseCase;
+import com.focusdesktop.application.usecase.SkipBreakUseCase;
+import com.focusdesktop.application.usecase.StartNextIntervalUseCase;
 import com.focusdesktop.application.usecase.PauseSessionUseCase;
 import com.focusdesktop.application.usecase.ResumeSessionUseCase;
 import com.focusdesktop.application.usecase.StartSessionUseCase;
@@ -27,14 +29,19 @@ public class SessionController {
     private final PauseSessionUseCase pause;
     private final ResumeSessionUseCase resume;
     private final StopSessionUseCase stop;
+    private final StartNextIntervalUseCase startNextInterval;
+    private final SkipBreakUseCase skipBreak;
 
     public SessionController(StartSessionUseCase start, GetActiveSessionUseCase active,
-            PauseSessionUseCase pause, ResumeSessionUseCase resume, StopSessionUseCase stop) {
+            PauseSessionUseCase pause, ResumeSessionUseCase resume, StopSessionUseCase stop,
+            StartNextIntervalUseCase startNextInterval, SkipBreakUseCase skipBreak) {
         this.start = start;
         this.active = active;
         this.pause = pause;
         this.resume = resume;
         this.stop = stop;
+        this.startNextInterval = startNextInterval;
+        this.skipBreak = skipBreak;
     }
 
     @PostMapping
@@ -66,6 +73,16 @@ public class SessionController {
     @PostMapping("/{id}/stop")
     public SessionResponse stop(@PathVariable UUID id) {
         return SessionResponse.from(stop.execute(command(id)));
+    }
+
+    @PostMapping("/{id}/intervals/start")
+    public SessionResponse startNextInterval(@PathVariable UUID id) {
+        return SessionResponse.from(startNextInterval.execute(command(id)));
+    }
+
+    @PostMapping("/{id}/skip-break")
+    public SessionResponse skipBreak(@PathVariable UUID id) {
+        return SessionResponse.from(skipBreak.execute(command(id)));
     }
 
     private static SessionIdCommand command(UUID id) {

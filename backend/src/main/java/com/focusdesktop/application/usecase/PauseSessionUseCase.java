@@ -18,19 +18,33 @@ public class PauseSessionUseCase {
     private final FocusSessionRepository sessions;
     private final DomainEventOutbox outbox;
     private final Clock clock;
+    private final CompleteDueIntervalsUseCase completeDueIntervals;
 
     public PauseSessionUseCase(FocusSessionRepository sessions, DomainEventOutbox outbox, Clock clock) {
+        this(sessions, outbox, clock, null);
+    }
+
+    public PauseSessionUseCase(FocusSessionRepository sessions, DomainEventOutbox outbox, Clock clock,
+                              CompleteDueIntervalsUseCase completeDueIntervals) {
         this.sessions = Objects.requireNonNull(sessions, "sessions");
         this.outbox = Objects.requireNonNull(outbox, "outbox");
         this.clock = Objects.requireNonNull(clock, "clock");
+        this.completeDueIntervals = completeDueIntervals;
     }
 
     @Transactional
     public SessionDto execute(SessionIdCommand command) {
         Objects.requireNonNull(command, "command");
+        int completedIntervals = 0;
+        if (completeDueIntervals != null) {
+            completedIntervals = completeDueIntervals.execute();
+        }
         FocusSession session = sessions.findById(command.sessionId())
                 .orElseThrow(() -> new SessionNotFoundException(command.sessionId()));
         TimeStamp now = new TimeStamp(clock.instant());
+        if (completedIntervals > 0 && session.state() == SessionState.WAITING_FOR_NEXT_INTERVAL) {
+            return SessionDto.from(session, now);
+        }
         try {
             session.pause(now);
         } catch (IllegalStateException | IllegalArgumentException exception) {

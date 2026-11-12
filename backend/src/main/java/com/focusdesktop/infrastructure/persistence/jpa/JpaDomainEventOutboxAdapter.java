@@ -2,6 +2,9 @@ package com.focusdesktop.infrastructure.persistence.jpa;
 
 import com.focusdesktop.application.port.DomainEventOutbox;
 import com.focusdesktop.domain.event.DomainEvent;
+import com.focusdesktop.domain.event.BreakSkipped;
+import com.focusdesktop.domain.event.IntervalCompleted;
+import com.focusdesktop.domain.event.IntervalStarted;
 import com.focusdesktop.domain.event.SessionAbandoned;
 import com.focusdesktop.domain.event.SessionCompleted;
 import com.focusdesktop.domain.event.SessionPausedOrResumed;
@@ -29,6 +32,15 @@ public class JpaDomainEventOutboxAdapter implements DomainEventOutbox {
     }
 
     private static EventDescriptor describe(DomainEvent event) {
+        if (event instanceof IntervalCompleted completed) {
+            return new EventDescriptor("IntervalCompleted", completed.sessionId().value());
+        }
+        if (event instanceof IntervalStarted started) {
+            return new EventDescriptor("IntervalStarted", started.sessionId().value());
+        }
+        if (event instanceof BreakSkipped skipped) {
+            return new EventDescriptor("BreakSkipped", skipped.sessionId().value());
+        }
         if (event instanceof SessionStarted started) {
             return new EventDescriptor("SessionStarted", started.sessionId().value());
         }

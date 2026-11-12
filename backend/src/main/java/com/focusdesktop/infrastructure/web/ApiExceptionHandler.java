@@ -2,6 +2,7 @@ package com.focusdesktop.infrastructure.web;
 
 import com.focusdesktop.application.usecase.exeptions.ActiveSessionExistsException;
 import com.focusdesktop.application.usecase.exeptions.InvalidSessionStateException;
+import com.focusdesktop.application.usecase.exeptions.InvalidIntervalTypeException;
 import com.focusdesktop.application.usecase.exeptions.SessionNotFoundException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -25,6 +26,11 @@ public class ApiExceptionHandler {
     @ExceptionHandler(InvalidSessionStateException.class)
     ResponseEntity<ApiErrorResponse> invalidState(InvalidSessionStateException exception) {
         return error(HttpStatus.UNPROCESSABLE_ENTITY, "INVALID_SESSION_STATE", exception.getMessage());
+    }
+
+    @ExceptionHandler(InvalidIntervalTypeException.class)
+    ResponseEntity<ApiErrorResponse> invalidIntervalType(InvalidIntervalTypeException exception) {
+        return error(HttpStatus.UNPROCESSABLE_ENTITY, "INVALID_INTERVAL_TYPE", exception.getMessage());
     }
 
     @ExceptionHandler({IllegalArgumentException.class, HttpMessageNotReadableException.class,
