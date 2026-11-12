@@ -27,8 +27,8 @@ Base URL: `http://127.0.0.1:<port>/api/v1`
 | `POST` | `/sessions/{id}/pause` | Pause a running session. | `200 OK` + `SessionResponse` |
 | `POST` | `/sessions/{id}/resume` | Resume a paused session. | `200 OK` + `SessionResponse` |
 | `POST` | `/sessions/{id}/stop` | Stop and record the session, including while waiting for the next interval. | `200 OK` + `SessionResponse` |
-| `POST` | `/sessions/{id}/intervals/start` | Start the pending next interval while the session is waiting. | `200 OK` + `SessionDto` |
-| `POST` | `/sessions/{id}/skip-break` | Skip the break and start the next work interval. | `200 OK` + `SessionDto` |
+| `POST` | `/sessions/{id}/intervals/start` | Start the pending next interval while the session is waiting. | `200 OK` + `SessionResponse` |
+| `POST` | `/sessions/{id}/skip-break` | Skip a pending break and start the next work interval. | `200 OK` + `SessionResponse` |
 | `GET` | `/sessions` | Query history by range. | `200 OK` + `Page<SessionSummaryDto>` |
 | `GET` | `/sessions/{id}` | Session detail with intervals. | `200 OK` + `SessionDetailDto` |
 
@@ -68,7 +68,13 @@ started. In `PAUSED`, it is the persisted remaining time. `GET /sessions/active`
 returns the session in `RUNNING`, `PAUSED` or `WAITING_FOR_NEXT_INTERVAL`, and
 returns `204` only when none exists. The `intervals/start` operation returns
 `422 INVALID_SESSION_STATE` unless the session is waiting and has a pending
-interval.
+interval. `skip-break` returns `422 INVALID_SESSION_STATE` unless a pending
+interval is waiting, and `422 INVALID_INTERVAL_TYPE` if that interval is work.
+
+The backend scheduler checks due intervals every five seconds. It records
+completion at the planned interval end, so the persisted duration does not
+include the scheduler's detection delay; the session may remain `RUNNING` with
+zero seconds remaining until the next scheduler check.
 
 The scheduler is an internal backend component and invokes interval completion
 directly; interval completion is not a public REST operation. The client renders
@@ -163,6 +169,7 @@ Connect to `/ws` with the same bearer token. The server sends JSON envelopes:
 | `session.abandoned` | Session abandoned | `sessionId`, `actualFocusDuration`, `reason` |
 | `interval.completed` | Work/break interval completed | `sessionId`, `intervalType`, `completedAt`, `sessionState`, `remainingSeconds` |
 | `interval.started` | A pending interval starts | `sessionId`, `intervalType`, `startedAt`, `remainingSeconds`, `sessionState` |
+| `break.skipped` | A pending break is skipped | `sessionId`, `intervalType`, `skippedAt` |
 | `distraction.detected` | A rule matched | `detectionId`, `app`, `category`, `action` |
 | `distraction.blocked` | Block succeeded | `detectionId`, `app`, `blockedAt` |
 | `distraction.block.failed` | Block failed | `detectionId`, `reason` |

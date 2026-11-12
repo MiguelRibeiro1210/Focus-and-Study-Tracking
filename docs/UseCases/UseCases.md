@@ -268,11 +268,13 @@ start the pending interval.
 
 ### Main success scenario
 
-1. The backend scheduler invokes `completeInterval(sessionId, now)` internally;
-   there is no REST endpoint for this operation.
+1. The backend scheduler checks for due intervals every five seconds and invokes
+   `CompleteDueIntervalsUseCase`; there is no REST endpoint for completion.
 2. The system loads the session.
 3. The system verifies the session is `RUNNING`.
-4. The aggregate completes the current interval and records its actual duration.
+4. The aggregate completes the current interval at its planned end time and
+   records its actual duration, even if the scheduler detects it a few seconds
+   later.
 5. After work, the scheduling service chooses a short break, or a long break
    after N completed work intervals. Short breaks do not count toward N; after
    the long break, the work-interval count starts a new cycle. After a break,
@@ -280,8 +282,9 @@ start the pending interval.
 6. If the corresponding auto-start setting (`autoStartBreaks` or
    `autoStartWork`) is enabled, the new interval starts immediately; otherwise
    it remains `PENDING` and the session enters `WAITING_FOR_NEXT_INTERVAL`.
-7. The system persists the session and appends `IntervalCompleted` to the outbox
-   in the same transaction.
+7. The system persists the session and appends `IntervalCompleted` and, when the
+   next interval auto-starts, `IntervalStarted` to the outbox in the same
+   transaction.
 8. After commit, the dispatcher broadcasts `interval.completed` with the next
    interval type, session state and remaining time.
 
@@ -291,7 +294,8 @@ start the pending interval.
 2. The UI sends `POST /api/v1/sessions/{id}/intervals/start`.
 3. The system loads the session and verifies it is
    `WAITING_FOR_NEXT_INTERVAL` with a pending interval.
-4. The aggregate starts that interval and changes the session to `RUNNING`.
+4. `StartNextIntervalUseCase` invokes the aggregate to start that interval and
+   changes the session to `RUNNING`.
 5. The session and `IntervalStarted` outbox record commit atomically.
 6. The response and post-commit `interval.started` notification contain the
    authoritative timer snapshot.
@@ -333,31 +337,30 @@ FR-SES-05, FR-SES-09.
 **Actor:** Learner
 **Goal:** End a break early and return to work.
 **Priority / phase:** Must / MVP
-**Preconditions:** A session exists, is `RUNNING`, and the current interval is
-a break.
+**Preconditions:** A session exists, is `WAITING_FOR_NEXT_INTERVAL`, and the
+pending interval is a break.
 **Trigger:** The learner presses **Skip break**.
 
 ### Main success scenario
 
 1. The learner presses **Skip break**.
 2. The UI sends `POST /api/v1/sessions/{id}/skip-break`.
-3. The system loads the session.
-4. The system verifies the session is `RUNNING` and the current interval is
-   `SHORT_BREAK` or `LONG_BREAK`.
+3. `SkipBreakUseCase` loads the session.
+4. The system verifies the session is `WAITING_FOR_NEXT_INTERVAL` and the
+   pending interval is `SHORT_BREAK` or `LONG_BREAK`.
 5. The aggregate marks the break `SKIPPED`, creates a new work interval and
    starts it.
-6. The system persists the session and appends `IntervalCompleted` to the
-   outbox in the same transaction.
-7. After commit, the dispatcher broadcasts `interval.completed` with
-   `nextType: WORK`.
+6. The system persists the session and appends `BreakSkipped` and
+   `IntervalStarted` to the outbox in the same transaction.
+7. After commit, the dispatcher can broadcast the interval change.
 8. The UI switches to the work timer.
 
 ### Extensions
 
 - **3a. Session not found.** `404 SESSION_NOT_FOUND`.
-- **4a. Current interval is work.** `422 INVALID_INTERVAL_TYPE`.
-- **4b. Session is paused.** The system returns `422 INVALID_SESSION_STATE`;
-  the learner must resume or stop.
+- **4a. Session is not waiting for a pending interval.**
+  `422 INVALID_SESSION_STATE`.
+- **4b. The pending interval is work.** `422 INVALID_INTERVAL_TYPE`.
 
 ### Postconditions
 

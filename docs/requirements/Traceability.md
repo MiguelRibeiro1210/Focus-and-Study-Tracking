@@ -12,8 +12,8 @@ case, diagram and task should be visible in one place.
 | FR-SES-02 | UC-02 | [SD_PauseSession](../SD/SD_PauseSession.puml) | FST-010, FST-014 |
 | FR-SES-03 | UC-03 | [SD_ResumeSession](../SD/SD_ResumeSession.puml) | FST-010, FST-014 |
 | FR-SES-04 | UC-04 | [SD_StopSession](../SD/SD_StopSession.puml) | FST-010, FST-014 |
-| FR-SES-05 | UC-05 | [SD_CompleteInterval](../SD/SD_CompleteInterval.puml), [SD_StartNextInterval](../SD/SD_StartNextInterval.puml) | FST-006, FST-015 |
-| FR-SES-06 | UC-06 | [SD_SkipBreak](../SD/SD_SkipBreak.puml) | FST-006, FST-017 |
+| FR-SES-05 | UC-05 | [SD_CompleteInterval](../SD/SD_CompleteInterval.puml), [SD_StartNextInterval](../SD/SD_StartNextInterval.puml) | FST-006, FST-038, FST-015 |
+| FR-SES-06 | UC-06 | [SD_SkipBreak](../SD/SD_SkipBreak.puml) | FST-006, FST-038, FST-017 |
 | FR-SES-07 | UC-01 | [SD_StartSession](../SD/SD_StartSession.puml) | FST-005, FST-009 |
 | FR-SES-08 | UC-01 | [SD_StartSession](../SD/SD_StartSession.puml) | FST-005, FST-013 |
 | FR-SES-09 | UC-01, UC-05 | [SD_StartSession](../SD/SD_StartSession.puml), [SD_CompleteInterval](../SD/SD_CompleteInterval.puml) | FST-006, FST-015 |
