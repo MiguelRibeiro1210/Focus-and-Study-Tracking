@@ -12,7 +12,7 @@ Base URL: `http://127.0.0.1:<port>/api/v1`
 | Concern | Rule |
 |---|---|
 | Binding | Loopback only (`127.0.0.1` / `::1`). |
-| Token | `Authorization: Bearer <token>`; the token is generated per installation and handed to the client by the Tauri shell. |
+| Token | `Authorization: Bearer <token>`; generated at first backend startup, stored in the local data directory as `api-token`, then reused. The file is readable only by the current user; the Tauri shell reads it locally and supplies the header. |
 | Content type | `application/json` for requests and responses. |
 | Versioning | `/api/v1`; breaking changes require a new version. |
 | CORS | Only the local desktop origin is allowed. |
@@ -22,11 +22,11 @@ Base URL: `http://127.0.0.1:<port>/api/v1`
 
 | Method | Path | Purpose | Success |
 |---|---|---|---|
-| `POST` | `/sessions` | Start a focus session. | `201 Created` + `SessionDto` |
-| `GET` | `/sessions/active` | Get the active session, if any. | `200 OK` + `SessionDto` / `204 No Content` |
-| `POST` | `/sessions/{id}/pause` | Pause a running session. | `200 OK` + `SessionDto` |
-| `POST` | `/sessions/{id}/resume` | Resume a paused session. | `200 OK` + `SessionDto` |
-| `POST` | `/sessions/{id}/stop` | Stop and record the session, including while waiting for the next interval. | `200 OK` + `SessionDto` |
+| `POST` | `/sessions` | Start a focus session. Request: `{"sessionType":"WORK"}`. | `201 Created` + `SessionResponse` |
+| `GET` | `/sessions/active` | Get the active session, if any. | `200 OK` + `SessionResponse` / `204 No Content` |
+| `POST` | `/sessions/{id}/pause` | Pause a running session. | `200 OK` + `SessionResponse` |
+| `POST` | `/sessions/{id}/resume` | Resume a paused session. | `200 OK` + `SessionResponse` |
+| `POST` | `/sessions/{id}/stop` | Stop and record the session, including while waiting for the next interval. | `200 OK` + `SessionResponse` |
 | `POST` | `/sessions/{id}/intervals/start` | Start the pending next interval while the session is waiting. | `200 OK` + `SessionDto` |
 | `POST` | `/sessions/{id}/skip-break` | Skip the break and start the next work interval. | `200 OK` + `SessionDto` |
 | `GET` | `/sessions` | Query history by range. | `200 OK` + `Page<SessionSummaryDto>` |
@@ -38,8 +38,29 @@ Date boundaries for history and analytics are local calendar dates interpreted
 in the operating system's current time zone and converted to UTC instants. If
 the OS time zone changes, historical daily groupings use the new zone.
 
-`SessionDto` contains the session identity, type, state, interval type, remaining
-time, planned/actual durations, timestamps and the current interval sequence.
+`SessionResponse` contains the session identity, type, state, interval type,
+remaining time, planned/actual durations, timestamps and the current interval
+sequence. IDs are UUID strings, durations are integer seconds, and timestamps
+are ISO-8601 UTC strings; domain value objects are not exposed in the JSON.
+For example:
+
+```json
+{
+  "sessionId": "e954a50a-90fd-4e8b-8770-e5e19f8acfe1",
+  "sessionType": "WORK",
+  "state": "RUNNING",
+  "intervalType": "WORK",
+  "intervalState": "RUNNING",
+  "intervalSequence": 1,
+  "plannedDurationSeconds": 1500,
+  "actualDurationSeconds": 0,
+  "actualFocusDurationSeconds": 0,
+  "remainingSeconds": 1500,
+  "createdAt": "2026-11-11T00:00:00Z",
+  "startedAt": "2026-11-11T00:00:00Z",
+  "endedAt": null
+}
+```
 The backend is authoritative for elapsed time. When the state is
 `WAITING_FOR_NEXT_INTERVAL`, `intervalType` identifies the pending interval and
 `remainingSeconds` is its full planned duration; no countdown runs until it is
