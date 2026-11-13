@@ -54,13 +54,15 @@ class JpaFocusSessionRepositoryAdapterTest {
     private Flyway flyway;
 
     @Test
-    void flywayAppliesSessionSchemaMigration() {
+    void flywayAppliesSessionAndOutboxRetryMigrations() {
         var currentMigration = flyway.info().current();
         assertNotNull(currentMigration);
-        assertEquals("1", currentMigration.getVersion().getVersion());
+        assertEquals("2", currentMigration.getVersion().getVersion());
         assertNotNull(jdbc.queryForObject("SELECT COUNT(*) FROM focus_session", Long.class));
         assertNotNull(jdbc.queryForObject("SELECT COUNT(*) FROM session_interval", Long.class));
         assertNotNull(jdbc.queryForObject("SELECT COUNT(*) FROM domain_event_outbox", Long.class));
+        assertEquals(1, jdbc.queryForObject("SELECT COUNT(*) FROM information_schema.columns "
+                + "WHERE table_name = 'DOMAIN_EVENT_OUTBOX' AND column_name = 'NEXT_ATTEMPT_AT'", Integer.class));
     }
 
     @Test

@@ -80,13 +80,17 @@ The active session does not read this row; it uses its snapshot.
 Durable event records are appended in the same database transaction as the
 aggregate update. Columns: `event_id` (UUID PK), `event_type`, `aggregate_id`,
 `occurred_at` (UTC), `payload` (CLOB/JSON), `delivered_at` (nullable UTC) and
-`attempt_count`. A dispatcher retries undelivered rows and marks them delivered
-after consumers acknowledge processing. Rows are retained with their source
-session/distraction data for deterministic projection rebuilds; retention
-cleanup deletes an event when its source data expires. Delete-all removes the
-outbox in the same operation so pending events cannot recreate deleted data.
-Projection acknowledgement controls durable delivery; WebSocket forwarding is
-best-effort and does not delay outbox completion.
+`attempt_count`, `next_attempt_at` (nullable UTC) and `last_error`. FST-015
+polls due rows in occurrence order, broadcasts session events after commit,
+and marks them delivered once the local WebSocket server accepts the message.
+Dispatch failures are retried with exponential delay capped at 60 seconds.
+WebSocket delivery is best-effort: clients recover the latest state through
+REST after reconnect, and duplicate broadcasts are identified by `event_id`.
+Rows are retained with their source session/distraction data for deterministic
+projection rebuilds; retention cleanup deletes an event when its source data
+expires. Delete-all removes the outbox in the same operation so pending events
+cannot recreate deleted data. Future projections will track their own durable
+receipts independently of WebSocket delivery.
 
 FST-013 persists outbox records atomically with session writes. The dispatcher
 that processes pending records is tracked separately under FST-015.

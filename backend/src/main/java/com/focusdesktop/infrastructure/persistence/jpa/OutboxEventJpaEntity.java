@@ -35,6 +35,12 @@ public class OutboxEventJpaEntity {
     @Column(name = "attempt_count", nullable = false)
     private int attemptCount;
 
+    @Column(name = "next_attempt_at")
+    private Instant nextAttemptAt;
+
+    @Column(name = "last_error", length = 1000)
+    private String lastError;
+
     protected OutboxEventJpaEntity() { }
 
     OutboxEventJpaEntity(UUID eventId, String eventType, UUID aggregateId,
@@ -47,4 +53,22 @@ public class OutboxEventJpaEntity {
     }
 
     UUID eventId() { return eventId; }
+    String eventType() { return eventType; }
+    UUID aggregateId() { return aggregateId; }
+    Instant occurredAt() { return occurredAt; }
+    String payload() { return payload; }
+    Instant deliveredAt() { return deliveredAt; }
+    int attemptCount() { return attemptCount; }
+
+    void markDelivered(Instant at) {
+        deliveredAt = at;
+        lastError = null;
+        nextAttemptAt = null;
+    }
+
+    void recordFailure(Instant retryAt, String error) {
+        attemptCount++;
+        nextAttemptAt = retryAt;
+        lastError = error;
+    }
 }

@@ -154,32 +154,64 @@ append-only; window titles are redacted when the category policy requires it.
 
 ## 7. WebSocket
 
-Connect to `/ws` with the same bearer token. The server sends JSON envelopes:
+Connect to `ws://127.0.0.1:<port>/ws` with the same bearer token as REST. A
+browser client must use the Vite server-side WebSocket proxy to attach this
+header; the token must not be exposed to browser JavaScript. The upgrade
+request must have an allowed local origin when an `Origin` header is present.
+The server sends versioned JSON envelopes containing the stable
+outbox event ID, event type, occurrence time and the latest persisted session
+snapshot:
 
 ```json
-{ "type": "session.completed", "occurredAt": "2026-11-07T15:30:00Z", "payload": { } }
+{
+  "eventId": "8e6d12aa-9d8c-467e-9fd7-ec43b32ee362",
+  "version": 1,
+  "type": "session.started",
+  "occurredAt": "2026-11-07T15:30:00Z",
+  "payload": {
+    "sessionId": "e954a50a-90fd-4e8b-8770-e5e19f8acfe1",
+    "sessionType": "WORK",
+    "state": "RUNNING",
+    "intervalType": "WORK",
+    "intervalState": "RUNNING",
+    "intervalSequence": 1,
+    "plannedDurationSeconds": 1500,
+    "actualDurationSeconds": 0,
+    "actualFocusDurationSeconds": 0,
+    "remainingSeconds": 1500,
+    "createdAt": "2026-11-07T15:30:00Z",
+    "startedAt": "2026-11-07T15:30:00Z",
+    "endedAt": null
+  }
+}
 ```
 
-| Event | When | Payload |
-|---|---|---|
-| `session.started` | Session started | `sessionId`, `type`, `startedAt` |
-| `session.paused` | Session paused | `sessionId`, `pausedAt` |
-| `session.resumed` | Session resumed | `sessionId`, `resumedAt` |
-| `session.completed` | Session completed or stopped | `sessionId`, `actualFocusDuration`, `completedAt` |
-| `session.abandoned` | Session abandoned | `sessionId`, `actualFocusDuration`, `reason` |
-| `interval.completed` | Work/break interval completed | `sessionId`, `intervalType`, `completedAt`, `sessionState`, `remainingSeconds` |
-| `interval.started` | A pending interval starts | `sessionId`, `intervalType`, `startedAt`, `remainingSeconds`, `sessionState` |
-| `break.skipped` | A pending break is skipped | `sessionId`, `intervalType`, `skippedAt` |
-| `distraction.detected` | A rule matched | `detectionId`, `app`, `category`, `action` |
-| `distraction.blocked` | Block succeeded | `detectionId`, `app`, `blockedAt` |
-| `distraction.block.failed` | Block failed | `detectionId`, `reason` |
+| Event type | When |
+|---|---|
+| `session.started` | Session started |
+| `session.paused` | Session paused |
+| `session.resumed` | Session resumed |
+| `session.completed` | Session completed |
+| `session.abandoned` | Session abandoned |
+| `interval.completed` | Work or break interval completed |
+| `interval.started` | A pending interval starts |
+| `break.skipped` | A pending break is skipped |
 
-WebSocket delivery is best-effort and carries snapshots on state or interval
-changes, including `remainingSeconds` and `sessionState`. The timer does not
-send a WebSocket tick every second. On reconnect the client fetches
-`GET /sessions/active` and `GET /analytics/summary` to reconcile state. The
-notification is forwarded from the durable outbox after commit; a lost
-notification is repaired by polling or reconnect reconciliation.
+The `payload` uses the `SessionResponse` shape above and represents the latest
+persisted state when the event is dispatched; it is not a historical snapshot
+captured at the event's occurrence time. Events are dispatched from the durable
+outbox only after the transaction commits. Dispatch retries failures with
+exponential delay capped at 60 seconds. Delivery is at least once: a crash
+after broadcast but before acknowledgement can produce the same `eventId`
+again, so clients should ignore duplicate IDs. A broadcast is considered
+handled when accepted by the local WebSocket server, even if no clients are
+connected. WebSocket delivery is otherwise best-effort, and the timer does not
+receive one-second ticks. On connect or reconnect, clients fetch
+`GET /sessions/active` to reconcile. The timer also polls that endpoint every
+30 seconds while running.
+
+Distraction event types are reserved for a later feature and are not currently
+published by FST-015.
 
 When a session is abandoned because it ended before the five-minute minimum,
 `reason` is `BELOW_MINIMUM_FOCUS_TIME`.

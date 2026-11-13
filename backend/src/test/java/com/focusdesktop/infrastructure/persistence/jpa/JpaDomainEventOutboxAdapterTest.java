@@ -16,6 +16,7 @@ import com.focusdesktop.domain.model.TimeStamp;
 import jakarta.persistence.EntityManager;
 import com.focusdesktop.domain.repository.FocusSessionRepository;
 import java.time.Instant;
+import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase;
@@ -32,7 +33,8 @@ import org.springframework.transaction.support.TransactionTemplate;
         "spring.jpa.hibernate.ddl-auto=none"
 })
 @AutoConfigureTestDatabase(replace = Replace.NONE)
-@Import({JpaFocusSessionRepositoryAdapter.class, JpaDomainEventOutboxAdapter.class})
+@Import({JpaFocusSessionRepositoryAdapter.class, JpaDomainEventOutboxAdapter.class,
+        JpaOutboxDeliveryStore.class})
 class JpaDomainEventOutboxAdapterTest {
     private static final TimeStamp START = new TimeStamp(Instant.parse("2026-01-01T10:00:00Z"));
     private static final SessionSettings SETTINGS = new SessionSettings(Duration.ofSeconds(600),
@@ -43,6 +45,9 @@ class JpaDomainEventOutboxAdapterTest {
 
     @Autowired
     private DomainEventOutbox outbox;
+
+    @Autowired
+    private OutboxDeliveryStore deliveryStore;
 
     @Autowired
     private JdbcTemplate jdbc;
@@ -102,6 +107,36 @@ class JpaDomainEventOutboxAdapterTest {
             return null;
         }));
         assertEquals(0, jdbc.queryForObject("SELECT COUNT(*) FROM domain_event_outbox", Integer.class));
+    }
+
+    @Test
+    void retriesPendingEventsAndMarksSuccessfulDelivery() {
+        FocusSession session = startedSession();
+        sessions.save(session);
+        outbox.append(new SessionStarted(session.id(), SessionType.WORK, START));
+        entityManager.flush();
+        UUID eventId = jdbc.queryForObject("SELECT event_id FROM domain_event_outbox", UUID.class);
+
+        var due = deliveryStore.findDue(START.value(), 10);
+        assertEquals(1, due.size());
+        assertEquals(eventId, due.get(0).eventId());
+
+        Instant retryAt = START.value().plusSeconds(2);
+        deliveryStore.recordFailure(eventId, retryAt, "temporary failure");
+        entityManager.flush();
+        assertEquals(1, jdbc.queryForObject("SELECT attempt_count FROM domain_event_outbox WHERE event_id = ?",
+                Integer.class, eventId));
+        assertEquals("temporary failure", jdbc.queryForObject(
+                "SELECT last_error FROM domain_event_outbox WHERE event_id = ?", String.class, eventId));
+        assertEquals(0, deliveryStore.findDue(START.value().plusSeconds(1), 10).size());
+        assertEquals(1, deliveryStore.findDue(retryAt, 10).size());
+
+        deliveryStore.markDelivered(eventId, retryAt);
+        entityManager.flush();
+        assertEquals(0, deliveryStore.findDue(retryAt, 10).size());
+        assertEquals(1, jdbc.queryForObject("SELECT COUNT(*) FROM domain_event_outbox "
+                + "WHERE event_id = ? AND delivered_at = ? AND last_error IS NULL",
+                Integer.class, eventId, retryAt));
     }
 
     private static FocusSession startedSession() {
