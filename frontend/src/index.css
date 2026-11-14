@@ -17,4 +17,11 @@ body {
   min-width: 320px;
   min-height: 100vh;
   margin: 0;
+  background:
+    radial-gradient(ellipse at 50% 25%, rgba(225, 237, 224, 0.7), transparent 38rem),
+    #f5f7f4;
+}
+
+button {
+  -webkit-tap-highlight-color: transparent;
 }
