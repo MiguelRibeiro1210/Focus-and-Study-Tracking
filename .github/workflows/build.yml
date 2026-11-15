@@ -29,3 +29,18 @@ jobs:
       - name: Compile Project
         run: ./mvnw clean verify
         working-directory: ./backend
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install Frontend Dependencies
+        run: npm ci
+        working-directory: ./frontend
+
+      - name: Run Frontend Tests
+        run: ./test.sh
+        working-directory: ./frontend
