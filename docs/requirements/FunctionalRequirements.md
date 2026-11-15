@@ -15,7 +15,7 @@ Every requirement is traced to a use case and to the project board in
 | FR-SES-03 | The learner can resume a paused session without resetting the interval. | Must | MVP | UC-03 | FST-010 |
 | FR-SES-04 | The learner can stop an active session; the actual elapsed focus time is recorded. | Must | MVP | UC-04 | FST-010 |
 | FR-SES-05 | A running interval completes automatically when its planned duration elapses; the next interval starts immediately when its matching auto-start setting is enabled, otherwise the session waits for learner action. | Must | MVP | UC-05 | FST-006, FST-038 |
-| FR-SES-06 | The learner can skip a pending break and start the next work interval immediately. | Must | MVP | UC-06 | FST-006, FST-038 |
+| FR-SES-06 | The learner can skip a pending break or a paused break and start the next work interval immediately. | Must | MVP | UC-06 | FST-006, FST-038 |
 | FR-SES-07 | The system prevents more than one session in `RUNNING`, `PAUSED` or `WAITING_FOR_NEXT_INTERVAL` per installation. | Must | MVP | UC-01 | FST-005, FST-009 |
 | FR-SES-08 | A running, paused or waiting session is recovered after an application restart, including remaining time. | Must | MVP | UC-01 | FST-005, FST-013 |
 | FR-SES-09 | The system exposes the current interval type, state and remaining time at any moment. | Must | MVP | UC-01 | FST-006, FST-015 |
@@ -38,6 +38,9 @@ Every requirement is traced to a use case and to the project board in
 - With auto-start disabled, the completed interval is persisted, the session
   enters `WAITING_FOR_NEXT_INTERVAL`, and the next interval starts only after
   `POST /sessions/{id}/intervals/start`.
+- Skip-break is allowed for a pending break while waiting or for a break paused
+  by the learner; skipping a paused break retains its elapsed break duration,
+  discards its remaining time, and starts work immediately.
 - The backend sends timer snapshots on state/interval changes. The client may
   count down locally between snapshots and reconciles periodically and after
   reconnecting.

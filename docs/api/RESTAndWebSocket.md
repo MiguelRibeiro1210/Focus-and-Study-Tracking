@@ -28,7 +28,7 @@ Base URL: `http://127.0.0.1:<port>/api/v1`
 | `POST` | `/sessions/{id}/resume` | Resume a paused session. | `200 OK` + `SessionResponse` |
 | `POST` | `/sessions/{id}/stop` | Stop and record the session, including while waiting for the next interval. | `200 OK` + `SessionResponse` |
 | `POST` | `/sessions/{id}/intervals/start` | Start the pending next interval while the session is waiting. | `200 OK` + `SessionResponse` |
-| `POST` | `/sessions/{id}/skip-break` | Skip a pending break and start the next work interval. | `200 OK` + `SessionResponse` |
+| `POST` | `/sessions/{id}/skip-break` | Skip a pending or paused break and start the next work interval. | `200 OK` + `SessionResponse` |
 | `GET` | `/sessions` | Query history by range. | `200 OK` + `Page<SessionSummaryDto>` |
 | `GET` | `/sessions/{id}` | Session detail with intervals. | `200 OK` + `SessionDetailDto` |
 
@@ -69,7 +69,10 @@ returns the session in `RUNNING`, `PAUSED` or `WAITING_FOR_NEXT_INTERVAL`, and
 returns `204` only when none exists. The `intervals/start` operation returns
 `422 INVALID_SESSION_STATE` unless the session is waiting and has a pending
 interval. `skip-break` returns `422 INVALID_SESSION_STATE` unless a pending
-interval is waiting, and `422 INVALID_INTERVAL_TYPE` if that interval is work.
+break is waiting or the session is paused during a break; it returns
+`422 INVALID_INTERVAL_TYPE` if the current interval is work. Skipping a paused
+break retains the elapsed duration recorded before the pause and discards the
+remaining break duration.
 
 The backend scheduler checks due intervals every five seconds. It records
 completion at the planned interval end, so the persisted duration does not
@@ -195,7 +198,7 @@ snapshot:
 | `session.abandoned` | Session abandoned |
 | `interval.completed` | Work or break interval completed |
 | `interval.started` | A pending interval starts |
-| `break.skipped` | A pending break is skipped |
+| `break.skipped` | A pending or paused break is skipped |
 
 The `payload` uses the `SessionResponse` shape above and represents the latest
 persisted state when the event is dispatched; it is not a historical snapshot

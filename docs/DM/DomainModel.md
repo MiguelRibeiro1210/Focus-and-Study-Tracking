@@ -65,7 +65,11 @@ created.
   `WAITING_FOR_NEXT_INTERVAL` per installation.
 - A session can only move through the transitions defined by the state machine
   (`IDLE → RUNNING ⇄ PAUSED`, `RUNNING → WAITING_FOR_NEXT_INTERVAL → RUNNING`,
-  then `COMPLETED` or `ABANDONED`).
+  with `PAUSED → RUNNING` also allowed when a paused break is skipped, then
+  `COMPLETED` or `ABANDONED`).
+- A break can be skipped while pending or while paused; skipping records it as
+  `SKIPPED`, retains any elapsed break duration, discards the remaining time,
+  and starts a new work interval.
 - Paused time never counts as focus time.
 - A completed or abandoned session is immutable.
 - Stopping with less than five minutes of actual work time marks the session

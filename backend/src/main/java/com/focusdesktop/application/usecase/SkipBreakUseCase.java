@@ -34,9 +34,10 @@ public class SkipBreakUseCase {
         FocusSession session = sessions.findById(command.sessionId())
                 .orElseThrow(() -> new SessionNotFoundException(command.sessionId()));
         TimeStamp now = new TimeStamp(clock.instant());
-        if (session.state() != SessionState.WAITING_FOR_NEXT_INTERVAL) {
+        if (session.state() != SessionState.WAITING_FOR_NEXT_INTERVAL
+                && session.state() != SessionState.PAUSED) {
             throw new InvalidSessionStateException("skip break", new IllegalStateException(
-                    "Session is not waiting for a pending interval"));
+                    "Session is not waiting for a pending break or paused during a break"));
         }
         SessionType skippedBreakType = session.currentInterval().type();
         if (skippedBreakType == SessionType.WORK) {

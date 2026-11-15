@@ -337,8 +337,9 @@ FR-SES-05, FR-SES-09.
 **Actor:** Learner
 **Goal:** End a break early and return to work.
 **Priority / phase:** Must / MVP
-**Preconditions:** A session exists, is `WAITING_FOR_NEXT_INTERVAL`, and the
-pending interval is a break.
+**Preconditions:** A session exists and either is
+`WAITING_FOR_NEXT_INTERVAL` with a pending break, or is `PAUSED` with the
+current interval paused during a break.
 **Trigger:** The learner presses **Skip break**.
 
 ### Main success scenario
@@ -346,10 +347,11 @@ pending interval is a break.
 1. The learner presses **Skip break**.
 2. The UI sends `POST /api/v1/sessions/{id}/skip-break`.
 3. `SkipBreakUseCase` loads the session.
-4. The system verifies the session is `WAITING_FOR_NEXT_INTERVAL` and the
-   pending interval is `SHORT_BREAK` or `LONG_BREAK`.
-5. The aggregate marks the break `SKIPPED`, creates a new work interval and
-   starts it.
+4. The system verifies the session is waiting with a pending break or paused
+   during a break; a work interval cannot be skipped.
+5. The aggregate marks the break `SKIPPED`, preserves any break time already
+   elapsed before the pause, discards its remaining time, creates a new work
+   interval and starts it.
 6. The system persists the session and appends `BreakSkipped` and
    `IntervalStarted` to the outbox in the same transaction.
 7. After commit, the dispatcher can broadcast the interval change.
@@ -358,15 +360,18 @@ pending interval is a break.
 ### Extensions
 
 - **3a. Session not found.** `404 SESSION_NOT_FOUND`.
-- **4a. Session is not waiting for a pending interval.**
+- **4a. Session is neither waiting with a pending break nor paused during a
+  break.**
   `422 INVALID_SESSION_STATE`.
-- **4b. The pending interval is work.** `422 INVALID_INTERVAL_TYPE`.
+- **4b. The current interval is work.** `422 INVALID_INTERVAL_TYPE`.
 
 ### Postconditions
 
 - The break is `SKIPPED`.
 - A new work interval is `RUNNING`.
-- Skipped break time is not counted as focus or break time.
+- The skipped interval remains `SKIPPED`; any elapsed break time before pausing
+  is retained, while the unused duration is discarded.
+- A new work interval is running and session state is `RUNNING`.
 
 ### Business rules
 

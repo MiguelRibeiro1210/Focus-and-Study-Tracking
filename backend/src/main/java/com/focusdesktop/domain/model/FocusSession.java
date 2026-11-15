@@ -92,7 +92,13 @@ public final class FocusSession {
 
     public void skipBreak(TimeStamp now) {
         Objects.requireNonNull(now, "now");
-        requireState(SessionState.WAITING_FOR_NEXT_INTERVAL);
+        requireMutable();
+        if (state != SessionState.WAITING_FOR_NEXT_INTERVAL && state != SessionState.PAUSED) {
+            throw new IllegalStateException("A break can only be skipped while waiting or paused");
+        }
+        if (currentInterval().type() == SessionType.WORK) {
+            throw new IllegalStateException("A work interval cannot be skipped as a break");
+        }
         previousIntervalEndedAt().secondsUntil(now);
         currentInterval().skip(now);
         SessionInterval nextWork = newInterval(SessionType.WORK);

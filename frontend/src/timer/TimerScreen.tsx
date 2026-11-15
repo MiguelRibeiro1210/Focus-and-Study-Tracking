@@ -158,6 +158,7 @@ export function TimerScreen({ timer }: TimerScreenProps) {
             ) : session.state === 'PAUSED' ? (
               <>
                 {actionButton('resume', 'Resume session', true)}
+                {session.intervalType !== 'WORK' && actionButton('skipBreak', 'Skip break')}
                 {stopButton()}
               </>
             ) : isWaiting ? (

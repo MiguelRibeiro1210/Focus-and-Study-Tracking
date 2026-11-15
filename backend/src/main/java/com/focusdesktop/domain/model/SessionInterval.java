@@ -82,10 +82,16 @@ public final class SessionInterval {
 
     void skip(TimeStamp now) {
         java.util.Objects.requireNonNull(now, "now");
-        if (type == SessionType.WORK || state != IntervalState.PENDING) {
-            throw new IllegalStateException("Only a pending break interval can be skipped");
+        boolean pendingBreak = state == IntervalState.PENDING;
+        boolean pausedBreak = state == IntervalState.RUNNING && startedAt != null && pausedAt != null;
+        if (type == SessionType.WORK || (!pendingBreak && !pausedBreak)) {
+            throw new IllegalStateException("Only a pending or paused break interval can be skipped");
+        }
+        if (pausedBreak) {
+            pausedAt.secondsUntil(now);
         }
         endedAt = now;
+        pausedAt = null;
         state = IntervalState.SKIPPED;
         remainingDuration = Duration.ofSeconds(0);
     }

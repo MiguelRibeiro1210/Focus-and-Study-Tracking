@@ -20,23 +20,29 @@ Repo --> UseCase : Optional<FocusSession>
 
 UseCase -> Session : skipBreak(now)
 activate Session
-Session -> Session : currentInterval().skip(now)
-Session -> Session : createWorkInterval(now)
-Session -> Session : startActiveInterval(now)
-Session --> UseCase : IntervalCompleted
+alt session waiting with a pending break
+  Session -> Session : currentInterval().skipPending(now)
+else session paused during a break
+  Session -> Session : currentInterval().skipPaused(now)
+  note right of Session : Elapsed break duration is retained.
+end
+Session -> Session : create and start work interval
+Session --> UseCase : updated session
+deactivate Session
 UseCase -> Repo : save(session)
 Repo --> UseCase : saved
-UseCase -> Events : appendToOutbox(IntervalCompleted)
-Dispatcher -> WS : broadcast("interval.completed")
-WS --> UI : interval.completed\n{nextType: WORK, remainingSeconds}
+UseCase -> Events : appendToOutbox(BreakSkipped)
+UseCase -> Events : appendToOutbox(IntervalStarted)
 UseCase --> Controller : SessionDto
 Controller --> UI : 200 OK
-deactivate Session
+... transaction commits ...
+Dispatcher -> WS : broadcast committed break.skipped and interval.started events
+WS --> UI : session snapshots with work interval running
 
 note over Session
-  Skipping a break records the break as SKIPPED.
-  It does not count toward break time and does not
-  break the focus streak.
+  Skipped breaks do not count as focus work.
+  A pending break has zero elapsed duration; a paused break
+  retains the elapsed duration recorded before it was paused.
 end note
 
 @enduml

@@ -56,10 +56,13 @@ public final class SessionIntervalFactory {
                 }
             }
             case SKIPPED -> {
+                boolean skippedBeforeStart = s.startedAt() == null && s.actualDuration().seconds() == 0;
+                boolean skippedWhilePaused = s.startedAt() != null && s.endedAt() != null
+                        && s.endedAt().compareTo(s.startedAt()) >= 0;
                 if (s.type() == SessionType.WORK || s.endedAt() == null
-                        || s.actualDuration().seconds() != 0 || s.remainingDuration().seconds() != 0
-                        || s.startedAt() != null || s.pausedAt() != null) {
-                    throw new IllegalArgumentException("Only an unstarted break interval can be skipped");
+                        || s.remainingDuration().seconds() != 0 || s.pausedAt() != null
+                        || (!skippedBeforeStart && !skippedWhilePaused)) {
+                    throw new IllegalArgumentException("Only a pending or paused break interval can be skipped");
                 }
             }
         }

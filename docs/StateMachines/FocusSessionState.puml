@@ -18,6 +18,7 @@ state "ABANDONED" as ABANDONED
 IDLE --> RUNNING : start(now)
 RUNNING --> PAUSED : pause(now)
 PAUSED --> RUNNING : resume(now)
+PAUSED --> RUNNING : skipBreak(now)\n[current interval is a break]
 RUNNING --> RUNNING : completeInterval(now)\n[auto-start enabled]
 RUNNING --> WAITING : completeInterval(now)\n[auto-start disabled]
 WAITING --> RUNNING : startNextInterval(now)
