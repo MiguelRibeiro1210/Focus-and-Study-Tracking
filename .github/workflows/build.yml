@@ -104,16 +104,22 @@ jobs:
         if: matrix.platform == 'macos' && matrix.arch == 'arm64'
         shell: bash
         run: |
-          app_path="$(find src-tauri/target -type d -name '*.app' -print -quit)"
-          if [ -z "$app_path" ]; then
-            echo "::error::App bundle not found under src-tauri/target"
-            echo "Files produced in the bundle directory:"
-            find src-tauri/target -path '*/bundle/*' -maxdepth 8 -print | sort
-            exit 1
-          fi
+          dmg_path="$(find src-tauri/target/release/bundle/dmg -maxdepth 1 -name '*.dmg' -print -quit)"
+          test -n "$dmg_path" || { echo "::error::DMG installer not found"; exit 1; }
+
+          mount_path="$(mktemp -d)"
+          hdiutil attach -quiet -nobrowse -readonly -mountpoint "$mount_path" "$dmg_path"
+          cleanup() {
+            hdiutil detach -quiet "$mount_path" || true
+            rmdir "$mount_path" 2>/dev/null || true
+          }
+          trap cleanup EXIT
+
+          app_path="$(find "$mount_path" -maxdepth 2 -type d -name '*.app' -print -quit)"
+          test -n "$app_path" || { echo "::error::No .app bundle found inside $dmg_path"; find "$mount_path" -maxdepth 3 -print; exit 1; }
 
           app_executable="$app_path/Contents/MacOS/focusdesktop"
-          java_executable="src-tauri/resources/runtime/bin/java"
+          java_executable="$app_path/Contents/Resources/runtime/bin/java"
           test -f "$app_executable" || { echo "::error::App executable not found: $app_executable"; exit 1; }
           test -f "$java_executable" || { echo "::error::Java executable not found: $java_executable"; exit 1; }
 
