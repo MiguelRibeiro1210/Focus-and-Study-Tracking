@@ -128,8 +128,8 @@ jobs:
           echo "Java executable architecture:"
           lipo -info "$java_executable"
 
-          lipo -verify_arch arm64 "$app_executable"
-          lipo -verify_arch arm64 "$java_executable"
+          lipo "$app_executable" -verify_arch arm64
+          lipo "$java_executable" -verify_arch arm64
         working-directory: frontend
 
       - name: Smoke test the packaged AppImage
