@@ -1,0 +1,7 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "default",
+  "description": "FocusDesktop main window with no native plugin permissions",
+  "windows": ["main"],
+  "permissions": []
+}

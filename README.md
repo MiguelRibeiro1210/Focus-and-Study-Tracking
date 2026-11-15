@@ -59,8 +59,8 @@ FocusDesktop/
 │   │   ├── application/      # Use cases & application services
 │   │   └── infrastructure/   # DB persistence, OS hooks, REST API
 │   └── pom.xml / build.gradle
-├── frontend/                 # Tauri / Electron UI project
-│   ├── src/                  # React/Vue components
+├── frontend/                 # React + TypeScript desktop UI
+│   ├── src/                  # React components and frontend logic
 │   ├── src-tauri/            # Tauri desktop configuration
 │   └── package.json
 └── docs/                     # Architecture diagrams and reports
@@ -71,8 +71,11 @@ FocusDesktop/
 ### Prerequisites
 Ensure you have the following installed on your local machine:
 * **Java Development Kit (JDK 17 or higher)**
-* **Node.js** (v16+) & npm/yarn
-* *(If using Tauri)* **Rust** environment
+* **Node.js** (`^20.19.0` or `>=22.12.0`) & npm
+* **Rust stable** (install through [rustup](https://rustup.rs/)) for the Tauri desktop app
+* On Debian/Ubuntu, Tauri's Linux development libraries: `libwebkit2gtk-4.1-dev`,
+  `build-essential`, `curl`, `wget`, `file`, `libxdo-dev`, `libssl-dev`,
+  `librsvg2-dev`, and `libayatana-appindicator3-dev`
 
 The Maven Wrapper downloads the pinned Maven distribution on its first run, so
 Maven does not need to be installed globally. Internet access is required only
@@ -109,13 +112,28 @@ On Windows, use `mvnw.cmd` with the same Maven goals.
    The H2 database is stored in the platform's local application-data directory.
    Set `FOCUSDESKTOP_DATA_DIR` to use a different directory.
 
-3. **Start the Desktop Interface (Frontend):**
+3. **Start the desktop app:**
    ```bash
-   # Open a new terminal tab
-   cd ../frontend
+   # In a new terminal, from the repository root:
+   cd frontend
    npm install
-   npm run tauri dev # Or npm start for Electron
+   npm run tauri:dev
    ```
+
+   This starts Vite and opens the FocusDesktop native window. The backend must
+   already be running in its own terminal. To preview the interface in a browser
+   instead, run `npm run dev` from `frontend/`.
+
+4. **Build the desktop app:**
+   ```bash
+   cd frontend
+   npm run tauri:build
+   ```
+
+   The resulting native executable is written under
+   `frontend/src-tauri/target/release/`. Installer and platform bundle creation,
+   plus packaging and launching the backend with the app, are tracked in
+   FST-040 and FST-041.
 
 ## 🔒 Privacy & Data Security
 FocusDesktop adheres strictly to a **local-first philosophy**. All user productivity logs, session histories, and analytical data are stored entirely on the local machine. The application does not require an internet connection for its core features, ensuring maximum data privacy.
