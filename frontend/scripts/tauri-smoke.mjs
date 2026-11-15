@@ -31,7 +31,9 @@ async function waitForHealth(processHandle, timeoutMs = 60_000) {
 
 function launchApp() {
   const command = packagedApp || 'npm'
-  const args = packagedApp ? [] : ['run', 'tauri:dev']
+  const args = packagedApp
+    ? (packagedApp.toLowerCase().endsWith('.appimage') ? ['--appimage-extract-and-run'] : [])
+    : ['run', 'tauri:dev']
   const processHandle = spawn(command, args, {
     cwd: frontendDir,
     env: {

@@ -1,0 +1,21 @@
+{
+  "version": "17.0.21+9",
+  "assets": {
+    "linux-x64": {
+      "archive": "OpenJDK17U-jre_x64_linux_hotspot_17.0.21_9.tar.gz",
+      "sha256": "9f41bf88c7900c7097444a1bdeb84146ae692bc08842490ab098063c74bf9a8a"
+    },
+    "macos-x64": {
+      "archive": "OpenJDK17U-jre_x64_mac_hotspot_17.0.21_9.tar.gz",
+      "sha256": "890214eb4d6c88dc06f990d5a6a3b72b91d5dffab6a0a6d8cffb98468bf26181"
+    },
+    "macos-arm64": {
+      "archive": "OpenJDK17U-jre_aarch64_mac_hotspot_17.0.21_9.tar.gz",
+      "sha256": "a5ab5bacd6e719d5a5570580ed14dceb2ed532208a39af927906b9742da1745e"
+    },
+    "windows-x64": {
+      "archive": "OpenJDK17U-jre_x64_windows_hotspot_17.0.21_9.zip",
+      "sha256": "fe4656bd78fb09812dc38c49da777f79cc33e7ee435a254be82f9e7f40d9d117"
+    }
+  }
+}

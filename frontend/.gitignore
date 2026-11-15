@@ -11,6 +11,13 @@ node_modules
 dist
 dist-ssr
 *.local
+src-tauri/resources/*
+!src-tauri/resources/backend/
+!src-tauri/resources/runtime/
+src-tauri/resources/backend/*
+!src-tauri/resources/backend/.gitkeep
+src-tauri/resources/runtime/*
+!src-tauri/resources/runtime/.gitkeep
 
 # Editor directories and files
 .vscode/*

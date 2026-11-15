@@ -46,18 +46,27 @@ set `FOCUSDESKTOP_JAVA`.
 ## Release packages
 
 `npm run tauri:build` builds a self-contained release and native installer for
-the current x64 host: NSIS on Windows, DMG on macOS, and DEB plus AppImage on
-Linux. The build first packages the backend and downloads the pinned Eclipse
-Temurin JRE 17.0.21+9 archive. Its SHA-256 is checked against
-`scripts/runtime-manifest.json` before the JAR and full JRE are staged as Tauri
-resources. The release does not require Java installed on the user's machine.
+the current supported host: NSIS on Windows x64, DMG on macOS x64 or ARM64, and
+DEB plus AppImage on Linux x64. The build packages the backend and downloads a
+pinned Eclipse Temurin JRE 17.0.21+9 archive for that platform and architecture.
+Its SHA-256 is checked against `scripts/runtime-manifest.json` before the JAR
+and full JRE are staged as Tauri resources. The release does not require Java
+installed on the user's machine.
 
 Build on each target operating system; cross-compilation is not configured.
-The Windows NSIS installer installs per user. macOS packages require macOS 12
-or newer. Linux packages target Ubuntu 22.04-compatible systems. Artifacts are
-written under `src-tauri/target/release/bundle/`. They are currently unsigned
-local release builds, so operating systems may show their standard warning on
-first launch.
+On macOS, build on an Intel Mac for x64 or an Apple Silicon Mac for ARM64.
+Windows NSIS installs per user. macOS packages require macOS 12 or newer.
+Linux packages target Ubuntu 22.04-compatible systems. Artifacts are written
+under `src-tauri/target/release/bundle/`. macOS apps use ad-hoc signing and are
+not notarized; the tester may need to approve the app in **System Settings →
+Privacy & Security → Open Anyway** on first launch. Other local packages are
+unsigned.
+
+To create an installer without asking the tester to clone or build the project,
+run the **Build and package FocusDesktop** workflow from GitHub Actions on the
+ARM64 macOS runner. Download the `focusdesktop-macos-arm64-v0.1.0` artifact from
+that run and send him the `.dmg`. Workflow artifacts are retained for 14 days;
+the tester only needs the DMG.
 
 Application data stays in the user's OS-specific FocusDesktop data directory
 across upgrades. Install a newer package over the existing installation to

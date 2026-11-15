@@ -122,16 +122,37 @@ impl BackendSupervisor {
         let (jar, java) = match backend_launch_paths(&app) {
             Ok(paths) => paths,
             Err(error) => {
-                self.set_status(&app, BackendStatus::new("failed", error, Some(self.log_path.to_string_lossy().into_owned())));
+                self.set_status(
+                    &app,
+                    BackendStatus::new(
+                        "failed",
+                        error,
+                        Some(self.log_path.to_string_lossy().into_owned()),
+                    ),
+                );
                 return;
             }
         };
         if !jar.is_file() {
-            self.set_status(&app, BackendStatus::new("failed", format!("Backend JAR not found at {}.", jar.display()), Some(self.log_path.to_string_lossy().into_owned())));
+            self.set_status(
+                &app,
+                BackendStatus::new(
+                    "failed",
+                    format!("Backend JAR not found at {}.", jar.display()),
+                    Some(self.log_path.to_string_lossy().into_owned()),
+                ),
+            );
             return;
         }
         if !cfg!(debug_assertions) && !java.is_file() {
-            self.set_status(&app, BackendStatus::new("failed", format!("Java runtime not found at {}.", java.display()), Some(self.log_path.to_string_lossy().into_owned())));
+            self.set_status(
+                &app,
+                BackendStatus::new(
+                    "failed",
+                    format!("Java runtime not found at {}.", java.display()),
+                    Some(self.log_path.to_string_lossy().into_owned()),
+                ),
+            );
             return;
         }
         let log = match OpenOptions::new()
@@ -360,7 +381,13 @@ fn backend_launch_paths(app: &AppHandle) -> Result<(PathBuf, PathBuf), String> {
         let jar = jar.canonicalize().unwrap_or(jar);
         let java = env::var_os("FOCUSDESKTOP_JAVA")
             .map(PathBuf::from)
-            .unwrap_or_else(|| PathBuf::from(if cfg!(target_os = "windows") { "java.exe" } else { "java" }));
+            .unwrap_or_else(|| {
+                PathBuf::from(if cfg!(target_os = "windows") {
+                    "java.exe"
+                } else {
+                    "java"
+                })
+            });
         return Ok((jar, java));
     }
 
@@ -368,7 +395,11 @@ fn backend_launch_paths(app: &AppHandle) -> Result<(PathBuf, PathBuf), String> {
         .path()
         .resource_dir()
         .map_err(|error| format!("Could not locate the packaged application resources: {error}"))?;
-    let java_name = if cfg!(target_os = "windows") { "java.exe" } else { "java" };
+    let java_name = if cfg!(target_os = "windows") {
+        "java.exe"
+    } else {
+        "java"
+    };
     Ok((
         resources.join("backend/focusdesktop.jar"),
         resources.join("runtime/bin").join(java_name),

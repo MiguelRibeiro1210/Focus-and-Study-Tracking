@@ -1,46 +1,130 @@
-name: Compile Backend
+name: Build and package FocusDesktop
 
 on:
   push:
-    branches: [ "main" ]
+    branches: ["main"]
   pull_request:
-    branches: [ "main" ]
+    branches: ["main"]
+  workflow_dispatch:
 
 jobs:
-  build:
-    name: Build & Teste
-    runs-on: ubuntu-latest
-
+  verify:
+    name: Verify backend and frontend
+    runs-on: ubuntu-22.04
     steps:
-      - name: Code Checkout
+      - name: Check out source
         uses: actions/checkout@v4
 
-      - name: Config Java JDK 17
+      - name: Set up Java 17
         uses: actions/setup-java@v4
         with:
-          java-version: '27'
-          distribution: 'temurin'
+          java-version: "17"
+          distribution: temurin
           cache: maven
 
-      - name: Give Permission to Maven Wrapper
-        run: chmod +x mvnw
-        working-directory: ./backend
-
-      - name: Compile Project
+      - name: Verify backend
         run: ./mvnw clean verify
-        working-directory: ./backend
+        working-directory: backend
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '22'
+          node-version: "22"
           cache: npm
           cache-dependency-path: frontend/package-lock.json
 
-      - name: Install Frontend Dependencies
+      - name: Install frontend dependencies
         run: npm ci
-        working-directory: ./frontend
+        working-directory: frontend
 
-      - name: Run Frontend Tests
-        run: ./test.sh
-        working-directory: ./frontend
+      - name: Run frontend checks
+        run: npm run build && npm run lint && npm test
+        working-directory: frontend
+
+  package:
+    name: Package ${{ matrix.platform }} ${{ matrix.arch }}
+    needs: verify
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: linux
+            arch: x64
+            runner: ubuntu-22.04
+          - platform: windows
+            arch: x64
+            runner: windows-2025
+          - platform: macos
+            arch: x64
+            runner: macos-15-intel
+          - platform: macos
+            arch: arm64
+            runner: macos-15
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Install Linux desktop build dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential curl file libayatana-appindicator3-dev libfuse2 libssl-dev libwebkit2gtk-4.1-dev libxdo-dev patchelf librsvg2-dev xvfb
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: "17"
+          distribution: temurin
+          cache: maven
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Set up Rust stable
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install frontend dependencies
+        run: npm ci
+        working-directory: frontend
+
+      - name: Stage backend and pinned Java runtime
+        run: npm run bundle:prepare
+        working-directory: frontend
+
+      - name: Build native installer
+        run: npm run tauri -- build
+        working-directory: frontend
+
+      - name: Verify Apple Silicon application and Java runtime
+        if: matrix.platform == 'macos' && matrix.arch == 'arm64'
+        shell: bash
+        run: |
+          app_path="$(find src-tauri/target/release/bundle/macos -maxdepth 1 -name '*.app' -print -quit)"
+          app_executable="$app_path/Contents/MacOS/focusdesktop"
+          java_executable="src-tauri/resources/runtime/bin/java"
+          test -n "$app_path"
+          test "$(lipo -archs "$app_executable")" = "arm64"
+          test "$(lipo -archs "$java_executable")" = "arm64"
+        working-directory: frontend
+
+      - name: Smoke test the packaged AppImage
+        if: runner.os == 'Linux'
+        run: xvfb-run -a npm run smoke:tauri:packaged -- "$(find src-tauri/target/release/bundle -name '*.AppImage' -print -quit)"
+        working-directory: frontend
+
+      - name: Upload installer artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: focusdesktop-${{ matrix.platform }}-${{ matrix.arch }}-v0.1.0
+          path: |
+            frontend/src-tauri/target/release/bundle/**/*.deb
+            frontend/src-tauri/target/release/bundle/**/*.AppImage
+            frontend/src-tauri/target/release/bundle/**/*.dmg
+            frontend/src-tauri/target/release/bundle/**/*.exe
+          if-no-files-found: error
+          retention-days: 14
