@@ -58,7 +58,11 @@ class SkipBreakUseCaseTest {
 
         FocusSession paused = runningSession();
         paused.pause(at(10));
-        assertInvalidState(paused);
+        var pausedFixture = fixture(paused, 601);
+        assertThrows(InvalidIntervalTypeException.class,
+                () -> executeSkip(paused, pausedFixture));
+        assertEquals(0, pausedFixture.saves);
+        assertEquals(0, pausedFixture.events.size());
 
         FocusSession terminal = runningSession();
         terminal.stop(at(0));
