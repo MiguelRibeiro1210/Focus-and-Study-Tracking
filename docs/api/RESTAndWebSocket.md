@@ -18,6 +18,13 @@ Base URL: `http://127.0.0.1:<port>/api/v1`
 | CORS | Only the local desktop origin is allowed. |
 | Errors | Stable error code + human-readable message. |
 
+In the desktop app, the Rust Tauri process reads the token and attaches it to
+REST and WebSocket requests. The token is never sent to the WebView. Browser
+development continues to use Vite's local proxy, which adds the same header on
+the server side. The desktop shell also uses a bearer-authenticated private
+`POST /internal/shutdown` lifecycle endpoint when closing the sidecar; it is
+not a learner-facing session API operation.
+
 ## 2. Sessions
 
 | Method | Path | Purpose | Success |

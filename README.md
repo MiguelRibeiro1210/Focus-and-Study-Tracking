@@ -101,13 +101,12 @@ On Windows, use `mvnw.cmd` with the same Maven goals.
    cd FocusDesktop
    ```
 
-2. **Start the Backend Engine (Spring Boot):**
+2. **Build the local backend JAR:**
    ```bash
    cd backend
-   ./mvnw spring-boot:run
-   # The backend will start on localhost (e.g., port 8080)
+   ./mvnw package -DskipTests
    ```
-   On Windows, run `mvnw.cmd spring-boot:run` from `backend/`.
+   On Windows, run `mvnw.cmd package -DskipTests` from `backend/`.
 
    The H2 database is stored in the platform's local application-data directory.
    Set `FOCUSDESKTOP_DATA_DIR` to use a different directory.
@@ -120,9 +119,10 @@ On Windows, use `mvnw.cmd` with the same Maven goals.
    npm run tauri:dev
    ```
 
-   This starts Vite and opens the FocusDesktop native window. The backend must
-   already be running in its own terminal. To preview the interface in a browser
-   instead, run `npm run dev` from `frontend/`.
+   This starts Vite, opens the FocusDesktop native window, and launches the
+   backend sidecar. Java must be installed during development. To preview the
+   interface in a browser instead, run `npm run dev` from `frontend/` while
+   starting the backend separately with `./mvnw spring-boot:run`.
 
 4. **Build the desktop app:**
    ```bash
@@ -130,10 +130,14 @@ On Windows, use `mvnw.cmd` with the same Maven goals.
    npm run tauri:build
    ```
 
-   The resulting native executable is written under
-   `frontend/src-tauri/target/release/`. Installer and platform bundle creation,
-   plus packaging and launching the backend with the app, are tracked in
-   FST-040 and FST-041.
+   This stages the backend and verified Temurin JRE, then creates the native
+   installer for the current x64 host under
+   `frontend/src-tauri/target/release/bundle/`: NSIS on Windows, DMG on macOS,
+   and DEB plus AppImage on Linux. Packaged users do not need Java installed.
+   Build on the target operating system; cross-compilation is not configured.
+   Local release packages are unsigned and may show the operating system's
+   first-launch warning. See [frontend packaging instructions](frontend/README.md#release-packages)
+   and the [FST-041 package smoke checklist](docs/testing/FST-041-packaging.md).
 
 ## 🔒 Privacy & Data Security
 FocusDesktop adheres strictly to a **local-first philosophy**. All user productivity logs, session histories, and analytical data are stored entirely on the local machine. The application does not require an internet connection for its core features, ensuring maximum data privacy.

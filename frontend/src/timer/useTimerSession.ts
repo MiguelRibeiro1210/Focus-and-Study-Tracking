@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { createSessionApi, SessionApiError, type SessionApi } from '../api/sessionApi'
 import { createSessionEventClient, type SessionEventClientOptions } from '../api/sessionEvents'
 import type { ActiveSession, SessionResponse } from '../api/sessionTypes'
+import { createNativeWebSocket, isDesktopShell, nativeFetch } from '../api/nativeTransport'
 
 export type TimerAction = 'start' | 'pause' | 'resume' | 'stop' | 'startNextInterval' | 'skipBreak'
 
@@ -20,9 +21,15 @@ interface TimerSessionDependencies {
   eventClientFactory?: (options: SessionEventClientOptions) => ReturnType<typeof createSessionEventClient>
 }
 
+const defaultEventClientFactory: NonNullable<TimerSessionDependencies['eventClientFactory']> = (options) =>
+  createSessionEventClient({
+    ...options,
+    ...(isDesktopShell() ? { createSocket: () => createNativeWebSocket() } : {}),
+  })
+
 const POLL_INTERVAL_MS = 30_000
 const DISPLAY_TICK_MS = 1_000
-const defaultSessionApi = createSessionApi()
+const defaultSessionApi = createSessionApi(isDesktopShell() ? nativeFetch : fetch)
 
 function errorMessage(error: unknown): string {
   if (error instanceof SessionApiError) {
@@ -40,7 +47,7 @@ function isTerminal(session: SessionResponse): boolean {
 
 export function useTimerSession(dependencies: TimerSessionDependencies = {}): TimerController {
   const api = dependencies.api ?? defaultSessionApi
-  const eventClientFactory = dependencies.eventClientFactory ?? createSessionEventClient
+  const eventClientFactory = dependencies.eventClientFactory ?? defaultEventClientFactory
   const [session, setSession] = useState<ActiveSession>(null)
   const [snapshotReceivedAt, setSnapshotReceivedAt] = useState(0)
   const [clockNow, setClockNow] = useState(0)

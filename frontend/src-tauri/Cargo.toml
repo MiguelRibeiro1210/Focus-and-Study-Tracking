@@ -1,6 +1,6 @@
 [package]
 name = "focusdesktop"
-version = "0.0.0"
+version = "0.1.0"
 description = "Local-first focus timer"
 edition = "2021"
 
@@ -13,3 +13,8 @@ tauri-build = { version = "2", features = [] }
 
 [dependencies]
 tauri = { version = "2", features = [] }
+libc = "0.2"
+reqwest = { version = "0.12", default-features = false, features = ["blocking", "json"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tungstenite = { version = "0.24", features = ["handshake"] }

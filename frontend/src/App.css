@@ -2,6 +2,44 @@
   min-height: 100vh;
 }
 
+.startup-screen {
+  display: grid;
+  min-height: 100vh;
+  padding: 1.5rem;
+  place-items: center;
+}
+
+.startup-card {
+  width: min(100%, 34rem);
+  padding: clamp(1.75rem, 6vw, 3rem);
+  border: 1px solid #e3e9e1;
+  border-radius: 1.5rem;
+  background: rgba(255, 255, 255, 0.9);
+  box-shadow: 0 1.2rem 3.5rem rgba(33, 59, 48, 0.08);
+}
+
+.startup-indicator {
+  display: grid;
+  width: 2.75rem;
+  height: 2.75rem;
+  place-items: center;
+  border-radius: 1rem;
+  background: #e6f2e9;
+  color: #39744e;
+  font-size: 1.35rem;
+  font-weight: 800;
+}
+
+.startup-indicator.failed { background: #fae8e6; color: #a6423d; }
+.startup-card h1 { margin: 1.4rem 0 0; color: #20352b; font-size: 1.6rem; letter-spacing: -0.04em; }
+.startup-card p { color: #728077; font-size: 0.92rem; line-height: 1.6; }
+.startup-diagnostics { overflow-wrap: anywhere; font-size: 0.78rem !important; }
+.startup-actions { display: flex; gap: 0.7rem; margin-top: 1.5rem; }
+.startup-actions button { min-height: 2.8rem; padding: 0.7rem 1.15rem; border: 1px solid #dce5dc; border-radius: 0.8rem; cursor: pointer; font: inherit; font-weight: 700; }
+.primary-button { background: #244b3a; color: #fff; }
+.primary-button:disabled { opacity: 0.65; }
+.secondary-button { background: #f7f9f6; color: #365341; }
+
 .app-shell {
   width: min(100% - 3rem, 72rem);
   min-height: 100vh;
