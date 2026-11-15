@@ -105,11 +105,20 @@ jobs:
         shell: bash
         run: |
           app_path="$(find src-tauri/target/release/bundle/macos -maxdepth 1 -name '*.app' -print -quit)"
+          test -n "$app_path" || { echo "::error::App bundle not found under src-tauri/target/release/bundle/macos"; exit 1; }
+
           app_executable="$app_path/Contents/MacOS/focusdesktop"
           java_executable="src-tauri/resources/runtime/bin/java"
-          test -n "$app_path"
-          test "$(lipo -archs "$app_executable")" = "arm64"
-          test "$(lipo -archs "$java_executable")" = "arm64"
+          test -f "$app_executable" || { echo "::error::App executable not found: $app_executable"; exit 1; }
+          test -f "$java_executable" || { echo "::error::Java executable not found: $java_executable"; exit 1; }
+
+          echo "App executable architecture:"
+          lipo -info "$app_executable"
+          echo "Java executable architecture:"
+          lipo -info "$java_executable"
+
+          lipo -verify_arch arm64 "$app_executable"
+          lipo -verify_arch arm64 "$java_executable"
         working-directory: frontend
 
       - name: Smoke test the packaged AppImage
