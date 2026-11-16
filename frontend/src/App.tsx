@@ -5,7 +5,7 @@ import { getCurrentWindow } from '@tauri-apps/api/window'
 import { isDesktopShell } from './api/nativeTransport'
 import './App.css'
 import { useTimerSession } from './timer/useTimerSession'
-import { TimerScreen } from './timer/TimerScreen'
+import { FocusDesktopApp } from './app/FocusDesktopApp'
 
 interface BackendStatus { phase: string; message: string; diagnosticsPath?: string }
 
@@ -50,7 +50,7 @@ function BackendStartup() {
 
 function TimerApplication() {
   const timer = useTimerSession()
-  return <TimerScreen timer={timer} />
+  return <FocusDesktopApp timer={timer} />
 }
 
 function App() {

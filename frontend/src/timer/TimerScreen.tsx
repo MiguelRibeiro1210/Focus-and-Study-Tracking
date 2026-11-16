@@ -1,10 +1,9 @@
 import { useEffect, useRef, useState, type CSSProperties, type KeyboardEvent } from 'react'
 import type { SessionResponse } from '../api/sessionTypes'
 import type { TimerAction, TimerController } from './useTimerSession'
+import { focusHistory } from '../pages/futureData'
 
-interface TimerScreenProps {
-  timer: TimerController
-}
+interface TimerScreenProps { timer: TimerController }
 
 function intervalLabel(type: SessionResponse['intervalType']): string {
   switch (type) {
@@ -22,12 +21,12 @@ function formatTime(totalSeconds: number | null): string {
 }
 
 function completedWorkIntervals(session: SessionResponse): number {
-  const earlierWorkIntervals = session.intervalType === 'WORK'
+  const earlier = session.intervalType === 'WORK'
     ? Math.floor((session.intervalSequence - 1) / 2)
     : Math.floor(session.intervalSequence / 2)
-  const currentWorkWasEnded = session.intervalType === 'WORK'
+  const currentEnded = session.intervalType === 'WORK'
     && (session.state === 'COMPLETED' || session.state === 'ABANDONED')
-  return earlierWorkIntervals + (currentWorkWasEnded ? 1 : 0)
+  return earlier + (currentEnded ? 1 : 0)
 }
 
 function statusLabel(session: SessionResponse | null): string {
@@ -50,8 +49,10 @@ export function TimerScreen({ timer }: TimerScreenProps) {
   const isRunning = session?.state === 'RUNNING'
   const isPaused = session?.state === 'PAUSED'
   const isWaiting = session?.state === 'WAITING_FOR_NEXT_INTERVAL'
+  const configuredSeconds = session?.plannedDurationSeconds ?? 25 * 60
+  const remaining = session ? timer.remainingSeconds : (timer.isLoading ? null : configuredSeconds)
   const progress = session && (isRunning || isPaused)
-    ? Math.min(100, Math.max(0, ((session.plannedDurationSeconds - (timer.remainingSeconds ?? 0)) / Math.max(1, session.plannedDurationSeconds)) * 100))
+    ? Math.min(100, Math.max(0, ((session.plannedDurationSeconds - (remaining ?? 0)) / Math.max(1, session.plannedDurationSeconds)) * 100))
     : session?.state === 'COMPLETED' ? 100 : 0
   const ringStyle = { '--progress': `${progress}%` } as CSSProperties
 
@@ -77,133 +78,87 @@ export function TimerScreen({ timer }: TimerScreenProps) {
     }
   }
 
-  function actionButton(action: TimerAction, label: string, primary = false) {
-    return (
-      <button
-        className={primary ? 'button button-primary' : 'button button-secondary'}
-        type="button"
-        disabled={timer.pendingAction !== null}
-        onClick={() => void timer.runAction(action)}
-      >
-        {timer.pendingAction === action ? 'Please wait…' : label}
-      </button>
-    )
+  function actionButton(action: TimerAction, label: string, primary = false, accessibleName = label) {
+    return <button className={`button ${primary ? 'button-primary' : 'button-secondary'}`} type="button"
+      aria-label={accessibleName} disabled={timer.pendingAction !== null} onClick={() => void timer.runAction(action)}>
+      {timer.pendingAction === action ? 'Please wait…' : label}
+    </button>
   }
 
   function stopButton() {
     return <button ref={stopTriggerRef} className="button button-quiet" type="button" disabled={timer.pendingAction !== null} onClick={() => setConfirmStop(true)}>Stop</button>
   }
 
-  function cancelStopConfirmation() {
-    setConfirmStop(false)
-    stopTriggerRef.current?.focus()
+  function renderSessionActions() {
+    if (timer.isLoading && !session) return <span className="loading-copy" role="status">Connecting to your local session…</span>
+    if (!session || session.state === 'IDLE' || session.state === 'COMPLETED' || session.state === 'ABANDONED') {
+      return actionButton('start', 'Start session', true, session ? 'Start a new session' : 'Start focus session')
+    }
+    if (session.state === 'RUNNING') return <>{actionButton('pause', 'Pause session', true)}{stopButton()}</>
+    if (session.state === 'PAUSED') return <>{actionButton('resume', 'Resume session', true)}{session.intervalType !== 'WORK' && actionButton('skipBreak', 'Skip break')}{stopButton()}</>
+    if (isWaiting) return <>{actionButton('startNextInterval', 'Start next interval', true)}{session.intervalType !== 'WORK' && session.intervalState === 'PENDING' && actionButton('skipBreak', 'Skip break')}{stopButton()}</>
+    return null
   }
 
-  return (
-    <main className="app-shell">
-      <header className="topbar">
-        <a className="brand" href="#timer" aria-label="FocusDesktop timer home">
-          <span className="brand-mark" aria-hidden="true">f</span>
-          <span>focusdesktop</span>
-        </a>
-        <span className="local-status"><span className="status-dot" /> Local session</span>
-      </header>
-
-      <section className="timer-page" id="timer" aria-labelledby="page-title">
-        <div className="page-intro">
-          <p className="eyebrow">MAKE SPACE FOR WHAT MATTERS</p>
-          <h1 id="page-title">One thing at a time.</h1>
-          <p className="description">Settle in, find your rhythm, and let the next small step be enough.</p>
+  return <div className="overview-layout">
+    <div className="overview-columns">
+      <section className="focus-panel" aria-label="Focus session setup">
+        <div className="panel-title-row">
+          <h2>Time to find your flow</h2>
+          <span className="ready-badge">{timer.isLoading ? 'SYNCING' : statusLabel(session).toUpperCase()}</span>
         </div>
-
-        <section className="timer-card" aria-label="Focus timer">
-          <div className="timer-card-heading">
-            <div>
-              <p className="interval-label">{session ? intervalLabel(session.intervalType) : 'Your focus session'}</p>
-              <p className="session-status">{timer.isLoading ? 'Checking your session…' : statusLabel(session)}</p>
+        <div className="focus-panel-body">
+          <div className="timer-column">
+            <div className="timer-art" style={ringStyle}>
+              <img className="timer-dial" src="/figma/timer-dial.svg" width="236" height="236" alt="" />
+              <span className="timer-stage">{session ? intervalLabel(session.intervalType).toUpperCase() : 'FOCUS SESSION'}</span>
+              <span className="timer-display" role="timer" aria-label={`Time remaining ${formatTime(remaining)}`}>{formatTime(remaining)}</span>
+              <span className="timer-caption">{timer.isLoading ? 'connecting to local session' : isRunning ? 'No rush. No distractions.' : isPaused ? 'Time paused' : isWaiting ? 'Ready when you are' : session ? statusLabel(session) : 'No rush. No distractions.'}</span>
             </div>
-            {session && <span className="sequence-badge">Interval {session.intervalSequence}</span>}
+            {session && <div className="session-progress"><strong>{String(Math.max(1, Math.min(4, completedWorkIntervals(session) + (session.intervalType === 'WORK' ? 1 : 0)))).padStart(2, '0')}</strong><span>/ 04 until your long break</span></div>}
+            {session && <span className="sr-only">{completedWorkIntervals(session)} work {completedWorkIntervals(session) === 1 ? 'interval' : 'intervals'} completed</span>}
+            {session && <span className="sr-only">{intervalLabel(session.intervalType)}</span>}
+            {!session && <span className="sr-only">Ready to focus</span>}
           </div>
 
-          <div className="timer-display-wrap">
-            <div className="timer-ring" style={ringStyle}>
-              <div className="timer-ring-center">
-                <span className="timer-display" role="timer" aria-label={`Time remaining ${formatTime(timer.remainingSeconds)}`}>
-                  {formatTime(timer.remainingSeconds)}
-                </span>
-                <span className="timer-caption">
-                  {isRunning && timer.remainingSeconds === 0 ? 'Waiting for next interval' : isRunning ? 'remaining' : isWaiting ? 'ready when you are' : session?.state === 'PAUSED' ? 'time paused' : session ? 'session time' : 'start whenever you’re ready'}
-                </span>
-              </div>
+          <div className="session-setup">
+            <label className="field-label" htmlFor="project-placeholder">What will you work on?</label>
+            <div className="project-field" id="project-placeholder">Name your next project</div>
+            <p className="field-label">Session duration</p>
+            <div className="duration-options" aria-label="Session duration presets">
+              {['Work', 'Short', 'Long'].map((label) => <button className="duration-option" type="button" disabled key={label}>{label}</button>)}
             </div>
+            <div className="session-meta">
+              <div><p className="field-label">Session controls</p><p className="profile-summary">Choose a session interval.</p></div>
+            </div>
+            <div className="overview-actions">{renderSessionActions()}</div>
+            {timer.error && <div className="error-message" role="alert"><span>{timer.error}</span><button type="button" className="retry-button" onClick={timer.retry}>Retry sync</button></div>}
           </div>
-
-          {session && (
-            <div className="session-progress" aria-label="Session progress">
-              <span className="progress-indicator" aria-hidden="true">✳</span>
-              <span>{completedWorkIntervals(session)} work {completedWorkIntervals(session) === 1 ? 'interval' : 'intervals'} completed</span>
-            </div>
-          )}
-
-          <div className="timer-actions">
-            {timer.isLoading && !session ? (
-              <span className="loading-copy" role="status">Connecting to your local session…</span>
-            ) : !session || session.state === 'IDLE' || session.state === 'COMPLETED' || session.state === 'ABANDONED' ? (
-              actionButton('start', session ? 'Start a new session' : 'Start focus session', true)
-            ) : session.state === 'RUNNING' ? (
-              <>
-                {actionButton('pause', 'Pause session', true)}
-                {stopButton()}
-              </>
-            ) : session.state === 'PAUSED' ? (
-              <>
-                {actionButton('resume', 'Resume session', true)}
-                {session.intervalType !== 'WORK' && actionButton('skipBreak', 'Skip break')}
-                {stopButton()}
-              </>
-            ) : isWaiting ? (
-              <>
-                {actionButton('startNextInterval', 'Start next interval', true)}
-                {session.intervalType !== 'WORK' && session.intervalState === 'PENDING' && actionButton('skipBreak', 'Skip break')}
-                {stopButton()}
-              </>
-            ) : null}
-          </div>
-
-          {timer.error && (
-            <div className="error-message" role="alert">
-              <span>{timer.error}</span>
-              <button type="button" className="retry-button" onClick={timer.retry}>Retry sync</button>
-            </div>
-          )}
-        </section>
-
-        <p className="page-footnote">Your session stays on this device. The timer follows the local FocusDesktop service.</p>
+        </div>
       </section>
 
-      {confirmStop && (
-        <div className="dialog-backdrop">
-          <div className="confirm-dialog" role="alertdialog" aria-modal="true" aria-labelledby="stop-title" aria-describedby="stop-description" onKeyDown={handleDialogKeyDown}>
-            <span className="dialog-icon" aria-hidden="true">Ⅱ</span>
-            <h2 id="stop-title">Stop this session?</h2>
-            <p id="stop-description">This ends your current session. Its final status is based on the focus time recorded by FocusDesktop.</p>
-            <div className="dialog-actions">
-              <button ref={cancelStopRef} className="button button-secondary" type="button" onClick={cancelStopConfirmation}>Keep going</button>
-              <button
-                className="button button-danger"
-                type="button"
-                disabled={timer.pendingAction !== null}
-                onClick={() => {
-                  setConfirmStop(false)
-                  void timer.runAction('stop')
-                }}
-              >
-                {timer.pendingAction === 'stop' ? 'Stopping…' : 'Stop session'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-    </main>
-  )
+      <aside className="daily-goal-panel overview-summary-empty">
+        <h2>Your focus summary</h2>
+        <p className="goal-intro">Session history and daily goals are not available yet.</p>
+        <p className="future-empty-state">Your progress will appear here when history tracking is implemented.</p>
+      </aside>
+    </div>
+
+    <section className="recent-panel">
+      <div className="recent-heading"><h2>Your progress today</h2><button className="text-action" type="button" disabled>View history <span aria-hidden="true">→</span></button></div>
+      <div className="recent-table" role="table" aria-label="Recent focus sessions">
+        <div className="recent-row recent-header" role="row"><span role="columnheader">SESSION</span><span role="columnheader">START</span><span role="columnheader">WORK</span><span role="columnheader">STATUS</span></div>
+        {focusHistory.length === 0
+          ? <div className="future-empty-state table-empty-state" role="row">Completed sessions will appear here when history is available.</div>
+          : focusHistory.slice(0, 3).map((entry) => <div className="recent-row" role="row" key={entry.id}><span role="cell">{entry.projectName}</span><span role="cell">{entry.startedAt}</span><span role="cell">{Math.round(entry.durationSeconds / 60)} min</span><span role="cell">{entry.status}</span></div>)}
+      </div>
+    </section>
+
+    {confirmStop && <div className="dialog-backdrop"><div className="confirm-dialog" role="alertdialog" aria-modal="true" aria-labelledby="stop-title" aria-describedby="stop-description" onKeyDown={handleDialogKeyDown}>
+      <span className="dialog-icon" aria-hidden="true">Ⅱ</span><h2 id="stop-title">Stop this session?</h2>
+      <p id="stop-description">This ends your current session. Its final status is based on the focus time recorded by FocusDesktop.</p>
+      <div className="dialog-actions"><button ref={cancelStopRef} className="button button-secondary" type="button" onClick={() => { setConfirmStop(false); stopTriggerRef.current?.focus() }}>Keep going</button>
+        <button className="button button-danger" type="button" disabled={timer.pendingAction !== null} onClick={() => { setConfirmStop(false); void timer.runAction('stop') }}>{timer.pendingAction === 'stop' ? 'Stopping…' : 'Stop session'}</button></div>
+    </div></div>}
+  </div>
 }
