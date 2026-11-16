@@ -47,7 +47,7 @@ describe('timer screen', () => {
     render(<TimerScreen timer={timer} />)
 
     expect(screen.getByText('Ready to focus')).toBeTruthy()
-    expect(screen.getByRole('timer').textContent).toContain('—:—')
+    expect(screen.getByRole('timer').textContent).toContain('25:00')
     expect(screen.queryByRole('button', { name: 'Pause session' })).toBeNull()
     await user.click(screen.getByRole('button', { name: 'Start focus session' }))
     expect(timer.runAction).toHaveBeenCalledWith('start')
@@ -81,7 +81,8 @@ describe('timer screen', () => {
     const user = userEvent.setup()
     const timer = makeTimer(makeSession({ state: 'PAUSED', intervalState: 'RUNNING', remainingSeconds: 800 }))
     render(<TimerScreen timer={timer} />)
-    expect(screen.getByText('Paused')).toBeTruthy()
+    expect(screen.getByText('PAUSED')).toBeTruthy()
+    expect(screen.getByText('Time paused')).toBeTruthy()
     expect(screen.getByRole('timer').textContent).toContain('13:20')
     expect(screen.getByRole('button', { name: 'Resume session' })).toBeTruthy()
     expect(screen.queryByRole('button', { name: 'Pause session' })).toBeNull()
@@ -97,7 +98,8 @@ describe('timer screen', () => {
     }))
     const { rerender } = render(<TimerScreen timer={timer} />)
     expect(screen.getByText('Short break')).toBeTruthy()
-    expect(screen.getByText('Ready for next interval')).toBeTruthy()
+    expect(screen.getByText('READY FOR NEXT INTERVAL')).toBeTruthy()
+    expect(screen.getByText('Ready when you are')).toBeTruthy()
     await user.click(screen.getByRole('button', { name: 'Start next interval' }))
     expect(timer.runAction).toHaveBeenCalledWith('startNextInterval')
     await user.click(screen.getByRole('button', { name: 'Skip break' }))
@@ -109,6 +111,7 @@ describe('timer screen', () => {
       intervalSequence: 3,
     }))
     rerender(<TimerScreen timer={pendingWork} />)
+    expect(screen.getByText('READY FOR NEXT INTERVAL')).toBeTruthy()
     expect(screen.getByRole('button', { name: 'Start next interval' })).toBeTruthy()
     expect(screen.queryByRole('button', { name: 'Skip break' })).toBeNull()
   })
@@ -129,7 +132,7 @@ describe('timer screen', () => {
   it('shows the work interval progress and waits at zero for the backend transition', () => {
     render(<TimerScreen timer={makeTimer(makeSession({ intervalSequence: 3, remainingSeconds: 0 }), { remainingSeconds: 0 })} />)
     expect(screen.getByText('1 work interval completed')).toBeTruthy()
-    expect(screen.getByText('Waiting for next interval')).toBeTruthy()
+    expect(screen.getByText('IN PROGRESS')).toBeTruthy()
     expect(screen.getByRole('timer').textContent).toContain('00:00')
   })
 
@@ -140,7 +143,9 @@ describe('timer screen', () => {
       error: 'The local API is unavailable.',
     })
     render(<TimerScreen timer={timer} />)
-    expect((screen.getByRole('button', { name: 'Please wait…' }) as HTMLButtonElement).disabled).toBe(true)
+    const pauseButton = screen.getByRole('button', { name: 'Pause session' }) as HTMLButtonElement
+    expect(pauseButton.disabled).toBe(true)
+    expect(pauseButton.textContent).toContain('Please wait…')
     expect(screen.getByRole('alert').textContent).toContain('The local API is unavailable.')
     await user.click(screen.getByRole('button', { name: 'Retry sync' }))
     expect(timer.retry).toHaveBeenCalledOnce()
