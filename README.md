@@ -32,6 +32,10 @@ This application utilizes a modern **hybrid desktop architecture**:
 * **Database:** H2 (embedded local database for the MVP)
 * **Architecture Pattern:** Domain-Driven Design (DDD)
 
+## Design
+
+[Visualizar o design no Figma]([https://www.figma.com/design/85wWEJcb1dyJLyDbH7YpTT/Focus_Desktop?node-id=0-1&t=M7IYhVYHEIhZolOO-1](https://www.figma.com/design/85wWEJcb1dyJLyDbH7YpTT/Focus_Desktop?node-id=3-228&t=M7IYhVYHEIhZolOO-1))
+
 ## 🗺️ Core Features & Roadmap
 
 ### Phase 1: MVP
