@@ -1,6 +1,9 @@
+import { useState } from 'react'
 import { distractionRules } from './futureData'
 
 export function DistractionsPage() {
+  const [profileNotice, setProfileNotice] = useState('')
+
   return <div className="distractions-page">
     <section className="boundaries-banner">
       <div><h2>Healthy boundaries for distractions.</h2><p>Set up rules for websites and applications.</p></div>
@@ -34,11 +37,14 @@ export function DistractionsPage() {
           <h2>Focus profiles</h2>
           <p className="muted-copy">Reusable distraction rule sets.</p>
           <p className="future-empty-state">No focus profiles are configured.</p>
-          <button className="text-action manage-profiles" type="button">Manage profiles <span aria-hidden="true">→</span></button>
+          <button className="text-action manage-profiles" type="button" onClick={() => setProfileNotice('Profile management: Not implemented yet.')}>Manage profiles <span aria-hidden="true">→</span></button>
+          {profileNotice && <p className="profile-notice" role="status">{profileNotice}</p>}
         </section>
         <section className="boundaries-info card-panel">
-          <h2>Distraction controls</h2>
-          <p className="future-empty-state">Blocking behavior can be configured here when it is implemented.</p>
+          <h2>You set the boundaries.</h2>
+          <div><strong>Only during sessions</strong><p>Outside focus time, everything is back to normal.</p></div>
+          <div><strong>A break without blocks</strong><p>Breaks are yours. Take a moment to breathe.</p></div>
+          <div><strong>No tracking outside the session</strong><p>Control stays on your computer.</p></div>
         </section>
       </aside>
     </div>

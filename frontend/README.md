@@ -90,3 +90,39 @@ npm run build
 npm run lint
 npm test
 ```
+
+## UI placeholders and future data integration
+
+The Overview summary is intentionally rendered with zero-valued placeholders. It
+does not represent measured activity yet. Its source is
+`src/pages/futureData.ts`:
+
+- `overviewSummary.focusSecondsToday` and `focusSecondsYesterday` feed today's
+  focus total and its comparison.
+- `overviewSummary.completedSessionsToday` and
+  `overviewSummary.distractionsBlockedToday` feed the two activity counts.
+- `overviewSummary.dailyGoalSeconds` feeds the goal total, remaining time, and
+  progress percentage. The UI safely shows 0% while the goal is zero.
+
+`src/timer/TimerScreen.tsx` formats and displays these values. To implement the
+real summary later, provide values from a summary API or application state in
+place of the zero-valued `overviewSummary`; keep durations in seconds internally.
+The Overview's Work, Short, and Long inputs are local UI state in this component
+and do not currently configure a timer session.
+
+Other future integration points are also declared in `src/pages/futureData.ts`:
+
+- `focusHistory` uses `FocusHistoryEntry` and feeds the History page and the
+  Overview's recent-sessions table.
+- `distractionRules` uses `DistractionRule` and feeds the Distractions table.
+- `focusProfiles` uses `FocusProfile` for profile management.
+- `timerProfiles` uses `TimerProfile` for saved timer presets.
+- `ApplicationPreferences` describes the theme and automatic-next-session
+  settings.
+
+These collections are empty until backed by real data. History range selection,
+date-range/export/status controls, and distraction profile management are UI
+scaffolds; unsupported actions display “Not implemented yet.” The boundary
+guidance in `src/pages/DistractionsPage.tsx` is static explanatory copy, not an
+active blocking or tracking feature. Settings controls currently change only
+their local presentation state and are not persisted or applied to the app.

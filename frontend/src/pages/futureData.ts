@@ -38,6 +38,23 @@ export interface ApplicationPreferences {
   startNextSessionAutomatically: boolean
 }
 
+export interface OverviewSummary {
+  focusSecondsToday: number
+  focusSecondsYesterday: number
+  completedSessionsToday: number
+  distractionsBlockedToday: number
+  dailyGoalSeconds: number
+}
+
+/** Zero-valued UI placeholders until summary APIs and persistence are available. */
+export const overviewSummary: OverviewSummary = {
+  focusSecondsToday: 0,
+  focusSecondsYesterday: 0,
+  completedSessionsToday: 0,
+  distractionsBlockedToday: 0,
+  dailyGoalSeconds: 0,
+}
+
 export const distractionRules: readonly DistractionRule[] = []
 export const focusProfiles: readonly FocusProfile[] = []
 export const focusHistory: readonly FocusHistoryEntry[] = []

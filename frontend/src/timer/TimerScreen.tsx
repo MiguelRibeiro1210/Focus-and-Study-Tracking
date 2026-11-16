@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type CSSProperties, type KeyboardEvent } from 'react'
 import type { SessionResponse } from '../api/sessionTypes'
 import type { TimerAction, TimerController } from './useTimerSession'
-import { focusHistory } from '../pages/futureData'
+import { focusHistory, overviewSummary } from '../pages/futureData'
 
 interface TimerScreenProps {
   timer: TimerController
@@ -21,6 +21,13 @@ function formatTime(totalSeconds: number | null): string {
   const minutes = Math.floor(totalSeconds / 60)
   const seconds = totalSeconds % 60
   return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`
+}
+
+function formatSummaryDuration(totalSeconds: number): string {
+  const totalMinutes = Math.floor(totalSeconds / 60)
+  const hours = Math.floor(totalMinutes / 60)
+  const minutes = totalMinutes % 60
+  return hours > 0 ? `${hours} h ${String(minutes).padStart(2, '0')} min` : `${minutes} min`
 }
 
 function completedWorkIntervals(session: SessionResponse): number {
@@ -59,6 +66,10 @@ export function TimerScreen({ timer, onViewHistory }: TimerScreenProps) {
     ? Math.min(100, Math.max(0, ((session.plannedDurationSeconds - (remaining ?? 0)) / Math.max(1, session.plannedDurationSeconds)) * 100))
     : session?.state === 'COMPLETED' ? 100 : 0
   const ringStyle = { '--progress': `${progress}%` } as CSSProperties
+  const dailyProgress = overviewSummary.dailyGoalSeconds > 0
+    ? Math.min(100, Math.round((overviewSummary.focusSecondsToday / overviewSummary.dailyGoalSeconds) * 100))
+    : 0
+  const focusTimeDifferenceMinutes = Math.round((overviewSummary.focusSecondsToday - overviewSummary.focusSecondsYesterday) / 60)
 
   useEffect(() => {
     if (confirmStop) cancelStopRef.current?.focus()
@@ -105,6 +116,12 @@ export function TimerScreen({ timer, onViewHistory }: TimerScreenProps) {
   }
 
   return <div className="overview-layout">
+    <section className="overview-stats" aria-label="Today's focus summary">
+      <article className="stat-card"><p>Focus time today</p><strong>{formatSummaryDuration(overviewSummary.focusSecondsToday)}</strong><small>{focusTimeDifferenceMinutes >= 0 ? '+' : ''}{focusTimeDifferenceMinutes} min compared to yesterday</small></article>
+      <article className="stat-card"><p>Working sessions completed</p><strong>{overviewSummary.completedSessionsToday}</strong><small>Sessions completed today</small></article>
+      <article className="stat-card"><p>Distractions blocked</p><strong>{overviewSummary.distractionsBlockedToday}</strong><small>Blocked distractions today</small></article>
+    </section>
+
     <div className="overview-columns">
       <section className="focus-panel" aria-label="Focus session setup">
         <div className="panel-title-row">
@@ -143,10 +160,15 @@ export function TimerScreen({ timer, onViewHistory }: TimerScreenProps) {
         </div>
       </section>
 
-      <aside className="daily-goal-panel overview-summary-empty">
-        <h2>Your focus summary</h2>
-        <p className="goal-intro">Session history and daily goals are not available yet.</p>
-        <p className="future-empty-state">Your progress will appear here when history tracking is implemented.</p>
+      <aside className="daily-goal-panel">
+        <h2>Focus is a habit.</h2><p className="goal-intro">And you’re making room for it.</p>
+        <p className="goal-label">DAILY GOAL</p>
+        <div className="goal-total"><strong>{formatSummaryDuration(overviewSummary.focusSecondsToday)}</strong><span>/ {formatSummaryDuration(overviewSummary.dailyGoalSeconds)}</span></div>
+        <div className="goal-progress"><span style={{ width: `${dailyProgress}%` }} /></div>
+        <p className="goal-complete">{dailyProgress}% complete</p>
+        <p className="goal-remaining">{formatSummaryDuration(Math.max(0, overviewSummary.dailyGoalSeconds - overviewSummary.focusSecondsToday))} left to reach your goal.</p>
+        <p className="goal-copy">Every session counts. Go at your own pace.</p>
+        <p className="goal-footer">Taking a break is progress, too.</p>
       </aside>
     </div>
 

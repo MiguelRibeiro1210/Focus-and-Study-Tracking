@@ -160,6 +160,7 @@
 .focus-profile small { margin-top: 8px; color: #69766c; font-size: 10px; }
 .focus-profile > span { color: #245644; font-size: 16px; font-weight: 700; }
 .manage-profiles { margin-top: 10px; font-weight: 600; }
+.profile-notice { margin: 8px 0 0; color: #69766c; font-size: 10px; }
 .boundaries-info { padding: 22px 22px 14px; background: #f0f3eb; }
 .boundaries-info > div { padding: 16px 0; border-bottom: 1px solid #e1e7da; }
 .boundaries-info > div:last-child { padding-bottom: 8px; border-bottom: 0; }
