@@ -1,15 +1,19 @@
+import { useState } from 'react'
 import { focusHistory } from './futureData'
 
 export function HistoryPage() {
+  const [selectedRange, setSelectedRange] = useState('7 days')
+  const [notice, setNotice] = useState('')
+  const showNotImplemented = (feature: string) => setNotice(`${feature}: Not implemented yet.`)
+
   return <div className="history-page">
     <div className="history-toolbar">
       <div className="range-tabs" role="group" aria-label="History date range">
-        <button className="range-tab" type="button" disabled>7 days</button>
-        <button className="range-tab" type="button" disabled>30 days</button>
-        <button className="range-tab" type="button" disabled>All time</button>
+        {['7 days', '30 days', 'All time'].map((range) => <button className={`range-tab${selectedRange === range ? ' selected' : ''}`} type="button" key={range} aria-pressed={selectedRange === range} onClick={() => { setSelectedRange(range); setNotice('') }}>{range}</button>)}
       </div>
-      <div className="history-actions"><button className="outlined-control" type="button" disabled>Choose date range <span aria-hidden="true">⌄</span></button><button className="outlined-control" type="button" disabled>↓&nbsp; Export CSV</button></div>
+      <div className="history-actions"><button className="outlined-control" type="button" onClick={() => showNotImplemented('Custom date range')}>Choose date range <span aria-hidden="true">⌄</span></button><button className="outlined-control" type="button" onClick={() => showNotImplemented('CSV export')}>↓&nbsp; Export CSV</button></div>
     </div>
+    {notice && <p className="history-notice" role="status">{notice}</p>}
 
     <section className="history-stats" aria-label="Focus summary">
       {['Focus time', 'Sessions completed', 'Distractions blocked'].map((label) => <article className="stat-card" key={label}><p>{label}</p><span className="future-empty-state">No history yet</span></article>)}
@@ -24,7 +28,7 @@ export function HistoryPage() {
     </div>
 
     <section className="sessions-panel card-panel">
-      <div className="sessions-panel-heading"><h2>Your sessions</h2><button type="button" className="outlined-control" disabled>All statuses <span aria-hidden="true">⌄</span></button></div>
+      <div className="sessions-panel-heading"><h2>Your sessions</h2><button type="button" className="outlined-control" onClick={() => showNotImplemented('Status filter')}>All statuses <span aria-hidden="true">⌄</span></button></div>
       <div className="history-table" role="table" aria-label="Focus session history">
         <div className="history-row history-table-head" role="row"><span role="columnheader">PROJECT</span><span role="columnheader">DATE &amp; TIME</span><span role="columnheader">DURATION</span><span role="columnheader">BLOCKED</span><span role="columnheader">STATUS</span></div>
         {focusHistory.length === 0

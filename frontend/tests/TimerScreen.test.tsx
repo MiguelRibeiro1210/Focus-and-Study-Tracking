@@ -53,6 +53,21 @@ describe('timer screen', () => {
     expect(timer.runAction).toHaveBeenCalledWith('start')
   })
 
+  it('accepts numeric duration values and opens history from the overview link', async () => {
+    const user = userEvent.setup()
+    const onViewHistory = vi.fn()
+    render(<TimerScreen timer={makeTimer(null)} onViewHistory={onViewHistory} />)
+
+    const workDuration = screen.getByRole('spinbutton', { name: 'Work duration in minutes' })
+    await user.type(workDuration, '45')
+    expect((workDuration as HTMLInputElement).value).toBe('45')
+    expect(workDuration.getAttribute('min')).toBe('1')
+    expect(workDuration.getAttribute('step')).toBe('1')
+
+    await user.click(screen.getByRole('button', { name: /View history/ }))
+    expect(onViewHistory).toHaveBeenCalledOnce()
+  })
+
   it('renders running controls and confirms before stopping', async () => {
     const user = userEvent.setup()
     const timer = makeTimer(makeSession())

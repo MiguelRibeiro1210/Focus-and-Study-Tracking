@@ -47,7 +47,7 @@ export function FocusDesktopApp({ timer }: FocusDesktopAppProps) {
               onClick={() => setPage(item.id)}
               type="button"
             >
-              <img src={item.icon} width="20" height="20" alt="" />
+              <img className="nav-icon" src={item.icon} width="20" height="20" alt="" />
               <span>{item.label}</span>
               {page === item.id && <img className="nav-current" src="/figma/current.svg" width="4" height="4" alt="" />}
             </button>
@@ -69,7 +69,7 @@ export function FocusDesktopApp({ timer }: FocusDesktopAppProps) {
           <div className="local-status"><img src="/figma/connected.svg" width="6" height="6" alt="" />Running locally</div>
         </header>
         <main className={`workspace-content page-${page}`}>
-          {page === 'overview' && <TimerScreen timer={timer} />}
+          {page === 'overview' && <TimerScreen timer={timer} onViewHistory={() => setPage('history')} />}
           {page === 'distractions' && <DistractionsPage />}
           {page === 'history' && <HistoryPage />}
           {page === 'settings' && <SettingsPage />}

@@ -3,7 +3,10 @@ import type { SessionResponse } from '../api/sessionTypes'
 import type { TimerAction, TimerController } from './useTimerSession'
 import { focusHistory } from '../pages/futureData'
 
-interface TimerScreenProps { timer: TimerController }
+interface TimerScreenProps {
+  timer: TimerController
+  onViewHistory?: () => void
+}
 
 function intervalLabel(type: SessionResponse['intervalType']): string {
   switch (type) {
@@ -41,8 +44,9 @@ function statusLabel(session: SessionResponse | null): string {
   }
 }
 
-export function TimerScreen({ timer }: TimerScreenProps) {
+export function TimerScreen({ timer, onViewHistory }: TimerScreenProps) {
   const [confirmStop, setConfirmStop] = useState(false)
+  const [durations, setDurations] = useState({ work: '', short: '', long: '' })
   const cancelStopRef = useRef<HTMLButtonElement>(null)
   const stopTriggerRef = useRef<HTMLButtonElement>(null)
   const session = timer.session
@@ -123,10 +127,12 @@ export function TimerScreen({ timer }: TimerScreenProps) {
 
           <div className="session-setup">
             <label className="field-label" htmlFor="project-placeholder">What will you work on?</label>
-            <div className="project-field" id="project-placeholder">Name your next project</div>
+            <input className="project-field" id="project-placeholder" type="text" placeholder="Name your next project" />
             <p className="field-label">Session duration</p>
-            <div className="duration-options" aria-label="Session duration presets">
-              {['Work', 'Short', 'Long'].map((label) => <button className="duration-option" type="button" disabled key={label}>{label}</button>)}
+            <div className="duration-options" aria-label="Session duration in minutes">
+              <label className="duration-field">Work<input className="duration-option" type="number" min="1" max="180" step="1" inputMode="numeric" aria-label="Work duration in minutes" value={durations.work} onChange={(event) => setDurations((current) => ({ ...current, work: event.target.value }))} /></label>
+              <label className="duration-field">Short<input className="duration-option" type="number" min="1" max="60" step="1" inputMode="numeric" aria-label="Short break duration in minutes" value={durations.short} onChange={(event) => setDurations((current) => ({ ...current, short: event.target.value }))} /></label>
+              <label className="duration-field">Long<input className="duration-option" type="number" min="1" max="120" step="1" inputMode="numeric" aria-label="Long break duration in minutes" value={durations.long} onChange={(event) => setDurations((current) => ({ ...current, long: event.target.value }))} /></label>
             </div>
             <div className="session-meta">
               <div><p className="field-label">Session controls</p><p className="profile-summary">Choose a session interval.</p></div>
@@ -145,7 +151,7 @@ export function TimerScreen({ timer }: TimerScreenProps) {
     </div>
 
     <section className="recent-panel">
-      <div className="recent-heading"><h2>Your progress today</h2><button className="text-action" type="button" disabled>View history <span aria-hidden="true">→</span></button></div>
+      <div className="recent-heading"><h2>Your progress today</h2><button className="text-action" type="button" onClick={onViewHistory}>View history <span aria-hidden="true">→</span></button></div>
       <div className="recent-table" role="table" aria-label="Recent focus sessions">
         <div className="recent-row recent-header" role="row"><span role="columnheader">SESSION</span><span role="columnheader">START</span><span role="columnheader">WORK</span><span role="columnheader">STATUS</span></div>
         {focusHistory.length === 0
