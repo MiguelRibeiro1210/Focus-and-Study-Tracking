@@ -117,10 +117,10 @@ BlockingDecision "1" -- "1" BlockingRuleId : refers to >
 BlockingDecision "1" -- "1" DistractionCategory : has >
 
 ' PROGRESS AND ANALYTICS RELATIONSHIPS (READ MODELS)'
-ProductivitySummary "1" *-- "1" DailyProgress : compiles >
 ProductivitySummary "1" -- "1" DateRange : covers >
 ProductivitySummary "1" *-- "1" FocusScore : contains >
 ProductivitySummary "1" -- "1" ProductivitySummaryId : is identified by >
+ProductivitySummary ..> FocusSession : summarizes completed sessions >
 DailyProgress "1" -- "1" DailyProgressId : is identified by >
 DailyProgress "1" *-- "1" HourStreak : owns >
 DailyProgress "1" *-- "1" DistractionLog : includes >

@@ -165,19 +165,23 @@ MVP or Phase 2 acceptance criteria.
 
 ## 4. Progress & Analytics read models
 
-These concepts are **read models**, not aggregates. They are updated by
-idempotent projections and can be rebuilt from retained persisted sessions and
-durable outbox events.
+These concepts are **read models**, not aggregates. `DailyProgress` and
+`DistractionLog` are updated by idempotent projections; `ProductivitySummary`
+is assembled on demand from retained persisted session and interval data.
 
 | Read model | Identity | Composed of | Built from |
 |---|---|---|---|
-| `ProductivitySummary` | `ProductivitySummaryId` | `DailyProgress`, `DateRange`, `FocusScore` | Session summaries, daily progress, distraction counts |
+| `ProductivitySummary` | `ProductivitySummaryId` | `DateRange`, `FocusScore` | Completed `FocusSession` aggregates |
 | `DailyProgress` | `DailyProgressId` | `DistractionLog`, `HourStreak` | `SessionCompleted`, `DistractionDetected` |
 | `DistractionLog` | `DistractionLogId` | `ActiveWindowInfo`, `BlockingDecision` | `DistractionDetected`, `DistractionBlocked`, `DistractionBlockFailed` |
 
-`ProductivitySummary` is assembled per query for analytics. `DailyProgress` and
-`DistractionLog` are persisted projections and support history, streaks and
-distraction review.
+`ProductivitySummary` is assembled per query from completed `FocusSession`
+aggregates. Work and break values are derived from intervals owned by each
+aggregate; analytics has no direct association to `SessionInterval`. Its focus
+score compares recorded work time with planned work time. `DailyProgress` and
+`DistractionLog` remain separate persisted projections for streaks and Phase 2
+distraction review; distraction metrics are not part of the MVP analytics
+response.
 
 **Read-model rules**
 
@@ -198,7 +202,7 @@ distraction review.
 |---|---|---|---|
 | `SessionStarted` | `FocusSession` | WebSocket, diagnostics | Timer screen update |
 | `SessionPaused` / `SessionResumed` | `FocusSession` | WebSocket | Timer screen update |
-| `SessionCompleted` | `FocusSession` | `DailyProgressProjection`, WebSocket | Analytics and history |
+| `SessionCompleted` | `FocusSession` | `DailyProgressProjection`, WebSocket | Daily progress and history |
 | `SessionAbandoned` | `FocusSession` | History, diagnostics | Exclude from streaks; carries `BELOW_MINIMUM_FOCUS_TIME` when stopped below the five-minute minimum |
 | `IntervalCompleted` | `FocusSession` | WebSocket | Work/break transition with state and remaining-time snapshot |
 | `IntervalStarted` | `FocusSession` | WebSocket | Manually started pending interval with remaining-time snapshot |
@@ -220,8 +224,9 @@ reconciles state using REST snapshots.
    `AppSettings → FocusSession` and `FocusSession → StudyMaterial`; it does not
    link a value object from one aggregate directly to another aggregate's root.
 3. **Read models depend on write models, never the reverse.** `DailyProgress`
-   aggregates `FocusSession` data through events; `ProductivitySummary` compiles
-   `DailyProgress`.
+   aggregates `FocusSession` data through events; `ProductivitySummary` depends
+   on completed `FocusSession` aggregate roots and derives interval values
+   through the root.
 4. **Value objects are immutable.** A change produces a new value object and,
    where relevant, a new aggregate version.
 5. **`DistractionLog` is a read model.** It records `ActiveWindowInfo` and

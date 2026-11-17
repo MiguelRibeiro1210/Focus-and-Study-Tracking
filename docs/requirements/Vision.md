@@ -101,8 +101,9 @@ Differentiators:
 - Configurable timer durations and auto-start behaviour.
 - Session history with date filtering and pagination.
 - Daily streak and current/longest streak.
-- Productivity analytics: focus time, completed sessions, average session,
-  focus score and distraction count.
+- Productivity analytics: focus and break time, completed sessions, average
+  session, focus score and daily breakdown. Distraction metrics are deferred to
+  Phase 2 when tracking data exists.
 - Local persistence and recovery of an active session after restart.
 - Local-only API with a per-installation token.
 - Desktop UI packaged with Tauri.

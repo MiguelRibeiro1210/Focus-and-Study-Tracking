@@ -483,43 +483,62 @@ FR-STR-01..04.
 ## 12. UC-09 — View productivity analytics
 
 **Actor:** Learner
-**Goal:** Understand focus time, session volume, focus score and distractions
-over a date range.
+**Goal:** Understand completed focus time, break time, session volume and focus
+score for a date range.
 **Priority / phase:** Must / MVP
 **Preconditions:** The backend is running.
-**Trigger:** The learner opens **Analytics** and selects a range.
+**Trigger:** The learner opens the **History** screen and selects a range.
 
 ### Main success scenario
 
-1. The learner selects a range (default: last 7 days).
+1. The learner selects a range on the existing History screen (default: last 7
+   local calendar days; available presets remain 7 days, 30 days and All time).
 2. The UI requests `GET /api/v1/analytics/summary`.
-3. The system validates the range (≤ 366 days).
-4. The system loads session summaries, daily progress and distraction counts from the read models.
-5. The analytics assembler computes totals, average session and focus score.
-6. The system returns the `ProductivitySummary` read model and the daily breakdown.
-7. The UI renders charts and key figures.
+3. The system validates that explicit `from` and `to` bounds are supplied
+   together, are inclusive local dates, and span no more than 366 calendar
+   days. With both bounds omitted, the request means All time.
+4. The system queries completed sessions and their work/break intervals for
+   totals and daily data. For All time, totals use all completed sessions and
+   the daily breakdown covers the latest 7 local calendar days.
+5. The analytics assembler computes totals, average session focus duration,
+   best day and focus score.
+6. The system returns the summary and zero-filled daily breakdown. Daily
+   buckets use each session's `startedAt` local date.
+7. The UI uses returned values in the existing History screen layout. This
+   story preserves the current visual design; the focus score is returned by
+   the API but is not placed on the screen until its location is approved in a
+   later UI story.
 
 ### Extensions
 
-- **3a. Invalid range.** `400 INVALID_DATE_RANGE`.
+- **3a. Invalid range or only one date bound supplied.** `400 INVALID_DATE_RANGE`.
 - **3b. Range too large.** `400 RANGE_TOO_LARGE`.
 - **4a. No data.** The system returns zero totals and a zero-filled daily
   breakdown.
-- **5a. Planned time is zero.** The focus score is `0`; the response is still
-  valid.
+- **5a. Planned work time is zero.** The focus score is `0`; the response is
+  still valid.
 
 ### Postconditions
 
 - No data is modified.
-- The summary is reproducible from persisted sessions and the `DailyProgress` / `DistractionLog` read models.
+- The summary is reproducible from persisted completed sessions and interval
+  data. Distraction metrics are deferred until Phase 2 tracking data exists.
 
 ### Business rules
 
-- Focus score = completed focus time / planned focus time, penalised by
-  distraction density; clamped to `[0, 100]`.
+- Focus score = `round(100 × actual work seconds / planned work seconds)` over
+  completed sessions, clamped to `[0, 100]`; a zero denominator yields `0`.
+  Distraction penalties are deferred until their source data exists.
 - Totals use completed sessions only.
-- The daily breakdown includes zero days.
-- Distraction counts are included when Phase 2 read-model data exists.
+- The daily breakdown includes zero days. For All time it contains only the
+  latest 7 local calendar days; explicit ranges contain every date in range.
+- Focus and break totals use recorded work and break interval durations from
+  completed sessions. Planned work time is the sum of planned durations of
+  their started work intervals; unstarted pending work intervals are excluded.
+- Average session focus duration is total focus seconds divided by completed
+  session count; an empty range yields `0`. Best day is computed over the full
+  selected range, including All time. When multiple days tie, the most recent
+  date is selected.
 - `ProductivitySummary` is a read model, not a domain aggregate.
 
 ### Related requirements and diagrams

@@ -75,8 +75,10 @@ Every requirement is traced to a use case and to the project board in
   end timestamps, and actual focus duration in seconds.
 - History queries use a summary projection and do not load interval collections.
 - The History screen defaults to today and the previous 6 local calendar
-  dates, and offers a 30-calendar-day range and all time. Session detail,
-  streaks, analytics, export and distraction counts are outside this slice.
+  dates, and offers a 30-calendar-day range and all time. FST-019 also provides
+  an inclusive custom local-date range that filters both the analytics summary
+  and session list. Session detail, streaks, export and distraction counts are
+  outside the history-list slice.
 
 ## 3. Streaks
 
@@ -99,18 +101,34 @@ Every requirement is traced to a use case and to the project board in
 
 | ID | Requirement | Priority | Phase | UC | Board |
 |---|---|---|---|---|---|
-| FR-ANA-01 | The learner can see total focus time, break time and completed sessions for a date range. | Must | MVP | UC-09 | FST-019 |
-| FR-ANA-02 | The system calculates a focus score between 0 and 100. | Must | MVP | UC-09 | FST-019 |
-| FR-ANA-03 | The learner can see a daily breakdown of focus minutes and sessions. | Should | MVP | UC-09 | FST-019 |
-| FR-ANA-04 | The learner can see distraction counts and categories (Phase 2 data). | Should | Phase 2 | UC-09, UC-15 | FST-019, FST-028 |
-| FR-ANA-05 | Analytics ranges are limited to 366 days per request. | Must | MVP | UC-09 | FST-019 |
+| FR-ANA-01 | The learner can retrieve total focus time, break time and completed sessions for a date range. Only completed sessions contribute. | Must | MVP | UC-09 | FST-019 |
+| FR-ANA-02 | The system calculates a focus score between 0 and 100 from completed work time and its planned work time. | Must | MVP | UC-09 | FST-019 |
+| FR-ANA-03 | The analytics response includes a daily breakdown of focus time, break time and completed sessions, plus the best day in the selected range. | Should | MVP | UC-09 | FST-019 |
+| FR-ANA-04 | The learner can see distraction counts and categories when Phase 2 tracking data exists. | Should | Phase 2 | UC-09, UC-15 | FST-028 |
+| FR-ANA-05 | Explicit analytics date ranges are limited to 366 inclusive local calendar days; an omitted range requests all-time totals. | Must | MVP | UC-09 | FST-019 |
 
 ### Acceptance criteria — analytics
 
-- Focus score is clamped to `[0, 100]`.
+- Focus score is `round(100 × actual work seconds / planned work seconds)`
+  across completed sessions, clamped to `[0, 100]`; a zero denominator yields
+  `0`. It has no distraction penalty until distraction metrics are implemented.
 - An empty range returns zero totals and a valid DTO.
 - The daily breakdown has one entry per day in the range, including zero days.
-- Totals are computed from completed sessions only.
+- Totals and the score are computed from completed sessions only. Actual work
+  and break time come from their recorded intervals; planned work time is the
+  sum of planned durations for started work intervals in those sessions.
+- Daily buckets use each session's `startedAt` local date, consistent with the
+  session-history date filter. Average session focus time is total focus time
+  divided by the completed-session count; an empty range yields `0`. The best
+  day is computed across the full selected range; ties select the most recent
+  date.
+- FST-019 preserves the existing History screen's visual design. Its backend
+  returns the focus score, but displaying that score awaits a later UI story
+  and the learner's approval of its placement.
+- `from` and `to` are either both supplied or both omitted. Supplied bounds
+  are inclusive in the operating system's local timezone and may span at most
+  366 calendar days. When both are omitted, totals cover all completed
+  sessions and the daily breakdown covers the latest 7 local calendar days.
 
 ## 5. Settings
 

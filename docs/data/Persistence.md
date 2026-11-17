@@ -121,8 +121,10 @@ Append-only entries: `id`, nullable `session_id`, `occurred_at`,
 `reason`. It is updated by `DistractionLogProjection` from
 `DistractionDetected`, `DistractionBlocked` and `DistractionBlockFailed`.
 
-`ProductivitySummary` is **not** a table. It is assembled per analytics query
-from `SessionSummary`, `DailyProgress` and `DistractionLog`.
+`ProductivitySummary` is **not** a table. The MVP analytics endpoint assembles
+it per query from completed session and interval data. Distraction data is
+deferred until tracking is available; the summary does not depend on
+`DailyProgress` or `DistractionLog`.
 
 ## 4. Phase 3 tables
 

@@ -6,50 +6,48 @@ actor Learner
 participant "Desktop UI" as UI
 participant "AnalyticsController" as Controller
 participant "GetProductivityAnalyticsUseCase" as UseCase
-participant "SessionQueryRepository" as SessionRepo
-participant "DailyProgressReadRepository" as ProgressRepo
-participant "DistractionLogReadRepository" as DistractionRepo
+participant "SessionAnalyticsReader" as SessionRepo
 participant "AnalyticsSummaryAssembler" as Assembler
 participant "AnalyticsMapper" as Mapper
 
-Learner -> UI : open Analytics and select range
+Learner -> UI : open History and select a range
 UI -> Controller : GET /api/v1/analytics/summary?from=...&to=...
 Controller -> UseCase : get(AnalyticsQuery)
-UseCase -> UseCase : validateRange(max 366 days)
+UseCase -> UseCase : validate paired inclusive local dates
+UseCase -> UseCase : enforce 366-day limit for explicit ranges
 
-UseCase -> SessionRepo : findSummaries(range)
-SessionRepo --> UseCase : List<SessionSummary>
-UseCase -> ProgressRepo : findRange(from, to)
-ProgressRepo --> UseCase : List<DailyProgress>
-UseCase -> DistractionRepo : countByRange(from, to)
-DistractionRepo --> UseCase : long
-UseCase -> Assembler : summarize(sessions, distractions, daily, range)
+UseCase -> SessionRepo : summarizeCompletedSessions(range)
+SessionRepo --> UseCase : totals and daily work/break aggregates
+UseCase -> Assembler : summarize(totals, daily, range)
 activate Assembler
-Assembler -> Assembler : totalFocus()
-Assembler -> Assembler : averageSession()
-Assembler -> Assembler : focusScore()
+Assembler -> Assembler : compute totals and average session
+Assembler -> Assembler : score = round(actual work / planned work × 100)
+Assembler -> Assembler : zero-fill each requested date
+Assembler -> Assembler : find best day across full selected range
 Assembler --> UseCase : ProductivitySummary
 deactivate Assembler
 UseCase -> Mapper : toDto(summary, range)
 Mapper --> UseCase : AnalyticsDto
 UseCase --> Controller : AnalyticsDto
-Controller --> UI : 200 OK\n{totals, focusScore, distractionCount}
+Controller --> UI : 200 OK\n{totals, focusScore, bestDay, daily}
 
-note over ProgressRepo, DistractionRepo
-  Both are read-model ports. The query is
-  read-only and can be rebuilt from the
-  persisted sessions and distraction events.
+note over SessionRepo
+  The query reads completed sessions and their
+  persisted work/break intervals. All time uses
+  all sessions for totals and the latest 7 local
+  calendar days for the daily chart.
 end note
 
 note over Assembler
-  Focus score = completed focus time / planned
-  focus time, reduced by distraction density.
-  Value is clamped to 0..100.
+  Focus score is clamped to 0..100. A zero planned
+  work duration yields a score of 0. Distraction
+  metrics are deferred until tracking exists.
 end note
 
 note over UI
-  Charts: daily focus minutes, sessions per day,
-  distraction categories, best focus window.
+  Render the response in the existing History
+  screen layout. The selected range also filters
+  the session list.
 end note
 
 @enduml

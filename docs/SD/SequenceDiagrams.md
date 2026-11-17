@@ -18,7 +18,7 @@ contract rather than repeated in these flows.
 | 6 | UC-06 Skip break | [`SD_SkipBreak.puml`](SD_SkipBreak.puml) | [`SD_SkipBreak.svg`](SD_SkipBreak.svg) | UI, `SessionController`, `SkipBreakUseCase`, `FocusSession` |
 | 7 | UC-07 View session history | [`SD_QuerySessionHistory.puml`](SD_QuerySessionHistory.puml) | [`SD_QuerySessionHistory.svg`](SD_QuerySessionHistory.svg) | UI, `HistoryController`, `QuerySessionHistoryUseCase`, `SessionQueryRepository` |
 | 8 | UC-08 View daily streak | [`SD_CalculateDailyStreak.puml`](SD_CalculateDailyStreak.puml) | [`SD_CalculateDailyStreak.svg`](SD_CalculateDailyStreak.svg) | UI, `AnalyticsController`, `CalculateDailyStreakUseCase`, `DailyProgressReadRepository` |
-| 9 | UC-09 View productivity analytics | [`SD_ViewAnalytics.puml`](SD_ViewAnalytics.puml) | [`SD_ViewAnalytics.svg`](SD_ViewAnalytics.svg) | UI, `AnalyticsController`, analytics use case, read-model repositories, assembler |
+| 9 | UC-09 View productivity analytics | [`SD_ViewAnalytics.puml`](SD_ViewAnalytics.puml) | [`SD_ViewAnalytics.svg`](SD_ViewAnalytics.svg) | UI, `AnalyticsController`, analytics use case, `SessionAnalyticsReader`, assembler |
 | 10 | UC-10 Configure timer settings | [`SD_ConfigureTimerSettings.puml`](SD_ConfigureTimerSettings.puml) | [`SD_ConfigureTimerSettings.svg`](SD_ConfigureTimerSettings.svg) | UI, `SettingsController`, `UpdateTimerSettingsUseCase`, `AppSettings`, `TimerPreferences` |
 | 11 | UC-11 Configure application settings | [`SD_ConfigureApplicationSettings.puml`](SD_ConfigureApplicationSettings.puml) | [`SD_ConfigureApplicationSettings.svg`](SD_ConfigureApplicationSettings.svg) | UI, `SettingsController`, `UpdateApplicationSettingsUseCase`, `AppSettings` |
 | 12 | UC-12 Manage blocking rules | [`SD_ManageBlockingRules.puml`](SD_ManageBlockingRules.puml) | [`SD_ManageBlockingRules.svg`](SD_ManageBlockingRules.svg) | UI, `BlockingRuleController`, `ManageBlockingRulesUseCase`, `BlockingPolicy` |
@@ -73,8 +73,9 @@ defined by the API and blocking contracts, outside this happy-path diagram.
 
 ### Analytics and streaks
 
-`SD_ViewAnalytics` reads `SessionSummary`, `DailyProgress` and
-`DistractionLog` projections and assembles `ProductivitySummary`.
+`SD_ViewAnalytics` queries completed sessions and their persisted work/break
+intervals and assembles `ProductivitySummary`. Distraction metrics are deferred
+until Phase 2 tracking data exists.
 `SD_CalculateDailyStreak` reads `DailyProgress` and computes `HourStreak`.
 Both flows are read-only and can run while a session is active.
 

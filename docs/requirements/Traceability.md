@@ -31,7 +31,7 @@ case, diagram and task should be visible in one place.
 | FR-ANA-01 | UC-09 | [SD_ViewAnalytics](../SD/SD_ViewAnalytics.puml) | FST-019 |
 | FR-ANA-02 | UC-09 | [SD_ViewAnalytics](../SD/SD_ViewAnalytics.puml) | FST-019 |
 | FR-ANA-03 | UC-09 | [SD_ViewAnalytics](../SD/SD_ViewAnalytics.puml) | FST-019 |
-| FR-ANA-04 | UC-09, UC-15 | [SD_ViewAnalytics](../SD/SD_ViewAnalytics.puml), [SD_ReviewDistractionLog](../SD/SD_ReviewDistractionLog.puml) | FST-019, FST-028 |
+| FR-ANA-04 | UC-09, UC-15 | [SD_ViewAnalytics](../SD/SD_ViewAnalytics.puml), [SD_ReviewDistractionLog](../SD/SD_ReviewDistractionLog.puml) | FST-028; analytics display story to be created for Phase 2 |
 | FR-ANA-05 | UC-09 | [SD_ViewAnalytics](../SD/SD_ViewAnalytics.puml) | FST-019 |
 | FR-SET-01 | UC-10 | [SD_ConfigureTimerSettings](../SD/SD_ConfigureTimerSettings.puml) | FST-020 |
 | FR-SET-02 | UC-10 | [SD_ConfigureTimerSettings](../SD/SD_ConfigureTimerSettings.puml) | FST-020 |

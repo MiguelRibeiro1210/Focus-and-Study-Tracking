@@ -147,7 +147,13 @@ state-changing response/event.
 | `GET` | `/analytics/summary?from=...&to=...` | Productivity summary and daily breakdown. | `200 OK` + `AnalyticsDto` |
 | `GET` | `/analytics/streak?date=...` | Current and longest streak. | `200 OK` + `StreakDto` |
 
-`AnalyticsDto` is assembled from read models:
+`AnalyticsDto` is assembled by the backend from completed sessions and their
+persisted work and break intervals. The current MVP does not return
+distraction metrics. `from` and `to` must either both be supplied or both be
+omitted. Supplied local-date bounds are inclusive and may span at most 366
+calendar days. Omitting both requests all-time totals; its `daily` array covers
+the latest 7 local calendar days for the existing weekly chart. `from` and `to`
+are `null` in an all-time response.
 
 ```json
 {
@@ -158,15 +164,25 @@ state-changing response/event.
   "completedSessions": 8,
   "averageSessionSeconds": 1575,
   "focusScore": 82,
-  "distractionCount": 5,
+  "bestDay": { "date": "2026-11-05", "focusSeconds": 3600, "completedSessions": 2 },
   "daily": [
-    { "date": "2026-11-01", "focusSeconds": 1500, "sessions": 1, "distractions": 0 }
+    { "date": "2026-11-01", "focusSeconds": 1500, "breakSeconds": 300, "completedSessions": 1 }
   ]
 }
 ```
 
-Range rules: `from <= to`, maximum 366 days. An empty range returns zero totals
-and a zero-filled daily breakdown.
+The focus score is `round(100 × actual work seconds / planned work seconds)`
+across completed sessions, clamped to `[0, 100]`; a zero denominator yields
+`0`. Its planned-work denominator sums planned durations for started work
+intervals in completed sessions; unstarted pending work intervals are excluded.
+No distraction penalty is applied until distraction tracking is implemented.
+`averageSessionSeconds` is total focus seconds divided by completed sessions.
+`bestDay` is computed across the full selected range and is `null` when it has
+no completed sessions; when days tie, the most recent date wins. Daily buckets
+use each session's `startedAt` local date.
+An empty range returns zero totals and a zero-filled daily breakdown. For
+explicit ranges, `daily` includes every local date from `from` through `to`,
+even when its values are zero.
 
 ## 4. Settings
 
@@ -288,8 +304,8 @@ When a session is abandoned because it ended before the five-minute minimum,
 
 | HTTP | Code | Meaning |
 |---|---|---|
-| `400` | `INVALID_DATE_RANGE` | `from > to` or malformed date. |
-| `400` | `RANGE_TOO_LARGE` | Analytics range exceeds 366 days. |
+| `400` | `INVALID_DATE_RANGE` | Malformed date, `from > to`, or only one analytics bound supplied. |
+| `400` | `RANGE_TOO_LARGE` | Explicit analytics range exceeds 366 inclusive local calendar days. |
 | `401` | `UNAUTHORIZED` | Missing or invalid token. |
 | `404` | `SESSION_NOT_FOUND` | Unknown session id. |
 | `404` | `RESOURCE_NOT_FOUND` | Unknown rule or distraction entry. |

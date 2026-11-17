@@ -6,12 +6,18 @@ actor Learner
 participant "FocusDesktop System" as System
 
 Learner -> System : requestAnalytics(from, to)
-System --> Learner : analytics(from, to, totalFocusSeconds, completedSessions, averageSessionSeconds, focusScore, distractionCount)
-System --> Learner : dailyBreakdown(days)
+System --> Learner : analytics(from, to, totalFocusSeconds, totalBreakSeconds, completedSessions, averageSessionSeconds, focusScore, bestDay)
+System --> Learner : dailyBreakdown(date, focusSeconds, breakSeconds, completedSessions)
 
 note right of System
-  Analytics are computed from completed sessions
-  and distraction logs. No data leaves the device.
+  Explicit date bounds are inclusive local dates
+  and limited to 366 days. With no bounds, totals
+  cover all completed sessions and the daily
+  breakdown covers the latest 7 local days.
+  Focus score is actual work time / planned work
+  time, rounded and clamped to 0..100. Distraction
+  metrics are deferred until tracking exists.
+  No data leaves the device.
 end note
 
 @enduml

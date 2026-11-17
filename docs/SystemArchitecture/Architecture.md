@@ -16,7 +16,7 @@ The PlantUML source is [`SystemArchitecture.puml`](SystemArchitecture.puml).
 | Local-first privacy | No cloud dependency, no telemetry, no outbound calls in the core runtime. |
 | Correct timer behaviour | The backend is authoritative; the UI never computes elapsed time. |
 | Recover after restart | An active session is reloaded from the database with its remaining time. |
-| Rebuildable analytics | Progress and analytics are read models fed by domain events. |
+| Rebuildable progress | Daily progress projections are event-fed; analytics summaries are read from persisted sessions and intervals. |
 | Replaceable desktop shell | The UI talks to the local HTTP/WebSocket API, not to Java internals. |
 | Testable domain | The domain layer has no Spring or JPA dependency. |
 
@@ -77,22 +77,18 @@ session every 30 seconds while running and reconciles immediately after a
 state-changing response/event or WebSocket reconnection. WebSocket snapshots
 are emitted on state and interval changes, not once per second.
 
-### 4.2 Analytics projection
+### 4.2 Analytics query
 
 ```text
-SessionCompleted ─┐
-DistractionDetected ─┼─▶ DailyProgressProjection ─▶ DailyProgress read model
-DistractionBlocked ─┤
-DistractionBlockFailed ─┘
-                         │
-                         └─▶ DistractionLogProjection ─▶ DistractionLog read model
-
-DailyProgress + SessionSummaries ─▶ AnalyticsSummaryAssembler ─▶ ProductivitySummary
+Completed sessions + work/break intervals
+    ─▶ SessionAnalyticsReader ─▶ AnalyticsSummaryAssembler ─▶ ProductivitySummary
 ```
 
-Projections are idempotent. Replaying an event must not duplicate read-model
-rows. `AnalyticsSummaryAssembler` builds `ProductivitySummary` per query; it does
-not mutate domain state.
+The MVP analytics endpoint reads completed sessions and their persisted
+intervals; it does not depend on a projection or distraction source.
+`AnalyticsSummaryAssembler` builds `ProductivitySummary` per query and does not
+mutate domain state. Daily progress and distraction projections remain separate
+read models for streaks and Phase 2 distraction features.
 
 ### 4.3 Distraction control
 
