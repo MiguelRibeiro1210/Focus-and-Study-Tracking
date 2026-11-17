@@ -116,7 +116,7 @@ async function run() {
     socket.once('error', rejectOpen)
   })
   const startedEvent = waitForSocketEvent(socket, (event) => event.type === 'session.started')
-  const startResponse = await request(token, '/api/v1/sessions', 'POST', { sessionType: 'WORK' })
+  const startResponse = await request(token, '/api/v1/sessions', 'POST', { sessionType: 'WORK', projectName: 'Smoke test' })
   assert(startResponse.status === 201, `Expected session start status 201, got ${startResponse.status}`)
   const session = await startResponse.json()
   const event = await startedEvent
