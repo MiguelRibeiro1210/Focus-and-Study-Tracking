@@ -1,6 +1,7 @@
 package com.focusdesktop.infrastructure.web;
 
 import com.focusdesktop.application.usecase.GetActiveSessionUseCase;
+import com.focusdesktop.application.usecase.GetSessionHistoryUseCase;
 import com.focusdesktop.application.usecase.SkipBreakUseCase;
 import com.focusdesktop.application.usecase.StartNextIntervalUseCase;
 import com.focusdesktop.application.usecase.PauseSessionUseCase;
@@ -12,6 +13,7 @@ import com.focusdesktop.application.usecase.commands.StartSessionCommand;
 import com.focusdesktop.domain.model.SessionId;
 import com.focusdesktop.domain.model.SessionType;
 import java.net.URI;
+import java.time.LocalDate;
 import java.util.UUID;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -19,6 +21,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
@@ -31,10 +34,12 @@ public class SessionController {
     private final StopSessionUseCase stop;
     private final StartNextIntervalUseCase startNextInterval;
     private final SkipBreakUseCase skipBreak;
+    private final GetSessionHistoryUseCase history;
 
     public SessionController(StartSessionUseCase start, GetActiveSessionUseCase active,
             PauseSessionUseCase pause, ResumeSessionUseCase resume, StopSessionUseCase stop,
-            StartNextIntervalUseCase startNextInterval, SkipBreakUseCase skipBreak) {
+            StartNextIntervalUseCase startNextInterval, SkipBreakUseCase skipBreak,
+            GetSessionHistoryUseCase history) {
         this.start = start;
         this.active = active;
         this.pause = pause;
@@ -42,14 +47,16 @@ public class SessionController {
         this.stop = stop;
         this.startNextInterval = startNextInterval;
         this.skipBreak = skipBreak;
+        this.history = history;
     }
 
     @PostMapping
     public ResponseEntity<SessionResponse> start(@RequestBody StartSessionRequest request) {
-        if (request == null || request.sessionType() == null) {
-            throw new IllegalArgumentException("sessionType is required");
+        if (request == null || request.sessionType() == null || request.projectName() == null) {
+            throw new IllegalArgumentException("sessionType and projectName are required");
         }
-        SessionResponse response = SessionResponse.from(start.execute(new StartSessionCommand(request.sessionType())));
+        SessionResponse response = SessionResponse.from(start.execute(
+                new StartSessionCommand(request.projectName(), request.sessionType())));
         return ResponseEntity.created(URI.create("/api/v1/sessions/" + response.sessionId())).body(response);
     }
 
@@ -58,6 +65,16 @@ public class SessionController {
         return active.execute().map(SessionResponse::from)
                 .map(ResponseEntity::ok)
                 .orElseGet(() -> ResponseEntity.noContent().build());
+    }
+
+    @GetMapping
+    public com.focusdesktop.application.dto.SessionHistoryPage history(
+            @RequestParam(required = false) LocalDate from,
+            @RequestParam(required = false) LocalDate to,
+            @RequestParam(required = false) String status,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        return history.execute(from, to, status, page, size);
     }
 
     @PostMapping("/{id}/pause")
@@ -89,5 +106,5 @@ public class SessionController {
         return new SessionIdCommand(new SessionId(id));
     }
 
-    public record StartSessionRequest(SessionType sessionType) { }
+    public record StartSessionRequest(SessionType sessionType, String projectName) { }
 }

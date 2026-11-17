@@ -11,6 +11,7 @@ import java.util.Objects;
 
 public record SessionDto(
         SessionId sessionId,
+        String projectName,
         SessionType sessionType,
         SessionState state,
         SessionType intervalType,
@@ -26,6 +27,7 @@ public record SessionDto(
 
     public SessionDto {
         Objects.requireNonNull(sessionId, "sessionId");
+        Objects.requireNonNull(projectName, "projectName");
         Objects.requireNonNull(sessionType, "sessionType");
         Objects.requireNonNull(state, "state");
         Objects.requireNonNull(intervalType, "intervalType");
@@ -42,7 +44,7 @@ public record SessionDto(
         Objects.requireNonNull(session, "session");
         Objects.requireNonNull(asOf, "asOf");
         var interval = session.currentInterval();
-        return new SessionDto(session.id(), session.sessionType(), session.state(), interval.type(),
+        return new SessionDto(session.id(), session.projectName(), session.sessionType(), session.state(), interval.type(),
                 interval.state(), interval.sequenceNumber(), interval.plannedDuration(),
                 interval.actualDuration(asOf), session.actualFocusDuration(asOf), interval.remainingDuration(asOf),
                 session.createdAt(), session.startedAt(), session.endedAt());

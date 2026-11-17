@@ -7,6 +7,7 @@ import java.util.UUID;
 
 public record SessionResponse(
         UUID sessionId,
+        String projectName,
         String sessionType,
         String state,
         String intervalType,
@@ -22,7 +23,7 @@ public record SessionResponse(
 
     public static SessionResponse from(SessionDto session) {
         SessionId id = session.sessionId();
-        return new SessionResponse(id.value(), session.sessionType().name(), session.state().name(),
+        return new SessionResponse(id.value(), session.projectName(), session.sessionType().name(), session.state().name(),
                 session.intervalType().name(), session.intervalState().name(), session.intervalSequence(),
                 session.plannedDuration().seconds(), session.actualDuration().seconds(),
                 session.actualFocusDuration().seconds(), session.remainingDuration().seconds(),

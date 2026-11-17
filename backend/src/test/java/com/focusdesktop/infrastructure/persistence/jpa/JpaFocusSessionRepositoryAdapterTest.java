@@ -57,7 +57,7 @@ class JpaFocusSessionRepositoryAdapterTest {
     void flywayAppliesSessionAndOutboxRetryMigrations() {
         var currentMigration = flyway.info().current();
         assertNotNull(currentMigration);
-        assertEquals("2", currentMigration.getVersion().getVersion());
+        assertEquals("3", currentMigration.getVersion().getVersion());
         assertNotNull(jdbc.queryForObject("SELECT COUNT(*) FROM focus_session", Long.class));
         assertNotNull(jdbc.queryForObject("SELECT COUNT(*) FROM session_interval", Long.class));
         assertNotNull(jdbc.queryForObject("SELECT COUNT(*) FROM domain_event_outbox", Long.class));
@@ -67,7 +67,7 @@ class JpaFocusSessionRepositoryAdapterTest {
 
     @Test
     void roundTripsSettingsPausedStateAndOrderedIntervalsThroughDomainFactory() {
-        FocusSession session = FocusSessionFactory.create(SETTINGS, START);
+        FocusSession session = FocusSessionFactory.create("Biology exam", SETTINGS, START);
         session.start(START);
         session.completeInterval(SessionType.SHORT_BREAK, at(600));
         session.startNextInterval(at(600));
@@ -83,6 +83,7 @@ class JpaFocusSessionRepositoryAdapterTest {
 
         assertEquals(session.id(), restored.id());
         assertEquals(SETTINGS, restored.settings());
+        assertEquals("Biology exam", restored.projectName());
         assertEquals(SessionState.PAUSED, restored.state());
         assertEquals(3, restored.intervals().size());
         assertEquals(List.of(SessionType.WORK, SessionType.SHORT_BREAK, SessionType.WORK),

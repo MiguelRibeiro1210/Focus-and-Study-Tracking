@@ -52,7 +52,7 @@ public class StartSessionUseCase {
         SessionSettings settings = settingsProvider.findCurrentSettings()
                 .orElseGet(StartSessionUseCase::defaultSettingsWithWarning);
         TimeStamp now = new TimeStamp(clock.instant());
-        FocusSession session = FocusSessionFactory.create(settings, now);
+        FocusSession session = FocusSessionFactory.create(command.projectName(), settings, now);
         session.start(now);
 
         sessions.save(session);

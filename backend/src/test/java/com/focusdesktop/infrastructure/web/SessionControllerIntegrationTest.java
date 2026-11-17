@@ -13,6 +13,8 @@ import com.focusdesktop.domain.model.SessionType;
 import com.focusdesktop.domain.model.TimeStamp;
 import com.focusdesktop.domain.repository.FocusSessionRepository;
 import java.time.Instant;
+import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -88,9 +90,10 @@ class SessionControllerIntegrationTest {
         String sessionId = mvc.perform(post("/api/v1/sessions")
                         .header("Authorization", "Bearer test-token")
                         .contentType("application/json")
-                        .content("{\"sessionType\":\"WORK\"}"))
+                        .content("{\"sessionType\":\"WORK\",\"projectName\":\"Exam preparation\"}"))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.sessionId").isString())
+                .andExpect(jsonPath("$.projectName").value("Exam preparation"))
                 .andExpect(jsonPath("$.state").value("RUNNING"))
                 .andExpect(jsonPath("$.remainingSeconds").value(60))
                 .andReturn().getResponse().getContentAsString();
@@ -107,6 +110,84 @@ class SessionControllerIntegrationTest {
                         .header("Origin", "tauri://localhost"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.sessionId").value(id));
+    }
+
+    @Test
+    void requiresAndNormalizesProjectNameWhenStartingSession() throws Exception {
+        mvc.perform(post("/api/v1/sessions")
+                        .header("Authorization", "Bearer test-token")
+                        .contentType("application/json")
+                        .content("{\"sessionType\":\"WORK\"}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("VALIDATION_ERROR"));
+
+        mvc.perform(post("/api/v1/sessions")
+                        .header("Authorization", "Bearer test-token")
+                        .contentType("application/json")
+                        .content("{\"sessionType\":\"WORK\",\"projectName\":\"   \"}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("VALIDATION_ERROR"));
+
+        mvc.perform(post("/api/v1/sessions")
+                        .header("Authorization", "Bearer test-token")
+                        .contentType("application/json")
+                        .content("{\"sessionType\":\"WORK\",\"projectName\":\"  Exam preparation  \"}"))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.projectName").value("Exam preparation"));
+    }
+
+    @Test
+    void queriesPagedTerminalSessionHistoryWithStatusAndDateFilters() throws Exception {
+        ZoneId zone = ZoneId.systemDefault();
+        LocalDate date = LocalDate.of(2026, 11, 17);
+        Instant older = date.atTime(9, 0).atZone(zone).toInstant();
+        Instant newer = date.atTime(11, 0).atZone(zone).toInstant();
+        seedTerminalSession("Older project", older, 300);
+        seedTerminalSession("Newer project", newer, 299);
+
+        mvc.perform(get("/api/v1/sessions")
+                        .header("Authorization", "Bearer test-token")
+                        .param("from", date.toString())
+                        .param("to", date.toString())
+                        .param("page", "0")
+                        .param("size", "1"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.total").value(2))
+                .andExpect(jsonPath("$.page").value(0))
+                .andExpect(jsonPath("$.size").value(1))
+                .andExpect(jsonPath("$.items.length()").value(1))
+                .andExpect(jsonPath("$.items[0].projectName").value("Newer project"))
+                .andExpect(jsonPath("$.items[0].status").value("ABANDONED"))
+                .andExpect(jsonPath("$.items[0].actualFocusDurationSeconds").value(299));
+
+        mvc.perform(get("/api/v1/sessions")
+                        .header("Authorization", "Bearer test-token")
+                        .param("status", "COMPLETED"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.total").value(1))
+                .andExpect(jsonPath("$.items[0].projectName").value("Older project"));
+    }
+
+    @Test
+    void rejectsInvalidHistoryFiltersAndRanges() throws Exception {
+        mvc.perform(get("/api/v1/sessions")
+                        .header("Authorization", "Bearer test-token")
+                        .param("status", "RUNNING"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("VALIDATION_ERROR"));
+
+        mvc.perform(get("/api/v1/sessions")
+                        .header("Authorization", "Bearer test-token")
+                        .param("from", "2026-11-18")
+                        .param("to", "2026-11-17"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("INVALID_DATE_RANGE"));
+
+        mvc.perform(get("/api/v1/sessions")
+                        .header("Authorization", "Bearer test-token")
+                        .param("page", "-1"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("VALIDATION_ERROR"));
     }
 
     @Test
@@ -146,7 +227,7 @@ class SessionControllerIntegrationTest {
         String id = mvc.perform(post("/api/v1/sessions")
                         .header("Authorization", "Bearer test-token")
                         .contentType("application/json")
-                        .content("{\"sessionType\":\"WORK\"}"))
+                        .content("{\"sessionType\":\"WORK\",\"projectName\":\"Exam preparation\"}"))
                 .andExpect(status().isCreated())
                 .andReturn().getResponse().getContentAsString();
         String runningId = new com.fasterxml.jackson.databind.ObjectMapper()
@@ -196,5 +277,15 @@ class SessionControllerIntegrationTest {
         }
         new TransactionTemplate(transactionManager).executeWithoutResult(status -> sessions.save(session));
         return session.id().value();
+    }
+
+    private void seedTerminalSession(String projectName, Instant startedAt, long elapsedSeconds) {
+        TimeStamp start = new TimeStamp(startedAt);
+        SessionSettings settings = new SessionSettings(Duration.ofSeconds(600), Duration.ofSeconds(60),
+                Duration.ofSeconds(120), 4, false, false);
+        FocusSession session = FocusSessionFactory.create(projectName, settings, start);
+        session.start(start);
+        session.stop(new TimeStamp(startedAt.plusSeconds(elapsedSeconds)));
+        new TransactionTemplate(transactionManager).executeWithoutResult(status -> sessions.save(session));
     }
 }

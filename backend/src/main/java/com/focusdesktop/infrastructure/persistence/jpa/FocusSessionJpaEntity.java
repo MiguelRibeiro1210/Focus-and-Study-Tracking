@@ -43,6 +43,9 @@ public class FocusSessionJpaEntity {
     @Column(name = "session_type", nullable = false, length = 20)
     private SessionType sessionType;
 
+    @Column(name = "project_name", nullable = false, length = 120)
+    private String projectName;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 32)
     private SessionState state;
@@ -91,6 +94,7 @@ public class FocusSessionJpaEntity {
 
     void apply(FocusSessionSnapshot snapshot, String settingsJson) {
         sessionType = snapshot.sessionType();
+        projectName = snapshot.projectName();
         state = snapshot.state();
         startedAt = snapshot.startedAt() == null ? null : snapshot.startedAt().value();
         endedAt = snapshot.endedAt() == null ? null : snapshot.endedAt().value();
@@ -143,7 +147,7 @@ public class FocusSessionJpaEntity {
                 .map(SessionIntervalJpaEntity::toSnapshot)
                 .toList();
         return new FocusSessionSnapshot(
-                new SessionId(id), sessionType, settings,
+                new SessionId(id), projectName, sessionType, settings,
                 new TimeStamp(createdAt), state,
                 startedAt == null ? null : new TimeStamp(startedAt),
                 endedAt == null ? null : new TimeStamp(endedAt),

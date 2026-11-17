@@ -3,6 +3,7 @@ package com.focusdesktop.infrastructure.web;
 import com.focusdesktop.application.usecase.exeptions.ActiveSessionExistsException;
 import com.focusdesktop.application.usecase.exeptions.InvalidSessionStateException;
 import com.focusdesktop.application.usecase.exeptions.InvalidIntervalTypeException;
+import com.focusdesktop.application.usecase.exeptions.InvalidDateRangeException;
 import com.focusdesktop.application.usecase.exeptions.SessionNotFoundException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -31,6 +32,11 @@ public class ApiExceptionHandler {
     @ExceptionHandler(InvalidIntervalTypeException.class)
     ResponseEntity<ApiErrorResponse> invalidIntervalType(InvalidIntervalTypeException exception) {
         return error(HttpStatus.UNPROCESSABLE_ENTITY, "INVALID_INTERVAL_TYPE", exception.getMessage());
+    }
+
+    @ExceptionHandler(InvalidDateRangeException.class)
+    ResponseEntity<ApiErrorResponse> invalidDateRange(InvalidDateRangeException exception) {
+        return error(HttpStatus.BAD_REQUEST, "INVALID_DATE_RANGE", exception.getMessage());
     }
 
     @ExceptionHandler({IllegalArgumentException.class, HttpMessageNotReadableException.class,

@@ -13,10 +13,15 @@ import java.util.Set;
 public final class FocusSessionFactory {
     private FocusSessionFactory() { }
 
-    public static FocusSession create(SessionSettings settings, TimeStamp now) {
-        return new FocusSession(SessionId.generate(), SessionType.WORK,
+    public static FocusSession create(String projectName, SessionSettings settings, TimeStamp now) {
+        return new FocusSession(SessionId.generate(), projectName, SessionType.WORK,
                 Objects.requireNonNull(settings, "settings"), Objects.requireNonNull(now, "now"),
                 SessionState.IDLE, null, null, new ArrayList<>());
+    }
+
+    /** Creates a legacy-named session for internal fixtures and migrated callers. */
+    public static FocusSession create(SessionSettings settings, TimeStamp now) {
+        return create("Focus session", settings, now);
     }
 
     public static FocusSession reconstitute(FocusSessionSnapshot snapshot) {
@@ -34,7 +39,7 @@ public final class FocusSessionFactory {
             intervals.add(SessionIntervalFactory.reconstitute(interval));
         }
         validate(snapshot, intervals);
-        return new FocusSession(snapshot.id(), snapshot.sessionType(), snapshot.settings(),
+        return new FocusSession(snapshot.id(), snapshot.projectName(), snapshot.sessionType(), snapshot.settings(),
                 snapshot.createdAt(), snapshot.state(), snapshot.startedAt(), snapshot.endedAt(), intervals);
     }
 

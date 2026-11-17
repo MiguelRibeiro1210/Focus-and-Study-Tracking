@@ -31,9 +31,11 @@ class StartSessionUseCaseTest {
         SessionUseCaseTestFixtures.Fixture fixture = SessionUseCaseTestFixtures.fixture();
         StartSessionUseCase useCase = useCase(fixture, () -> Optional.of(SETTINGS));
 
-        SessionDto result = useCase.execute(new StartSessionCommand(SessionType.WORK));
+        SessionDto result = useCase.execute(new StartSessionCommand("Exam preparation", SessionType.WORK));
 
         assertEquals(SessionState.RUNNING, result.state());
+        assertEquals("Exam preparation", result.projectName());
+        assertEquals("Exam preparation", fixture.lastSaved.projectName());
         assertEquals(SessionType.WORK, result.intervalType());
         assertEquals(IntervalState.RUNNING, result.intervalState());
         assertEquals(1, result.intervalSequence());
@@ -52,11 +54,21 @@ class StartSessionUseCaseTest {
     }
 
     @Test
+    void commandTrimsProjectNameAndRejectsBlankOrOverlongNames() {
+        assertEquals("Exam preparation", new StartSessionCommand("  Exam preparation  ", SessionType.WORK)
+                .projectName());
+        assertThrows(IllegalArgumentException.class,
+                () -> new StartSessionCommand("   ", SessionType.WORK));
+        assertThrows(IllegalArgumentException.class,
+                () -> new StartSessionCommand("x".repeat(121), SessionType.WORK));
+    }
+
+    @Test
     void usesSpecifiedDefaultsWhenProviderHasNoValidSettings() {
         SessionUseCaseTestFixtures.Fixture fixture = SessionUseCaseTestFixtures.fixture();
         StartSessionUseCase useCase = useCase(fixture, Optional::empty);
 
-        useCase.execute(new StartSessionCommand(SessionType.WORK));
+        useCase.execute(new StartSessionCommand("Exam preparation", SessionType.WORK));
 
         assertEquals(new SessionSettings(Duration.ofSeconds(60), Duration.ofSeconds(300),
                 Duration.ofSeconds(600), 5, false, false), fixture.lastSaved.settings());
@@ -73,7 +85,7 @@ class StartSessionUseCaseTest {
         StartSessionUseCase useCase = useCase(fixture, settingsProvider);
 
         assertThrows(ActiveSessionExistsException.class,
-                () -> useCase.execute(new StartSessionCommand(SessionType.WORK)));
+                () -> useCase.execute(new StartSessionCommand("Exam preparation", SessionType.WORK)));
         assertEquals(0, fixture.saves);
         assertTrue(fixture.events.isEmpty());
     }
@@ -92,10 +104,10 @@ class StartSessionUseCaseTest {
 
         assertThrows(ActiveSessionExistsException.class,
                 () -> useCase(pausedFixture, () -> Optional.of(SETTINGS))
-                        .execute(new StartSessionCommand(SessionType.WORK)));
+                        .execute(new StartSessionCommand("Exam preparation", SessionType.WORK)));
         assertThrows(ActiveSessionExistsException.class,
                 () -> useCase(waitingFixture, () -> Optional.of(SETTINGS))
-                        .execute(new StartSessionCommand(SessionType.WORK)));
+                        .execute(new StartSessionCommand("Exam preparation", SessionType.WORK)));
     }
 
     @Test
@@ -104,7 +116,7 @@ class StartSessionUseCaseTest {
         StartSessionUseCase useCase = useCase(fixture, () -> Optional.of(SETTINGS));
 
         assertThrows(IllegalArgumentException.class,
-                () -> useCase.execute(new StartSessionCommand(SessionType.SHORT_BREAK)));
+                () -> useCase.execute(new StartSessionCommand("Exam preparation", SessionType.SHORT_BREAK)));
         assertEquals(0, fixture.activeLookups);
         assertEquals(0, fixture.saves);
         assertTrue(fixture.events.isEmpty());
@@ -117,7 +129,7 @@ class StartSessionUseCaseTest {
         StartSessionUseCase useCase = useCase(fixture, () -> Optional.of(SETTINGS));
 
         assertThrows(IllegalStateException.class,
-                () -> useCase.execute(new StartSessionCommand(SessionType.WORK)));
+                () -> useCase.execute(new StartSessionCommand("Exam preparation", SessionType.WORK)));
         assertTrue(fixture.events.isEmpty());
     }
 
@@ -128,7 +140,7 @@ class StartSessionUseCaseTest {
         StartSessionUseCase useCase = useCase(fixture, () -> Optional.of(SETTINGS));
 
         assertThrows(IllegalStateException.class,
-                () -> useCase.execute(new StartSessionCommand(SessionType.WORK)));
+                () -> useCase.execute(new StartSessionCommand("Exam preparation", SessionType.WORK)));
     }
 
     private static StartSessionUseCase useCase(SessionUseCaseTestFixtures.Fixture fixture,

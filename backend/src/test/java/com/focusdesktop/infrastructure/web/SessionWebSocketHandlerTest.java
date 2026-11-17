@@ -27,7 +27,7 @@ class SessionWebSocketHandlerTest {
         handler.afterConnectionEstablished(client);
         UUID eventId = UUID.randomUUID();
         UUID sessionId = UUID.randomUUID();
-        SessionResponse snapshot = new SessionResponse(sessionId, "WORK", "RUNNING", "WORK", "RUNNING",
+        SessionResponse snapshot = new SessionResponse(sessionId, "Exam preparation", "WORK", "RUNNING", "WORK", "RUNNING",
                 1, 600, 0, 0, 600, Instant.parse("2026-01-01T10:00:00Z"),
                 Instant.parse("2026-01-01T10:00:00Z"), null);
 
@@ -39,13 +39,14 @@ class SessionWebSocketHandlerTest {
         assertEquals(1, json.path("version").asInt());
         assertEquals("session.started", json.path("type").asText());
         assertEquals(sessionId.toString(), json.path("payload").path("sessionId").asText());
+        assertEquals("Exam preparation", json.path("payload").path("projectName").asText());
         assertEquals("RUNNING", json.path("payload").path("state").asText());
     }
 
     @Test
     void acceptsBroadcastWhenNoClientIsConnected() {
         SessionWebSocketHandler handler = new SessionWebSocketHandler(objectMapper());
-        SessionResponse snapshot = new SessionResponse(UUID.randomUUID(), "WORK", "COMPLETED", "WORK",
+        SessionResponse snapshot = new SessionResponse(UUID.randomUUID(), "Exam preparation", "WORK", "COMPLETED", "WORK",
                 "COMPLETED", 1, 600, 600, 600, 0, Instant.EPOCH, Instant.EPOCH, Instant.EPOCH);
 
         handler.broadcast(new SessionEventEnvelope(UUID.randomUUID(), 1, "session.completed",

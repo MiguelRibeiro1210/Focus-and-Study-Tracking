@@ -12,6 +12,7 @@ public final class FocusSession {
     private static final long MINIMUM_FOCUS_SECONDS_FOR_COMPLETION = 5 * 60L;
 
     private final SessionId id;
+    private final String projectName;
     private final SessionType sessionType;
     private final SessionSettings settings;
     private final TimeStamp createdAt;
@@ -20,10 +21,11 @@ public final class FocusSession {
     private TimeStamp startedAt;
     private TimeStamp endedAt;
 
-    public FocusSession(SessionId id, SessionType sessionType, SessionSettings settings,
+    public FocusSession(SessionId id, String projectName, SessionType sessionType, SessionSettings settings,
                         TimeStamp createdAt, SessionState state, TimeStamp startedAt,
                         TimeStamp endedAt, List<SessionInterval> intervals) {
         this.id = Objects.requireNonNull(id, "id");
+        this.projectName = validateProjectName(projectName);
         this.sessionType = Objects.requireNonNull(sessionType, "sessionType");
         this.settings = Objects.requireNonNull(settings, "settings");
         this.createdAt = Objects.requireNonNull(createdAt, "createdAt");
@@ -31,6 +33,15 @@ public final class FocusSession {
         this.startedAt = startedAt;
         this.endedAt = endedAt;
         this.intervals = new ArrayList<>(Objects.requireNonNull(intervals, "intervals"));
+    }
+
+    private static String validateProjectName(String projectName) {
+        Objects.requireNonNull(projectName, "projectName");
+        String normalized = projectName.trim();
+        if (normalized.isEmpty() || normalized.length() > 120) {
+            throw new IllegalArgumentException("projectName must contain between 1 and 120 characters");
+        }
+        return normalized;
     }
 
     public void start(TimeStamp now) {
@@ -210,11 +221,12 @@ public final class FocusSession {
         return Duration.ofSeconds(seconds);
     }
     public FocusSessionSnapshot snapshot() {
-        return new FocusSessionSnapshot(id, sessionType, settings, createdAt, state, startedAt,
+        return new FocusSessionSnapshot(id, projectName, sessionType, settings, createdAt, state, startedAt,
                 endedAt, intervals.stream().map(SessionInterval::snapshot).toList());
     }
 
     public SessionId id() { return id; }
+    public String projectName() { return projectName; }
     public SessionType sessionType() { return sessionType; }
     public SessionSettings settings() { return settings; }
     public TimeStamp createdAt() { return createdAt; }

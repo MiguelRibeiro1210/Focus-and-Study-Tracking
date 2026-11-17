@@ -3,6 +3,7 @@ package com.focusdesktop.infrastructure.config;
 import com.focusdesktop.application.port.DomainEventOutbox;
 import com.focusdesktop.application.port.SessionSettingsProvider;
 import com.focusdesktop.application.usecase.GetActiveSessionUseCase;
+import com.focusdesktop.application.usecase.GetSessionHistoryUseCase;
 import com.focusdesktop.application.usecase.CompleteDueIntervalsUseCase;
 import com.focusdesktop.application.usecase.PauseSessionUseCase;
 import com.focusdesktop.application.usecase.ResumeSessionUseCase;
@@ -11,8 +12,10 @@ import com.focusdesktop.application.usecase.StartNextIntervalUseCase;
 import com.focusdesktop.application.usecase.StartSessionUseCase;
 import com.focusdesktop.application.usecase.StopSessionUseCase;
 import com.focusdesktop.domain.repository.FocusSessionRepository;
+import com.focusdesktop.application.port.SessionHistoryReader;
 import com.focusdesktop.domain.service.SessionIntervalScheduleService;
 import java.time.Clock;
+import java.time.ZoneId;
 import java.util.Optional;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -58,6 +61,11 @@ public class ApplicationConfiguration {
     @Bean
     GetActiveSessionUseCase getActiveSessionUseCase(FocusSessionRepository sessions, Clock clock) {
         return new GetActiveSessionUseCase(sessions, clock);
+    }
+
+    @Bean
+    GetSessionHistoryUseCase getSessionHistoryUseCase(SessionHistoryReader history) {
+        return new GetSessionHistoryUseCase(history, ZoneId.systemDefault());
     }
 
     @Bean
