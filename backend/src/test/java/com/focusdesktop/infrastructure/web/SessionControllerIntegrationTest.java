@@ -191,6 +191,48 @@ class SessionControllerIntegrationTest {
     }
 
     @Test
+    void returnsCompletedSessionAnalyticsForInclusiveLocalDateRange() throws Exception {
+        ZoneId zone = ZoneId.systemDefault();
+        LocalDate date = LocalDate.of(2026, 11, 17);
+        seedTerminalSession("Completed", date.atTime(9, 0).atZone(zone).toInstant(), 600);
+        seedTerminalSession("Abandoned", date.atTime(10, 0).atZone(zone).toInstant(), 299);
+        seedTerminalSession("Before range", date.minusDays(1).atTime(23, 0).atZone(zone).toInstant(), 600);
+        seedTerminalSession("After range", date.plusDays(1).atStartOfDay(zone).toInstant(), 600);
+
+        mvc.perform(get("/api/v1/analytics/summary")
+                        .header("Authorization", "Bearer test-token")
+                        .param("from", date.toString())
+                        .param("to", date.toString()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.from").value(date.toString()))
+                .andExpect(jsonPath("$.to").value(date.toString()))
+                .andExpect(jsonPath("$.totalFocusSeconds").value(600))
+                .andExpect(jsonPath("$.totalBreakSeconds").value(0))
+                .andExpect(jsonPath("$.completedSessions").value(1))
+                .andExpect(jsonPath("$.averageSessionSeconds").value(600))
+                .andExpect(jsonPath("$.focusScore").value(100))
+                .andExpect(jsonPath("$.bestDay.date").value(date.toString()))
+                .andExpect(jsonPath("$.daily.length()").value(1))
+                .andExpect(jsonPath("$.daily[0].completedSessions").value(1));
+    }
+
+    @Test
+    void rejectsInvalidAnalyticsDateRanges() throws Exception {
+        mvc.perform(get("/api/v1/analytics/summary")
+                        .header("Authorization", "Bearer test-token")
+                        .param("from", "2026-11-18"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("INVALID_DATE_RANGE"));
+
+        mvc.perform(get("/api/v1/analytics/summary")
+                        .header("Authorization", "Bearer test-token")
+                        .param("from", "2024-12-31")
+                        .param("to", "2026-01-01"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("RANGE_TOO_LARGE"));
+    }
+
+    @Test
     void returnsNoContentWhenThereIsNoActiveSession() throws Exception {
         mvc.perform(get("/api/v1/sessions/active").header("Authorization", "Bearer test-token"))
                 .andExpect(status().isNoContent());

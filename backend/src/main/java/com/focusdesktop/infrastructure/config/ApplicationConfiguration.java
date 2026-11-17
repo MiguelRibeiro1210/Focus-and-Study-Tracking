@@ -4,6 +4,7 @@ import com.focusdesktop.application.port.DomainEventOutbox;
 import com.focusdesktop.application.port.SessionSettingsProvider;
 import com.focusdesktop.application.usecase.GetActiveSessionUseCase;
 import com.focusdesktop.application.usecase.GetSessionHistoryUseCase;
+import com.focusdesktop.application.usecase.GetAnalyticsSummaryUseCase;
 import com.focusdesktop.application.usecase.CompleteDueIntervalsUseCase;
 import com.focusdesktop.application.usecase.PauseSessionUseCase;
 import com.focusdesktop.application.usecase.ResumeSessionUseCase;
@@ -66,6 +67,11 @@ public class ApplicationConfiguration {
     @Bean
     GetSessionHistoryUseCase getSessionHistoryUseCase(SessionHistoryReader history) {
         return new GetSessionHistoryUseCase(history, ZoneId.systemDefault());
+    }
+
+    @Bean
+    GetAnalyticsSummaryUseCase getAnalyticsSummaryUseCase(FocusSessionRepository sessions) {
+        return new GetAnalyticsSummaryUseCase(sessions, ZoneId.systemDefault());
     }
 
     @Bean

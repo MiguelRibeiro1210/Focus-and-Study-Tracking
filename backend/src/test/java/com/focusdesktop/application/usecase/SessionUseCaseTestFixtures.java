@@ -11,6 +11,7 @@ import com.focusdesktop.domain.model.TimeStamp;
 import com.focusdesktop.domain.repository.FocusSessionRepository;
 import java.time.Clock;
 import java.time.Instant;
+import java.util.stream.Collectors;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -72,6 +73,15 @@ final class SessionUseCaseTestFixtures {
         public Optional<FocusSession> findActive() {
             activeLookups++;
             return sessions.values().stream().filter(s -> s.state().isActive()).findFirst();
+        }
+
+        @Override
+        public List<FocusSession> findCompletedSessions(Instant fromInclusive, Instant toExclusive) {
+            return sessions.values().stream()
+                    .filter(session -> session.state() == com.focusdesktop.domain.model.SessionState.COMPLETED)
+                    .filter(session -> fromInclusive == null || !session.startedAt().value().isBefore(fromInclusive))
+                    .filter(session -> toExclusive == null || session.startedAt().value().isBefore(toExclusive))
+                    .collect(Collectors.toList());
         }
 
         @Override

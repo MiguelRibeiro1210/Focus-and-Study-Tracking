@@ -7,6 +7,8 @@ import com.focusdesktop.domain.model.SessionSettings;
 import com.focusdesktop.domain.model.SessionState;
 import com.focusdesktop.domain.repository.FocusSessionRepository;
 import java.util.EnumSet;
+import java.time.Instant;
+import java.util.List;
 import java.util.Optional;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Propagation;
@@ -33,6 +35,13 @@ public class JpaFocusSessionRepositoryAdapter implements FocusSessionRepository 
     @Transactional(readOnly = true)
     public Optional<FocusSession> findActive() {
         return sessions.findFirstByStateIn(ACTIVE_STATES).map(this::toDomain);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<FocusSession> findCompletedSessions(Instant startedAtFromInclusive, Instant startedAtToExclusive) {
+        return sessions.findCompletedSessions(SessionState.COMPLETED, startedAtFromInclusive, startedAtToExclusive)
+                .stream().map(this::toDomain).toList();
     }
 
     @Override

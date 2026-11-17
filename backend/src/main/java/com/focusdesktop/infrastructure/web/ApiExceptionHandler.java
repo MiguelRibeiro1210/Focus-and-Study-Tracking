@@ -4,6 +4,7 @@ import com.focusdesktop.application.usecase.exeptions.ActiveSessionExistsExcepti
 import com.focusdesktop.application.usecase.exeptions.InvalidSessionStateException;
 import com.focusdesktop.application.usecase.exeptions.InvalidIntervalTypeException;
 import com.focusdesktop.application.usecase.exeptions.InvalidDateRangeException;
+import com.focusdesktop.application.usecase.exeptions.AnalyticsRangeTooLargeException;
 import com.focusdesktop.application.usecase.exeptions.SessionNotFoundException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -37,6 +38,11 @@ public class ApiExceptionHandler {
     @ExceptionHandler(InvalidDateRangeException.class)
     ResponseEntity<ApiErrorResponse> invalidDateRange(InvalidDateRangeException exception) {
         return error(HttpStatus.BAD_REQUEST, "INVALID_DATE_RANGE", exception.getMessage());
+    }
+
+    @ExceptionHandler(AnalyticsRangeTooLargeException.class)
+    ResponseEntity<ApiErrorResponse> analyticsRangeTooLarge(AnalyticsRangeTooLargeException exception) {
+        return error(HttpStatus.BAD_REQUEST, "RANGE_TOO_LARGE", exception.getMessage());
     }
 
     @ExceptionHandler({IllegalArgumentException.class, HttpMessageNotReadableException.class,
