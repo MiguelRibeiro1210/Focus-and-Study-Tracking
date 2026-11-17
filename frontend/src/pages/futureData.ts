@@ -13,15 +13,6 @@ export interface FocusProfile {
   rules: DistractionRule[]
 }
 
-export interface FocusHistoryEntry {
-  id: string
-  projectName: string
-  startedAt: string
-  durationSeconds: number
-  status: 'completed' | 'stopped'
-  blockedAttempts: number
-}
-
 export interface TimerProfile {
   id: string
   name: string
@@ -57,5 +48,4 @@ export const overviewSummary: OverviewSummary = {
 
 export const distractionRules: readonly DistractionRule[] = []
 export const focusProfiles: readonly FocusProfile[] = []
-export const focusHistory: readonly FocusHistoryEntry[] = []
 export const timerProfiles: readonly TimerProfile[] = []

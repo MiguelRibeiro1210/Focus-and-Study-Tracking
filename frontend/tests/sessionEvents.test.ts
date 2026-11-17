@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createSessionEventClient } from '../src/api/sessionEvents'
 
 const snapshot = {
-  sessionId: 'session-1', sessionType: 'WORK', state: 'RUNNING', intervalType: 'WORK',
+  sessionId: 'session-1', projectName: 'Exam preparation', sessionType: 'WORK', state: 'RUNNING', intervalType: 'WORK',
   intervalState: 'RUNNING', intervalSequence: 1, plannedDurationSeconds: 1500,
   actualDurationSeconds: 0, actualFocusDurationSeconds: 0, remainingSeconds: 1500,
   createdAt: '2026-11-11T00:00:00Z', startedAt: '2026-11-11T00:00:00Z', endedAt: null,

@@ -91,7 +91,7 @@ npm run lint
 npm test
 ```
 
-## UI placeholders and future data integration
+## UI placeholders and data integration
 
 The Overview summary is intentionally rendered with zero-valued placeholders. It
 does not represent measured activity yet. Its source is
@@ -110,19 +110,31 @@ place of the zero-valued `overviewSummary`; keep durations in seconds internally
 The Overview's Work, Short, and Long inputs are local UI state in this component
 and do not currently configure a timer session.
 
-Other future integration points are also declared in `src/pages/futureData.ts`:
+Session names are required when starting a focus session. The History page and
+Overview's recent-session list use the backend `GET /api/v1/sessions` endpoint;
+history filters by the session start date and terminal status. Project names
+are part of the persisted session and cannot be changed while that session is
+active.
 
-- `focusHistory` uses `FocusHistoryEntry` and feeds the History page and the
-  Overview's recent-sessions table.
+The History summary dashboard is in `src/pages/HistoryPage.tsx`; its
+range-wide pagination and calculations are in `src/pages/historyDashboard.ts`.
+Focus time and completed-session totals follow the selected range and status;
+the chart shows the last seven days, and best day uses all recorded sessions in
+the selected range. Distractions blocked remains the `distractionsBlocked: 0`
+placeholder in `summarizeHistory` until the app has a real tracking source; the
+card labels it “Not tracked yet.”
+
+Other future integration points are declared in `src/pages/futureData.ts`:
+
 - `distractionRules` uses `DistractionRule` and feeds the Distractions table.
 - `focusProfiles` uses `FocusProfile` for profile management.
 - `timerProfiles` uses `TimerProfile` for saved timer presets.
 - `ApplicationPreferences` describes the theme and automatic-next-session
   settings.
 
-These collections are empty until backed by real data. History range selection,
-date-range/export/status controls, and distraction profile management are UI
-scaffolds; unsupported actions display “Not implemented yet.” The boundary
-guidance in `src/pages/DistractionsPage.tsx` is static explanatory copy, not an
-active blocking or tracking feature. Settings controls currently change only
-their local presentation state and are not persisted or applied to the app.
+These collections are empty until backed by real data. Distraction profile
+management is a UI scaffold; unsupported actions display “Not implemented yet.”
+The boundary guidance in `src/pages/DistractionsPage.tsx` is static explanatory
+copy, not an active blocking or tracking feature. Settings controls currently
+change only their local presentation state and are not persisted or applied to
+the app.

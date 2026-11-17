@@ -13,7 +13,7 @@ afterEach(() => {
 
 function makeSession(overrides: Partial<SessionResponse> = {}): SessionResponse {
   return {
-    sessionId: 'session-1', sessionType: 'WORK', state: 'RUNNING', intervalType: 'WORK',
+    sessionId: 'session-1', projectName: 'Exam preparation', sessionType: 'WORK', state: 'RUNNING', intervalType: 'WORK',
     intervalState: 'RUNNING', intervalSequence: 1, plannedDurationSeconds: 60,
     actualDurationSeconds: 0, actualFocusDurationSeconds: 0, remainingSeconds: 60,
     createdAt: '2026-11-11T00:00:00Z', startedAt: '2026-11-11T00:00:00Z', endedAt: null,
@@ -57,7 +57,7 @@ function Harness({ api }: { api: SessionApi }) {
       <output data-testid="seconds">{timer.remainingSeconds ?? 'none'}</output>
       <output data-testid="loading">{String(timer.isLoading)}</output>
       {timer.error && <div role="alert">{timer.error}</div>}
-      <button type="button" onClick={() => void timer.runAction('start')}>Start</button>
+      <button type="button" onClick={() => void timer.runAction('start', 'Exam preparation')}>Start</button>
       <button type="button" onClick={() => void timer.runAction('pause')}>Pause</button>
       <button type="button" onClick={() => void timer.runAction('stop')}>Stop</button>
       <button type="button" onClick={timer.retry}>Retry</button>

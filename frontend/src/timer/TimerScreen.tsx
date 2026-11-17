@@ -1,11 +1,15 @@
-import { useEffect, useRef, useState, type CSSProperties, type KeyboardEvent } from 'react'
+import { useEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent } from 'react'
 import type { SessionResponse } from '../api/sessionTypes'
+import { sessionApi, type SessionApi } from '../api/sessionApi'
 import type { TimerAction, TimerController } from './useTimerSession'
-import { focusHistory, overviewSummary } from '../pages/futureData'
+import { overviewSummary } from '../pages/futureData'
+import { formatFocusDuration, formatHistoryDateTime } from '../pages/historyRange'
+import { useSessionHistory } from '../pages/useSessionHistory'
 
 interface TimerScreenProps {
   timer: TimerController
   onViewHistory?: () => void
+  api?: Pick<SessionApi, 'getSessionHistory'>
 }
 
 function intervalLabel(type: SessionResponse['intervalType']): string {
@@ -51,12 +55,20 @@ function statusLabel(session: SessionResponse | null): string {
   }
 }
 
-export function TimerScreen({ timer, onViewHistory }: TimerScreenProps) {
+export function TimerScreen({ timer, onViewHistory, api = sessionApi }: TimerScreenProps) {
   const [confirmStop, setConfirmStop] = useState(false)
   const [durations, setDurations] = useState({ work: '', short: '', long: '' })
+  const [projectDraft, setProjectDraft] = useState<{ sessionId: string | null; value: string }>({ sessionId: null, value: '' })
+  const [projectNameError, setProjectNameError] = useState('')
   const cancelStopRef = useRef<HTMLButtonElement>(null)
   const stopTriggerRef = useRef<HTMLButtonElement>(null)
   const session = timer.session
+  const canEditProjectName = !session || session.state === 'COMPLETED' || session.state === 'ABANDONED'
+  const projectName = session && (!canEditProjectName || projectDraft.sessionId !== session.sessionId)
+    ? session.projectName : projectDraft.value
+  const historyQuery = useMemo(() => ({ page: 0, size: 3 }), [])
+  const recentHistory = useSessionHistory(historyQuery, api)
+  const refreshRecentHistory = recentHistory.retry
   const isRunning = session?.state === 'RUNNING'
   const isPaused = session?.state === 'PAUSED'
   const isWaiting = session?.state === 'WAITING_FOR_NEXT_INTERVAL'
@@ -74,6 +86,32 @@ export function TimerScreen({ timer, onViewHistory }: TimerScreenProps) {
   useEffect(() => {
     if (confirmStop) cancelStopRef.current?.focus()
   }, [confirmStop])
+
+  const previousSessionRef = useRef<{ id: string; state: SessionResponse['state'] } | null>(null)
+  const sessionId = session?.sessionId
+  const sessionState = session?.state
+  useEffect(() => {
+    const previous = previousSessionRef.current
+    const terminal = sessionState === 'COMPLETED' || sessionState === 'ABANDONED'
+    if (terminal && previous && (previous.id !== sessionId || previous.state !== sessionState)) {
+      refreshRecentHistory()
+    }
+    previousSessionRef.current = sessionId && sessionState ? { id: sessionId, state: sessionState } : null
+  }, [sessionId, sessionState, refreshRecentHistory])
+
+  function startSession() {
+    const normalized = projectName.trim()
+    if (!normalized) {
+      setProjectNameError('Enter a project name before starting.')
+      return
+    }
+    if (normalized.length > 120) {
+      setProjectNameError('Project names can contain at most 120 characters.')
+      return
+    }
+    setProjectNameError('')
+    void timer.runAction('start', normalized)
+  }
 
   function handleDialogKeyDown(event: KeyboardEvent<HTMLDivElement>) {
     if (event.key === 'Escape') {
@@ -95,7 +133,8 @@ export function TimerScreen({ timer, onViewHistory }: TimerScreenProps) {
 
   function actionButton(action: TimerAction, label: string, primary = false, accessibleName = label) {
     return <button className={`button ${primary ? 'button-primary' : 'button-secondary'}`} type="button"
-      aria-label={accessibleName} disabled={timer.pendingAction !== null} onClick={() => void timer.runAction(action)}>
+      aria-label={accessibleName} disabled={timer.pendingAction !== null}
+      onClick={() => action === 'start' ? startSession() : void timer.runAction(action)}>
       {timer.pendingAction === action ? 'Please wait…' : label}
     </button>
   }
@@ -143,8 +182,13 @@ export function TimerScreen({ timer, onViewHistory }: TimerScreenProps) {
           </div>
 
           <div className="session-setup">
-            <label className="field-label" htmlFor="project-placeholder">What will you work on?</label>
-            <input className="project-field" id="project-placeholder" type="text" placeholder="Name your next project" />
+            <label className="field-label" htmlFor="project-name">What will you work on?</label>
+            <input className="project-field" id="project-name" type="text" required maxLength={120}
+              placeholder="Name your next project" value={projectName} disabled={!canEditProjectName}
+              aria-invalid={projectNameError ? 'true' : undefined}
+              aria-describedby={projectNameError ? 'project-name-error' : undefined}
+              onChange={(event) => { setProjectDraft({ sessionId: session?.sessionId ?? null, value: event.target.value }); setProjectNameError('') }} />
+            {projectNameError && <p className="field-error" id="project-name-error" role="alert">{projectNameError}</p>}
             <p className="field-label">Session duration</p>
             <div className="duration-options" aria-label="Session duration in minutes">
               <label className="duration-field">Work<input className="duration-option" type="number" min="1" max="180" step="1" inputMode="numeric" aria-label="Work duration in minutes" value={durations.work} onChange={(event) => setDurations((current) => ({ ...current, work: event.target.value }))} /></label>
@@ -173,12 +217,18 @@ export function TimerScreen({ timer, onViewHistory }: TimerScreenProps) {
     </div>
 
     <section className="recent-panel">
-      <div className="recent-heading"><h2>Your progress today</h2><button className="text-action" type="button" onClick={onViewHistory}>View history <span aria-hidden="true">→</span></button></div>
+      <div className="recent-heading"><h2>Recent sessions</h2><button className="text-action" type="button" onClick={onViewHistory}>View history <span aria-hidden="true">→</span></button></div>
       <div className="recent-table" role="table" aria-label="Recent focus sessions">
-        <div className="recent-row recent-header" role="row"><span role="columnheader">SESSION</span><span role="columnheader">START</span><span role="columnheader">WORK</span><span role="columnheader">STATUS</span></div>
-        {focusHistory.length === 0
-          ? <div className="future-empty-state table-empty-state" role="row">Completed sessions will appear here when history is available.</div>
-          : focusHistory.slice(0, 3).map((entry) => <div className="recent-row" role="row" key={entry.id}><span role="cell">{entry.projectName}</span><span role="cell">{entry.startedAt}</span><span role="cell">{Math.round(entry.durationSeconds / 60)} min</span><span role="cell">{entry.status}</span></div>)}
+        <div className="recent-row recent-header" role="row"><span role="columnheader">PROJECT</span><span role="columnheader">DATE &amp; TIME</span><span role="columnheader">FOCUS TIME</span><span role="columnheader">STATUS</span></div>
+        {recentHistory.loading && <div className="future-empty-state table-empty-state" role="status">Loading recent sessions…</div>}
+        {recentHistory.error && <div className="history-inline-error" role="alert"><span>{recentHistory.error}</span><button type="button" className="retry-button" onClick={recentHistory.retry}>Retry</button></div>}
+        {!recentHistory.loading && !recentHistory.error && recentHistory.data?.items.length === 0
+          && <div className="future-empty-state table-empty-state" role="row">No sessions recorded yet.</div>}
+        {!recentHistory.loading && !recentHistory.error && recentHistory.data?.items.map((entry) => <div className="recent-row" role="row" key={entry.sessionId}>
+          <span role="cell">{entry.projectName}</span><span role="cell">{formatHistoryDateTime(entry.startedAt)}</span>
+          <span role="cell">{formatFocusDuration(entry.actualFocusDurationSeconds)}</span>
+          <span role="cell"><span className={`status-pill status-${entry.status.toLowerCase()}`}>{entry.status === 'COMPLETED' ? 'Completed' : 'Abandoned'}</span></span>
+        </div>)}
       </div>
     </section>
 

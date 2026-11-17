@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { createSessionApi, SessionApiError, type SessionApi } from '../api/sessionApi'
+import { SessionApiError, sessionApi, type SessionApi } from '../api/sessionApi'
 import { createSessionEventClient, type SessionEventClientOptions } from '../api/sessionEvents'
 import type { ActiveSession, SessionResponse } from '../api/sessionTypes'
-import { createNativeWebSocket, isDesktopShell, nativeFetch } from '../api/nativeTransport'
+import { createNativeWebSocket, isDesktopShell } from '../api/nativeTransport'
 
 export type TimerAction = 'start' | 'pause' | 'resume' | 'stop' | 'startNextInterval' | 'skipBreak'
 
@@ -12,7 +12,7 @@ export interface TimerController {
   isLoading: boolean
   pendingAction: TimerAction | null
   error: string | null
-  runAction: (action: TimerAction) => Promise<void>
+  runAction: (action: TimerAction, projectName?: string) => Promise<void>
   retry: () => void
 }
 
@@ -29,8 +29,6 @@ const defaultEventClientFactory: NonNullable<TimerSessionDependencies['eventClie
 
 const POLL_INTERVAL_MS = 30_000
 const DISPLAY_TICK_MS = 1_000
-const defaultSessionApi = createSessionApi(isDesktopShell() ? nativeFetch : fetch)
-
 function errorMessage(error: unknown): string {
   if (error instanceof SessionApiError) {
     if (error.status === 401) return 'The local API rejected its token. Restart the backend and try again.'
@@ -46,7 +44,7 @@ function isTerminal(session: SessionResponse): boolean {
 }
 
 export function useTimerSession(dependencies: TimerSessionDependencies = {}): TimerController {
-  const api = dependencies.api ?? defaultSessionApi
+  const api = dependencies.api ?? sessionApi
   const eventClientFactory = dependencies.eventClientFactory ?? defaultEventClientFactory
   const [session, setSession] = useState<ActiveSession>(null)
   const [snapshotReceivedAt, setSnapshotReceivedAt] = useState(0)
@@ -113,7 +111,7 @@ export function useTimerSession(dependencies: TimerSessionDependencies = {}): Ti
     eventClientRef.current?.reconcile()
   }, [])
 
-  const runAction = useCallback(async (action: TimerAction) => {
+  const runAction = useCallback(async (action: TimerAction, projectName?: string) => {
     if (pendingActionRef.current) return
     pendingActionRef.current = true
     setPendingAction(action)
@@ -126,7 +124,8 @@ export function useTimerSession(dependencies: TimerSessionDependencies = {}): Ti
       let result: SessionResponse
       switch (action) {
         case 'start':
-          result = await api.startSession()
+          if (!projectName?.trim()) throw new SessionApiError('Enter a project name before starting.', 'http', 400, 'VALIDATION_ERROR')
+          result = await api.startSession(projectName.trim())
           break
         case 'pause':
           if (!current) return

@@ -1,4 +1,13 @@
-import { isSessionResponse, type ActiveSession, type ApiErrorBody, type SessionResponse } from './sessionTypes'
+import {
+  isSessionHistoryPage,
+  isSessionResponse,
+  type ActiveSession,
+  type ApiErrorBody,
+  type SessionHistoryPage,
+  type SessionHistoryQuery,
+  type SessionResponse,
+} from './sessionTypes'
+import { isDesktopShell, nativeFetch } from './nativeTransport'
 
 export type SessionApiErrorKind = 'http' | 'network' | 'protocol'
 
@@ -25,8 +34,9 @@ export class SessionApiError extends Error {
 }
 
 export interface SessionApi {
-  startSession(): Promise<SessionResponse>
+  startSession(projectName: string): Promise<SessionResponse>
   getActiveSession(): Promise<ActiveSession>
+  getSessionHistory(query?: SessionHistoryQuery): Promise<SessionHistoryPage>
   pauseSession(sessionId: string): Promise<SessionResponse>
   resumeSession(sessionId: string): Promise<SessionResponse>
   stopSession(sessionId: string): Promise<SessionResponse>
@@ -80,17 +90,55 @@ export function createSessionApi(
     return body
   }
 
+  async function requestHistory(query: SessionHistoryQuery = {}): Promise<SessionHistoryPage> {
+    const params = new URLSearchParams()
+    if (query.from) params.set('from', query.from)
+    if (query.to) params.set('to', query.to)
+    if (query.status) params.set('status', query.status)
+    if (query.page !== undefined) params.set('page', String(query.page))
+    if (query.size !== undefined) params.set('size', String(query.size))
+    const suffix = params.size > 0 ? `?${params.toString()}` : ''
+    let response: Response
+    try {
+      response = await fetcher(`${basePath}/sessions${suffix}`, {
+        method: 'GET',
+        headers: { Accept: 'application/json' },
+      })
+    } catch (error) {
+      throw new SessionApiError('Could not reach the local API. Check that FocusDesktop is running.', 'network', undefined, undefined, error)
+    }
+    let body: unknown
+    try {
+      body = await response.json()
+    } catch (error) {
+      if (!response.ok) {
+        throw new SessionApiError(`The API request failed with HTTP ${response.status}.`, 'http', response.status)
+      }
+      throw new SessionApiError('The API returned an invalid response.', 'protocol', response.status, 'INVALID_RESPONSE', error)
+    }
+    if (!response.ok) {
+      const apiError = isApiErrorBody(body) ? body : undefined
+      throw new SessionApiError(apiError?.message ?? `The API request failed with HTTP ${response.status}.`,
+        'http', response.status, apiError?.code, apiError?.details)
+    }
+    if (!isSessionHistoryPage(body)) {
+      throw new SessionApiError('The API returned an invalid history response.', 'protocol', response.status, 'INVALID_RESPONSE')
+    }
+    return body
+  }
+
   function command(sessionId: string, suffix: string) {
     return request(`/sessions/${encodeURIComponent(sessionId)}/${suffix}`, { method: 'POST' }) as Promise<SessionResponse>
   }
 
   return {
-    startSession: () => request('/sessions', {
+    startSession: (projectName) => request('/sessions', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ sessionType: 'WORK' }),
+      body: JSON.stringify({ sessionType: 'WORK', projectName }),
     }) as Promise<SessionResponse>,
     getActiveSession: () => request('/sessions/active', { method: 'GET' }, true) as Promise<ActiveSession>,
+    getSessionHistory: requestHistory,
     pauseSession: (id) => command(id, 'pause'),
     resumeSession: (id) => command(id, 'resume'),
     stopSession: (id) => command(id, 'stop'),
@@ -98,3 +146,5 @@ export function createSessionApi(
     skipBreak: (id) => command(id, 'skip-break'),
   }
 }
+
+export const sessionApi = createSessionApi(isDesktopShell() ? nativeFetch : fetch)
