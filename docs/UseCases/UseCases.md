@@ -67,9 +67,11 @@ there is no active or waiting session.
 
 1. The UI loads the timer screen and requests the active session.
 2. The system reports that no session is active.
-3. The learner chooses the session type (`WORK`) and presses **Start**.
-4. The UI sends `POST /api/v1/sessions` with the session type.
-5. The system validates the request and checks for an active session.
+3. The learner enters a project name and presses **Start**; session type is
+   `WORK`.
+4. The UI sends `POST /api/v1/sessions` with `sessionType` and `projectName`.
+5. The system trims and validates the project name (1–120 characters), then
+   checks for an active session.
 6. The system loads the current timer settings.
 7. `FocusSessionFactory` creates a `FocusSession` in `IDLE` with a settings
    snapshot; the aggregate starts its first `WORK` interval.
@@ -86,6 +88,8 @@ there is no active or waiting session.
   `409 ACTIVE_SESSION_EXISTS`. The UI offers *Resume* or *Stop* instead of
   creating a second session.
 - **4a. Invalid session type.** The system returns `400 VALIDATION_ERROR`.
+- **4b. Missing, blank or overlength project name.** The system returns
+  `400 VALIDATION_ERROR`; the UI keeps the entered value available for editing.
 - **6a. Settings are missing or invalid.** The system falls back to defaults and
   logs a warning; the session still starts with valid defaults.
 - **8a. Persistence fails.** The system returns `500 PERSISTENCE_ERROR` and no
@@ -385,34 +389,42 @@ FR-SES-06.
 ## 10. UC-07 — View session history
 
 **Actor:** Learner
-**Goal:** Review past sessions and their details.
+**Goal:** Review past focus sessions and their recorded focus durations.
 **Priority / phase:** Must / MVP
 **Preconditions:** The backend is running.
 **Trigger:** The learner opens **History**.
 
 ### Main success scenario
 
-1. The learner opens **History**.
-2. The UI requests `GET /api/v1/sessions` with a default range (last 30 days)
-   and pagination.
-3. The system validates the range.
-4. The system queries the read model for session summaries.
-5. The system returns a page of summaries with `total`, `page` and `size`.
-6. The UI renders the list, newest first.
-7. The learner selects a session.
-8. The UI requests the session detail and shows intervals and distractions.
+1. The learner opens **History**; the initial range is today and the previous
+   6 local calendar dates (7 days total).
+2. The learner may choose 30 days or all time and may filter by terminal
+   status. Session type filtering is omitted because focus sessions currently
+   always have type `WORK`.
+3. The UI requests `GET /api/v1/sessions` with the selected filters and page.
+   All time omits `from` and `to`.
+4. The system validates dates, filters and pagination.
+5. The system queries a summary projection and returns a page with `total`,
+   `page` and `size`.
+6. The UI renders project name, date/time, actual focus duration and status,
+   newest first.
 
 ### Extensions
 
-- **3a. Invalid range (`from > to`).** `400 INVALID_DATE_RANGE`.
-- **3b. Range larger than 366 days.** `400 RANGE_TOO_LARGE`.
-- **4a. No sessions in range.** The system returns an empty page, not an error.
-- **8a. Session detail not found.** `404 SESSION_NOT_FOUND`.
+- **4a. Invalid range (`from > to`).** `400 INVALID_DATE_RANGE`.
+- **4b. Invalid pagination or filter.** `400 VALIDATION_ERROR`.
+- **5a. No sessions match.** The system returns an empty page, not an error.
 
 ### Postconditions
 
 - No data is modified.
-- The UI shows a paginated, filterable history.
+- The UI shows a paginated, filterable history. Date bounds are inclusive local
+  calendar dates; omitting both returns all history. No fixed maximum range is
+  imposed.
+- The 30-day choice likewise includes today and the previous 29 local calendar
+  dates. The API converts the inclusive local range to a UTC start instant and
+  an exclusive instant at midnight after the end date. A session is assigned
+  to the date on which it started, even if it ends on a later date.
 
 ### Business rules
 
@@ -420,7 +432,8 @@ BR-03, BR-06.
 
 ### Related requirements and diagrams
 
-FR-HIS-02, FR-HIS-03, FR-HIS-04, FR-HIS-05.
+FR-HIS-02, FR-HIS-03, FR-HIS-05. Session details, streaks and analytics are
+deferred to their own stories.
 [Sequence diagram](../SD/SD_QuerySessionHistory.puml),
 [SSD](../SSD/SSD_HistoryAndStreak.puml).
 

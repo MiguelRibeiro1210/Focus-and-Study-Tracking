@@ -62,6 +62,7 @@ package SessionTracking <<Folder>> {
     class SessionInterval <<Entity>>
 
     class SessionSettings <<VO>>
+    class ProjectName <<VO>>
     class SessionId <<VO>>
     class IntervalId <<VO>>
     class SessionType <<Enum>>
@@ -93,6 +94,7 @@ package Preferences <<Folder>> {
 ' SESSION TRACKING RELATIONSHIPS'
 FocusSession "1" *-- "1..*" SessionInterval : contains >
 FocusSession "1" *-- "1" SessionSettings : snapshots >
+FocusSession "1" *-- "1" ProjectName : labels >
 FocusSession "1" -- "1" SessionId : is identified by >
 FocusSession "1" -- "1" SessionType : has >
 FocusSession "1" -- "1" SessionState : has >

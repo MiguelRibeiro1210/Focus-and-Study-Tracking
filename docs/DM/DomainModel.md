@@ -53,11 +53,13 @@ a direct object graph. The conceptual relationships are:
 **Aggregate root:** `FocusSession`
 **Entities:** `SessionInterval`
 **Value objects:** `SessionId`, `IntervalId`, `SessionSettings`, `Duration`,
-`TimeStamp`, `SessionType`, `SessionState`, `IntervalState`
+`TimeStamp`, `ProjectName`, `SessionType`, `SessionState`, `IntervalState`
 
 `FocusSession` is the consistency boundary for the session lifecycle. It owns
-the interval collection and the settings snapshot used when the session was
-created.
+the interval collection, required immutable project name, and settings
+snapshot used when the session was created. A project name labels one session;
+it is not a reusable project catalogue entry. Names are trimmed and contain
+1–120 characters.
 
 **Invariants**
 
@@ -72,6 +74,8 @@ created.
   and starts a new work interval.
 - Paused time never counts as focus time.
 - A completed or abandoned session is immutable.
+- The project name is required, normalized at creation and immutable for the
+  full session lifecycle.
 - Stopping with less than five minutes of actual work time marks the session
   `ABANDONED`; five minutes or more marks it `COMPLETED`. Break time is excluded.
 - The actual focus duration is the sum of completed work intervals, within one

@@ -8,7 +8,7 @@ case, diagram and task should be visible in one place.
 
 | Requirement | Use case | Sequence diagram | Board task |
 |---|---|---|---|
-| FR-SES-01 | UC-01 | [SD_StartSession](../SD/SD_StartSession.puml) | FST-005, FST-009, FST-014 |
+| FR-SES-01 | UC-01 | [SD_StartSession](../SD/SD_StartSession.puml) | FST-005, FST-009, FST-012, FST-014 |
 | FR-SES-02 | UC-02 | [SD_PauseSession](../SD/SD_PauseSession.puml) | FST-010, FST-014 |
 | FR-SES-03 | UC-03 | [SD_ResumeSession](../SD/SD_ResumeSession.puml) | FST-010, FST-014 |
 | FR-SES-04 | UC-04 | [SD_StopSession](../SD/SD_StopSession.puml) | FST-010, FST-014 |
@@ -22,10 +22,10 @@ case, diagram and task should be visible in one place.
 | FR-HIS-01 | UC-04 | [SD_StopSession](../SD/SD_StopSession.puml) | FST-013 |
 | FR-HIS-02 | UC-07 | [SD_QuerySessionHistory](../SD/SD_QuerySessionHistory.puml) | FST-012, FST-018 |
 | FR-HIS-03 | UC-07 | [SD_QuerySessionHistory](../SD/SD_QuerySessionHistory.puml) | FST-012, FST-018 |
-| FR-HIS-04 | UC-07 | [SD_QuerySessionHistory](../SD/SD_QuerySessionHistory.puml) | FST-018 |
-| FR-HIS-05 | UC-07 | [SD_QuerySessionHistory](../SD/SD_QuerySessionHistory.puml) | FST-018 |
-| FR-STR-01 | UC-08 | [SD_CalculateDailyStreak](../SD/SD_CalculateDailyStreak.puml) | FST-011, FST-018 |
-| FR-STR-02 | UC-08 | [SD_CalculateDailyStreak](../SD/SD_CalculateDailyStreak.puml) | FST-011, FST-018 |
+| FR-HIS-04 | UC-07 | [SD_QuerySessionHistory](../SD/SD_QuerySessionHistory.puml) | FST-043 |
+| FR-HIS-05 | UC-07 | [SD_QuerySessionHistory](../SD/SD_QuerySessionHistory.puml) | FST-012, FST-018 |
+| FR-STR-01 | UC-08 | [SD_CalculateDailyStreak](../SD/SD_CalculateDailyStreak.puml) | FST-011, FST-042 |
+| FR-STR-02 | UC-08 | [SD_CalculateDailyStreak](../SD/SD_CalculateDailyStreak.puml) | FST-011, FST-042 |
 | FR-STR-03 | UC-08 | [SD_CalculateDailyStreak](../SD/SD_CalculateDailyStreak.puml) | FST-011 |
 | FR-STR-04 | UC-08 | [SD_CalculateDailyStreak](../SD/SD_CalculateDailyStreak.puml) | FST-011 |
 | FR-ANA-01 | UC-09 | [SD_ViewAnalytics](../SD/SD_ViewAnalytics.puml) | FST-019 |
@@ -68,7 +68,7 @@ case, diagram and task should be visible in one place.
 | UC-04 Stop session | FR-SES-04, FR-SES-11, FR-HIS-01 |
 | UC-05 Complete interval | FR-SES-05, FR-SES-09 |
 | UC-06 Skip break | FR-SES-06 |
-| UC-07 View session history | FR-HIS-02..05 |
+| UC-07 View session history | FR-HIS-02, FR-HIS-03, FR-HIS-05 |
 | UC-08 View daily streak | FR-STR-01..04 |
 | UC-09 View productivity analytics | FR-ANA-01..05 |
 | UC-10 Configure timer settings | FR-SET-01, FR-SET-02, FR-SET-03, FR-SET-05, FR-SET-06 |
@@ -114,7 +114,9 @@ case, diagram and task should be visible in one place.
 | FST-015 WebSocket updates | [REST and WebSocket API](../api/RESTAndWebSocket.md), [SD_StartSession](../SD/SD_StartSession.puml) |
 | FST-016 React frontend | [System architecture](../SystemArchitecture/Architecture.md) |
 | FST-017 Timer screen | [Use case UC-01](../UseCases/UseCases.md) |
-| FST-018 History and streaks view | [Use case UC-07/UC-08](../UseCases/UseCases.md) |
+| FST-018 Session history list and filters | [Use case UC-07](../UseCases/UseCases.md) |
+| FST-042 Daily streak summary view | [Use case UC-08](../UseCases/UseCases.md) |
+| FST-043 Session detail view | [Use case UC-07](../UseCases/UseCases.md) |
 | FST-019 Analytics dashboard | [Use case UC-09](../UseCases/UseCases.md) |
 | FST-020 Settings screen | [Use case UC-10/UC-11](../UseCases/UseCases.md) |
 | FST-021 Frontend integration | [REST and WebSocket API](../api/RESTAndWebSocket.md) |

@@ -29,31 +29,79 @@ not a learner-facing session API operation.
 
 | Method | Path | Purpose | Success |
 |---|---|---|---|
-| `POST` | `/sessions` | Start a focus session. Request: `{"sessionType":"WORK"}`. | `201 Created` + `SessionResponse` |
+| `POST` | `/sessions` | Start a focus session. Request: `{"sessionType":"WORK","projectName":"Exam preparation"}`. | `201 Created` + `SessionResponse` |
 | `GET` | `/sessions/active` | Get the active session, if any. | `200 OK` + `SessionResponse` / `204 No Content` |
 | `POST` | `/sessions/{id}/pause` | Pause a running session. | `200 OK` + `SessionResponse` |
 | `POST` | `/sessions/{id}/resume` | Resume a paused session. | `200 OK` + `SessionResponse` |
 | `POST` | `/sessions/{id}/stop` | Stop and record the session, including while waiting for the next interval. | `200 OK` + `SessionResponse` |
 | `POST` | `/sessions/{id}/intervals/start` | Start the pending next interval while the session is waiting. | `200 OK` + `SessionResponse` |
 | `POST` | `/sessions/{id}/skip-break` | Skip a pending or paused break and start the next work interval. | `200 OK` + `SessionResponse` |
-| `GET` | `/sessions` | Query history by range. | `200 OK` + `Page<SessionSummaryDto>` |
-| `GET` | `/sessions/{id}` | Session detail with intervals. | `200 OK` + `SessionDetailDto` |
+| `GET` | `/sessions` | Query completed and abandoned history summaries. | `200 OK` + `SessionHistoryPage` |
+| `GET` | `/sessions/{id}` | Planned session detail endpoint (outside the history-list slice). | `200 OK` + `SessionDetailDto` |
 
-Query parameters for `GET /sessions`: `from`, `to` (`YYYY-MM-DD`), `page`
-(default `0`), `size` (default `20`, max `100`), optional `type` and `status`.
-Date boundaries for history and analytics are local calendar dates interpreted
-in the operating system's current time zone and converted to UTC instants. If
-the OS time zone changes, historical daily groupings use the new zone.
+Query parameters for `GET /sessions`: optional inclusive `from`, `to`
+(`YYYY-MM-DD`), `page` (default `0`), `size` (default `20`, max `100`), and
+optional terminal `status`. Omitting both date bounds returns all
+available history; either bound may be supplied alone. If both are present,
+`from` must not be after `to`. Dates are interpreted in the operating system's
+current timezone and converted to UTC instants. Date filtering uses
+`startedAt`, so a session crossing midnight belongs to its start date. No
+maximum history range is imposed. The default status set includes `COMPLETED`
+and `ABANDONED`; results are newest first by `startedAt`, with session ID as a
+stable tie-breaker.
+For equal start timestamps, session IDs are sorted ascending.
+`page` must be non-negative and `size` must be between 1 and 100; malformed
+dates, unsupported status values or invalid pagination return
+`400 VALIDATION_ERROR`, except `from > to`, which returns
+`400 INVALID_DATE_RANGE`.
 
-`SessionResponse` contains the session identity, type, state, interval type,
-remaining time, planned/actual durations, timestamps and the current interval
-sequence. IDs are UUID strings, durations are integer seconds, and timestamps
+`SessionHistoryPage` is `{ "items": [...], "total": 0, "page": 0,
+"size": 20 }`. Each item contains `sessionId`, `projectName`, `sessionType`,
+`status`, `startedAt`, `endedAt` and `actualFocusDurationSeconds`. The query
+selects these fields from `focus_session` and does not load interval
+collections or require a separate materialized history table. The UI
+defaults to today and the previous 6 local calendar dates; 30 calendar days
+and all time are also available. Inclusive local date bounds are converted to
+a UTC start instant and an exclusive UTC instant at midnight after `to`.
+There is no session-type filter because `FocusSession` currently only supports
+`WORK`; `sessionType` remains in each summary for clarity and future expansion.
+
+Example history response:
+
+```json
+{
+  "items": [
+    {
+      "sessionId": "e954a50a-90fd-4e8b-8770-e5e19f8acfe1",
+      "projectName": "Exam preparation",
+      "sessionType": "WORK",
+      "status": "COMPLETED",
+      "startedAt": "2026-11-11T00:00:00Z",
+      "endedAt": "2026-11-11T00:50:00Z",
+      "actualFocusDurationSeconds": 2700
+    }
+  ],
+  "total": 1,
+  "page": 0,
+  "size": 20
+}
+```
+
+`POST /sessions` requires `projectName`. The backend trims it, accepts 1–120
+characters after trimming, rejects missing/blank/overlength values with
+`400 VALIDATION_ERROR`, and stores the normalized name immutably with the
+session. `SessionResponse` and live session snapshots include `projectName`.
+
+`SessionResponse` contains the session identity, project name, type, state,
+interval type, remaining time, planned/actual durations, timestamps and the
+current interval sequence. IDs are UUID strings, durations are integer seconds, and timestamps
 are ISO-8601 UTC strings; domain value objects are not exposed in the JSON.
 For example:
 
 ```json
 {
   "sessionId": "e954a50a-90fd-4e8b-8770-e5e19f8acfe1",
+  "projectName": "Exam preparation",
   "sessionType": "WORK",
   "state": "RUNNING",
   "intervalType": "WORK",
@@ -180,6 +228,7 @@ snapshot:
   "occurredAt": "2026-11-07T15:30:00Z",
   "payload": {
     "sessionId": "e954a50a-90fd-4e8b-8770-e5e19f8acfe1",
+    "projectName": "Exam preparation",
     "sessionType": "WORK",
     "state": "RUNNING",
     "intervalType": "WORK",

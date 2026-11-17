@@ -6,20 +6,18 @@ actor Learner
 participant "Desktop UI" as UI
 participant "HistoryController" as Controller
 participant "QuerySessionHistoryUseCase" as UseCase
-participant "SessionQueryRepository" as Repo
-participant "SessionMapper" as Mapper
+participant "SessionHistoryQueryRepository" as Repo
+database "Local database" as DB
 
-Learner -> UI : open History and select date range
-UI -> Controller : GET /api/v1/sessions?from=...&to=...&page=0&size=20
+Learner -> UI : open History and choose range/filter
+UI -> Controller : GET /api/v1/sessions?from=...&to=...&status=...&page=0&size=20
 Controller -> UseCase : query(SessionHistoryQuery)
-UseCase -> UseCase : validateRange()
-UseCase -> Repo : findSummaries(range)
-Repo --> UseCase : List<SessionSummary>
-loop for each session
-  UseCase -> Mapper : toSummary(session)
-  Mapper --> UseCase : SessionSummaryDto
-end
-UseCase --> Controller : Page<SessionSummaryDto>
+UseCase -> UseCase : validate dates, status and pagination
+UseCase -> Repo : findHistoryPage(query)
+Repo -> DB : select fields from terminal focus_session rows\n(without interval collection)
+DB --> Repo : page and total count
+Repo --> UseCase : SessionHistoryPage
+UseCase --> Controller : SessionHistoryPage
 Controller --> UI : 200 OK\n{items, total, page, size}
 
 note over Repo
@@ -29,8 +27,9 @@ note over Repo
 end note
 
 note over UI
-  Filters: date range, session type, completed
-  only. Sorting is newest first by default.
+  Default range: 7 days; other choices are 30 days
+  and all time. Completed and abandoned sessions
+  are included by default; results are newest first.
 end note
 
 @enduml

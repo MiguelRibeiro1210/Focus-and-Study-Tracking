@@ -14,16 +14,17 @@ participant "TransactionalOutbox" as Events
 participant "Outbox Dispatcher" as Dispatcher
 participant "SessionWebSocketHandler" as WS
 
-Learner -> UI : click "Start focus"
-UI -> Controller : POST /api/v1/sessions\n{type: WORK}
+Learner -> UI : enter project name and click "Start focus"
+UI -> Controller : POST /api/v1/sessions\n{sessionType: WORK, projectName}
 Controller -> UseCase : start(command)
+UseCase -> UseCase : trim and validate projectName (1..120 chars)
 UseCase -> SessionRepo : findActive()
 SessionRepo --> UseCase : Optional.empty()
 
 UseCase -> SettingsRepo : load()
 SettingsRepo --> UseCase : AppSettings
 UseCase -> UseCase : sessionSettings = SessionSettings.from(settings.timer())
-UseCase -> Factory : create(sessionSettings, now)
+UseCase -> Factory : create(projectName, sessionSettings, now)
 Factory --> UseCase : FocusSession (IDLE)
 activate Session
 UseCase -> Session : start(now)
@@ -34,7 +35,7 @@ UseCase -> Events : appendToOutbox(SessionStarted)
 Dispatcher -> WS : broadcast("session.started")
 WS --> UI : session.started\n{sessionId, state, remainingSeconds}
 UseCase --> Controller : SessionDto
-Controller --> UI : 201 Created\n{sessionId, state, plannedSeconds}
+Controller --> UI : 201 Created\n{sessionId, projectName, state, plannedSeconds}
 deactivate Session
 
 note over Events, Dispatcher

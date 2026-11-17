@@ -25,6 +25,7 @@ SQLite is a future option; see [ADR-005](../decisions/ADR-005-H2VsSQLite.md).
 |---|---|---|
 | `id` | UUID PK | `SessionId`. |
 | `session_type` | VARCHAR(20) | `WORK`, `SHORT_BREAK`, `LONG_BREAK`. |
+| `project_name` | VARCHAR(120) | Required trimmed session label; immutable after start. |
 | `state` | VARCHAR(32) | `IDLE`, `RUNNING`, `PAUSED`, `WAITING_FOR_NEXT_INTERVAL`, `COMPLETED`, `ABANDONED`. |
 | `started_at`, `ended_at` | TIMESTAMP | UTC. |
 | `planned_seconds`, `actual_seconds` | BIGINT | Planned and recorded focus duration. |
@@ -60,6 +61,11 @@ remaining time; the first start sets `started_at` and clears `paused_at`.
 At pause, elapsed seconds are added to `actual_seconds` and remaining time is
 stored. Resume starts a new running segment from that remaining time. Stopping
 while paused adds no further elapsed time.
+
+The MVP history query reads a lightweight projection of terminal
+`focus_session` rows (including `project_name` and `actual_seconds`) with a
+count query for pagination. It does not fetch `session_interval` rows or need
+a separate materialized history table.
 
 ### `blocking_policy` and `blocking_rule`
 
@@ -161,6 +167,8 @@ events, that data can no longer be reconstructed.
   versions in its schema-history table.
 - Schema changes use versioned migrations; never rely on Hibernate
   `ddl-auto=update` in production builds.
+- Migration V3 adds `project_name`, backfills pre-existing sessions with
+  `Focus session`, then enforces `NOT NULL` without rewriting session history.
 - Migrations are forward-only and tested against a database created by the
   previous release.
 - A backup is taken before a destructive migration; if the migration fails, the

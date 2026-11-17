@@ -5,16 +5,18 @@ autonumber
 actor Learner
 participant "FocusDesktop System" as System
 
-Learner -> System : requestSessionHistory(from, to, page, size)
+Learner -> System : requestSessionHistory(from?, to?, status?, page, size)
 System --> Learner : sessionPage(items, total, page, size)
 
 Learner -> System : requestDailyStreak(date)
 System --> Learner : streak(date, current, longest)
 
 note right of System
-  History is read-only and paginated.
+  History is read-only and paginated. The UI defaults
+  to today and the previous 6 local dates; all time omits both date bounds.
+  Completed and abandoned sessions are included by default.
   Streak is derived from completed work intervals
-  of at least five minutes.
+  of at least five minutes and is a separate story.
 end note
 
 @enduml

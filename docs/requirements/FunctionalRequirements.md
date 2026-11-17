@@ -10,7 +10,7 @@ Every requirement is traced to a use case and to the project board in
 
 | ID | Requirement | Priority | Phase | UC | Board |
 |---|---|---|---|---|---|
-| FR-SES-01 | The learner can start a focus session with the configured work duration. | Must | MVP | UC-01 | FST-005, FST-009 |
+| FR-SES-01 | The learner can start a focus session with a required project name and the configured work duration. | Must | MVP | UC-01 | FST-005, FST-009, FST-012 |
 | FR-SES-02 | The learner can pause a running session; the remaining time is preserved. | Must | MVP | UC-02 | FST-010 |
 | FR-SES-03 | The learner can resume a paused session without resetting the interval. | Must | MVP | UC-03 | FST-010 |
 | FR-SES-04 | The learner can stop an active session; the actual elapsed focus time is recorded. | Must | MVP | UC-04 | FST-010 |
@@ -24,6 +24,11 @@ Every requirement is traced to a use case and to the project board in
 
 ### Acceptance criteria — session lifecycle
 
+- A start request requires a project name. The backend trims surrounding
+  whitespace, accepts 1–120 characters after trimming, and rejects missing,
+  blank or longer names with `400 VALIDATION_ERROR`.
+- The normalized project name is immutable for the lifetime of the session and
+  is returned in active-session responses and live session snapshots.
 - Starting when another session is active or waiting returns `409 ACTIVE_SESSION_EXISTS`
   and does not create a second record.
 - Pause/resume on the wrong state returns `422 INVALID_SESSION_STATE`.
@@ -50,18 +55,28 @@ Every requirement is traced to a use case and to the project board in
 | ID | Requirement | Priority | Phase | UC | Board |
 |---|---|---|---|---|---|
 | FR-HIS-01 | Every completed or abandoned session is persisted with its intervals. | Must | MVP | UC-04 | FST-013 |
-| FR-HIS-02 | The learner can query history by date range. | Must | MVP | UC-07 | FST-012 |
+| FR-HIS-02 | The learner can query completed and abandoned history by optional local date range. | Must | MVP | UC-07 | FST-012 |
 | FR-HIS-03 | History results are paginated and sorted newest first by default. | Must | MVP | UC-07 | FST-012 |
-| FR-HIS-04 | The learner can open a session and see its intervals, duration and distractions. | Should | MVP | UC-07 | FST-018 |
-| FR-HIS-05 | The learner can filter history by session type and completion status. | Could | MVP | UC-07 | FST-018 |
+| FR-HIS-04 | The learner can open a session and see its intervals, duration and available distractions. | Should | Phase 2 | UC-07 | FST-043 |
+| FR-HIS-05 | The learner can filter history by terminal status. | Could | MVP | UC-07 | FST-012, FST-018 |
 
 ### Acceptance criteria — history
 
 - An invalid range (`from > to`) returns `400 INVALID_DATE_RANGE`.
 - A range with no data returns an empty page, not an error.
 - Pagination metadata (`total`, `page`, `size`) is always present.
-- History queries do not load full aggregate interval collections unless the
-  detail endpoint is requested.
+- A query without date bounds returns all available history; one bound may be
+  supplied without the other. Supplied dates are inclusive in the operating
+  system's local timezone and select sessions by their `startedAt` date.
+- History contains only `COMPLETED` and `ABANDONED` sessions by default; an
+  explicit status filter may select either one. Results are newest first with
+  a stable session-ID tie-breaker.
+- Each item includes session ID, project name, session type, status, start and
+  end timestamps, and actual focus duration in seconds.
+- History queries use a summary projection and do not load interval collections.
+- The History screen defaults to today and the previous 6 local calendar
+  dates, and offers a 30-calendar-day range and all time. Session detail,
+  streaks, analytics, export and distraction counts are outside this slice.
 
 ## 3. Streaks
 

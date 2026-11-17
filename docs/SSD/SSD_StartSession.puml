@@ -5,8 +5,8 @@ autonumber
 actor Learner
 participant "FocusDesktop System" as System
 
-Learner -> System : startFocusSession(type, plannedDuration?)
-System --> Learner : sessionStarted(sessionId, type, plannedSeconds, remainingSeconds)
+Learner -> System : startFocusSession(projectName)
+System --> Learner : sessionStarted(sessionId, projectName, type, plannedSeconds, remainingSeconds)
 System --> Learner : timerSnapshot(state, intervalType, remainingSeconds)
 
 note right of System

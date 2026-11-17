@@ -16,6 +16,7 @@
 | **Distraction log** | An append-only read model of detected applications and the resulting policy and blocking outcomes. |
 | **Distraction policy** | The active set of rules that determines whether an observed application is logged, warned about or blocked. |
 | **Focus session** | A learner's work period containing an ordered sequence of work and break intervals. |
+| **Project name** | Required, trimmed label for one focus session; it is immutable after start and is not a reusable project-catalogue record. |
 | **Factory** | A domain object that creates or reconstitutes entities and validates their initial structure. |
 | **Interval** | A timed work period, short break or long break within a focus session. |
 | **Idempotency** | The property that processing the same command or event more than once has the same effect as processing it once. |
