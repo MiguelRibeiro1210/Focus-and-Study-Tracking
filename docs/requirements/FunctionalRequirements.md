@@ -156,8 +156,8 @@ Every requirement is traced to a use case and to the project board in
 - Long break must be between 1 and 120 minutes and not shorter than the short
   break.
 - `intervalsBeforeLongBreak` must be between 1 and 12.
-- Each timer profile has a trimmed, non-empty name unique without regard to
-  letter case. A profile contains the three durations, intervals before a long
+- Each timer profile has a trimmed name of 1–60 characters, unique without
+  regard to letter case. A profile contains the three durations, intervals before a long
   break, and independent work/break auto-start flags.
 - Built-in starter profiles can be edited and deleted. At least one profile
   must remain; deleting the current default requires selecting another default

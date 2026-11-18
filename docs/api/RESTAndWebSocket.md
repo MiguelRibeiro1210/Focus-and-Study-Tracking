@@ -196,8 +196,8 @@ even when its values are zero.
 | Method | Path | Purpose | Success |
 |---|---|---|---|
 | `GET` | `/settings` | Read timer profiles, selected default, daily goal, theme, notifications and retention. | `200 OK` + `SettingsDto` |
-| `POST` | `/settings/profiles` | Create a profile by copying the current default; request includes its name. | `201 Created` + `TimerProfileDto` |
-| `PUT` | `/settings/profiles/{profileId}` | Edit a profile name, durations, interval count and auto-start flags. | `200 OK` + `TimerProfileDto` |
+| `POST` | `/settings/profiles` | Create a profile by copying the current default; request includes its name. | `201 Created` + updated `SettingsDto` |
+| `PUT` | `/settings/profiles/{profileId}` | Edit a profile name, durations, interval count and auto-start flags. | `200 OK` + updated `SettingsDto` |
 | `PUT` | `/settings/profiles/default` | Select the profile used by new sessions. Request includes `profileId`. | `200 OK` + `SettingsDto` |
 | `DELETE` | `/settings/profiles/{profileId}` | Delete a non-default profile; any starter profile may be deleted. | `204 No Content` |
 | `PUT` | `/settings/application` | Update theme, notifications, retention and daily goal. | `200 OK` + `SettingsDto` |
@@ -212,7 +212,8 @@ non-empty and unique without regard to case. At least one profile must remain;
 the default cannot be deleted until another profile has been selected. New
 profiles copy the current default's timer preferences. Retention is 7–3650 days
 or "keep forever"; daily goal is an integer from 1–24 hours. Settings changes
-apply to new sessions only; the active session keeps its snapshot.
+apply to new sessions only; the active session keeps its snapshot. Profile
+names contain 1–60 characters after trimming.
 
 The CSV ZIP contains separate files for settings, profiles, sessions,
 intervals, and analytics. The JSON export contains the equivalent data in one
