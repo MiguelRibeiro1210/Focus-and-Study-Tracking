@@ -84,6 +84,14 @@ public class SessionIntervalJpaEntity {
 
     UUID id() { return id; }
     int sequenceNumber() { return sequenceNumber; }
+    com.focusdesktop.domain.model.SessionType type() { return type; }
+    com.focusdesktop.domain.model.IntervalState state() { return state; }
+    long plannedSeconds() { return plannedSeconds; }
+    long actualSeconds() { return actualSeconds; }
+    long remainingSeconds() { return remainingSeconds; }
+    Instant startedAt() { return startedAt; }
+    Instant endedAt() { return endedAt; }
+    Instant pausedAt() { return pausedAt; }
 
     private static Instant instant(TimeStamp timestamp) {
         return timestamp == null ? null : timestamp.value();

@@ -156,4 +156,12 @@ public class FocusSessionJpaEntity {
 
     UUID id() { return id; }
     String settingsSnapshot() { return settingsSnapshot; }
+    String projectName() { return projectName; }
+    SessionType sessionType() { return sessionType; }
+    SessionState state() { return state; }
+    Instant createdAt() { return createdAt; }
+    Instant startedAt() { return startedAt; }
+    Instant endedAt() { return endedAt; }
+    List<SessionIntervalJpaEntity> intervals() { return List.copyOf(intervals); }
+    SessionSettings settingsSnapshotValue() { return PersistenceJson.read(settingsSnapshot, SessionSettings.class); }
 }
