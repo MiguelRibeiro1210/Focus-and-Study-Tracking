@@ -77,8 +77,12 @@ Every requirement is traced to a use case and to the project board in
 - The History screen defaults to today and the previous 6 local calendar
   dates, and offers a 30-calendar-day range and all time. FST-019 also provides
   an inclusive custom local-date range that filters both the analytics summary
-  and session list. Session detail, streaks, export and distraction counts are
-  outside the history-list slice.
+  and session list. The UI limits its selectable range to 366 days because the
+  analytics endpoint has that limit; the history endpoint itself has no fixed
+  maximum. Its current CSV export contains filtered session history only;
+  complete export support, including analytics, remains a later requirement.
+  Session detail, streaks and distraction counts are outside the history-list
+  slice.
 
 ## 3. Streaks
 

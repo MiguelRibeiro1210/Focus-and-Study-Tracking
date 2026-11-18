@@ -2,9 +2,10 @@
 import { cleanup, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import type { SessionResponse } from '../src/api/sessionTypes'
+import type { AnalyticsSummary, SessionResponse } from '../src/api/sessionTypes'
 import { TimerScreen } from '../src/timer/TimerScreen'
 import type { TimerController } from '../src/timer/useTimerSession'
+import { localDateKey } from '../src/pages/overviewAnalytics'
 
 afterEach(cleanup)
 
@@ -44,6 +45,38 @@ function makeTimer(session: SessionResponse | null, overrides: Partial<TimerCont
 const historyApi = { getSessionHistory: vi.fn().mockResolvedValue({ items: [], total: 0, page: 0, size: 3 }) }
 
 describe('timer screen', () => {
+  it('loads today and yesterday overview totals from analytics', async () => {
+    const today = new Date()
+    const yesterday = new Date(today)
+    yesterday.setDate(yesterday.getDate() - 1)
+    const todayKey = localDateKey(today)
+    const yesterdayKey = localDateKey(yesterday)
+    const analytics: AnalyticsSummary = {
+      from: yesterdayKey,
+      to: todayKey,
+      totalFocusSeconds: 5400,
+      totalBreakSeconds: 0,
+      completedSessions: 3,
+      averageSessionSeconds: 1800,
+      focusScore: 100,
+      bestDay: null,
+      daily: [
+        { date: yesterdayKey, focusSeconds: 1800, breakSeconds: 0, completedSessions: 1 },
+        { date: todayKey, focusSeconds: 3600, breakSeconds: 0, completedSessions: 2 },
+      ],
+    }
+    const api = {
+      getSessionHistory: vi.fn().mockResolvedValue({ items: [], total: 0, page: 0, size: 3 }),
+      getAnalyticsSummary: vi.fn().mockResolvedValue(analytics),
+    }
+    render(<TimerScreen timer={makeTimer(null)} api={api} />)
+
+    expect(await screen.findAllByText('1 h 00 min')).toHaveLength(2)
+    expect(screen.getByText('+30 min compared to yesterday')).toBeTruthy()
+    expect(screen.getByText('2')).toBeTruthy()
+    expect(api.getAnalyticsSummary).toHaveBeenCalledWith({ from: yesterdayKey, to: todayKey })
+  })
+
   it('shows idle state and starts a focus session', async () => {
     const user = userEvent.setup()
     const timer = makeTimer(null)

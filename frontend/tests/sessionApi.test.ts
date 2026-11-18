@@ -31,6 +31,23 @@ describe('session REST client', () => {
     await expect(malformed.getSessionHistory()).rejects.toMatchObject({ kind: 'protocol', code: 'INVALID_RESPONSE' })
   })
 
+  it('loads and validates analytics summaries with optional inclusive date bounds', async () => {
+    const summary = {
+      from: '2026-11-01', to: '2026-11-07', totalFocusSeconds: 12600, totalBreakSeconds: 2400,
+      completedSessions: 8, averageSessionSeconds: 1575, focusScore: 82,
+      bestDay: { date: '2026-11-05', focusSeconds: 3600, completedSessions: 2 },
+      daily: [{ date: '2026-11-01', focusSeconds: 1500, breakSeconds: 300, completedSessions: 1 }],
+    }
+    const fetcher = vi.fn().mockResolvedValue(Response.json(summary))
+    const api = createSessionApi(fetcher)
+    await expect(api.getAnalyticsSummary({ from: '2026-11-01', to: '2026-11-07' })).resolves.toEqual(summary)
+    expect(fetcher).toHaveBeenCalledWith('/api/v1/analytics/summary?from=2026-11-01&to=2026-11-07',
+      expect.objectContaining({ method: 'GET' }))
+
+    const malformed = createSessionApi(vi.fn().mockResolvedValue(Response.json({ ...summary, focusScore: 'high' })))
+    await expect(malformed.getAnalyticsSummary()).rejects.toMatchObject({ kind: 'protocol', code: 'INVALID_RESPONSE' })
+  })
+
   it('maps active session 204 to null', async () => {
     const api = createSessionApi(vi.fn().mockResolvedValue(new Response(null, { status: 204 })))
     await expect(api.getActiveSession()).resolves.toBeNull()

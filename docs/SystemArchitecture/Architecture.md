@@ -80,15 +80,15 @@ are emitted on state and interval changes, not once per second.
 ### 4.2 Analytics query
 
 ```text
-Completed sessions + work/break intervals
-    ─▶ SessionAnalyticsReader ─▶ AnalyticsSummaryAssembler ─▶ ProductivitySummary
+AnalyticsController ─▶ GetAnalyticsSummaryUseCase
+    ─▶ FocusSessionRepository ─▶ completed FocusSession aggregates
 ```
 
-The MVP analytics endpoint reads completed sessions and their persisted
-intervals; it does not depend on a projection or distraction source.
-`AnalyticsSummaryAssembler` builds `ProductivitySummary` per query and does not
-mutate domain state. Daily progress and distraction projections remain separate
-read models for streaks and Phase 2 distraction features.
+The MVP analytics endpoint reads completed `FocusSession` aggregates and derives
+work and break values from their owned intervals. `GetAnalyticsSummaryUseCase`
+assembles the response per query without mutating domain state or depending on
+a distraction source. Daily progress and distraction projections remain
+separate read models for streaks and Phase 2 distraction features.
 
 ### 4.3 Distraction control
 
@@ -111,6 +111,10 @@ The write side never updates the `DistractionLog` directly.
 - WebSocket is used for live timer state and domain-event notifications.
 - The API contract, error codes and event payloads are documented in
   [`../api/RESTAndWebSocket.md`](../api/RESTAndWebSocket.md).
+- History CSV export is assembled in the client from the selected history
+  pages. In the desktop shell, the Rust Tauri command opens the native save
+  dialog and writes the file at the learner-selected path; cancelling leaves
+  no file. Browser preview uses the browser download mechanism.
 
 ## 6. Persistence and projections
 

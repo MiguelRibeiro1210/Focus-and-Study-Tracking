@@ -1,10 +1,12 @@
 import {
   isSessionHistoryPage,
+  isAnalyticsSummary,
   isSessionResponse,
   type ActiveSession,
   type ApiErrorBody,
   type SessionHistoryPage,
   type SessionHistoryQuery,
+  type AnalyticsSummary,
   type SessionResponse,
 } from './sessionTypes'
 import { isDesktopShell, nativeFetch } from './nativeTransport'
@@ -37,6 +39,7 @@ export interface SessionApi {
   startSession(projectName: string): Promise<SessionResponse>
   getActiveSession(): Promise<ActiveSession>
   getSessionHistory(query?: SessionHistoryQuery): Promise<SessionHistoryPage>
+  getAnalyticsSummary(query?: Pick<SessionHistoryQuery, 'from' | 'to'>): Promise<AnalyticsSummary>
   pauseSession(sessionId: string): Promise<SessionResponse>
   resumeSession(sessionId: string): Promise<SessionResponse>
   stopSession(sessionId: string): Promise<SessionResponse>
@@ -127,6 +130,40 @@ export function createSessionApi(
     return body
   }
 
+  async function requestAnalyticsSummary(query: Pick<SessionHistoryQuery, 'from' | 'to'> = {}): Promise<AnalyticsSummary> {
+    const params = new URLSearchParams()
+    if (query.from) params.set('from', query.from)
+    if (query.to) params.set('to', query.to)
+    const suffix = params.size > 0 ? `?${params.toString()}` : ''
+    let response: Response
+    try {
+      response = await fetcher(`${basePath}/analytics/summary${suffix}`, {
+        method: 'GET',
+        headers: { Accept: 'application/json' },
+      })
+    } catch (error) {
+      throw new SessionApiError('Could not reach the local API. Check that FocusDesktop is running.', 'network', undefined, undefined, error)
+    }
+    let body: unknown
+    try {
+      body = await response.json()
+    } catch (error) {
+      if (!response.ok) {
+        throw new SessionApiError(`The API request failed with HTTP ${response.status}.`, 'http', response.status)
+      }
+      throw new SessionApiError('The API returned an invalid response.', 'protocol', response.status, 'INVALID_RESPONSE', error)
+    }
+    if (!response.ok) {
+      const apiError = isApiErrorBody(body) ? body : undefined
+      throw new SessionApiError(apiError?.message ?? `The API request failed with HTTP ${response.status}.`,
+        'http', response.status, apiError?.code, apiError?.details)
+    }
+    if (!isAnalyticsSummary(body)) {
+      throw new SessionApiError('The API returned an invalid analytics response.', 'protocol', response.status, 'INVALID_RESPONSE')
+    }
+    return body
+  }
+
   function command(sessionId: string, suffix: string) {
     return request(`/sessions/${encodeURIComponent(sessionId)}/${suffix}`, { method: 'POST' }) as Promise<SessionResponse>
   }
@@ -139,6 +176,7 @@ export function createSessionApi(
     }) as Promise<SessionResponse>,
     getActiveSession: () => request('/sessions/active', { method: 'GET' }, true) as Promise<ActiveSession>,
     getSessionHistory: requestHistory,
+    getAnalyticsSummary: requestAnalyticsSummary,
     pauseSession: (id) => command(id, 'pause'),
     resumeSession: (id) => command(id, 'resume'),
     stopSession: (id) => command(id, 'stop'),

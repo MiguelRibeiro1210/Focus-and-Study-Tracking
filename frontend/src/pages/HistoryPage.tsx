@@ -1,52 +1,53 @@
 import { useEffect, useMemo, useState } from 'react'
 import { sessionApi, type SessionApi } from '../api/sessionApi'
-import type { SessionHistoryItem, SessionHistoryStatus } from '../api/sessionTypes'
-import { createHistoryQuery, formatFocusDuration, formatHistoryDateTime, type HistoryRange } from './historyRange'
-import { formatDashboardDuration, summarizeHistory } from './historyDashboard'
+import type { AnalyticsSummary, SessionHistoryItem, SessionHistoryStatus } from '../api/sessionTypes'
+import { createHistoryQuery, formatFocusDuration, formatHistoryDateTime, getHistoryDateRange, validateLocalDateRange, type HistoryRange, type LocalDateRange } from './historyRange'
+import { formatDashboardDuration, mapAnalyticsSummary } from './historyDashboard'
+import { buildHistoryCsv, saveHistoryCsv } from './historyCsv'
 import { useSessionHistory } from './useSessionHistory'
 
 const PAGE_SIZE = 20
 const RANGES: HistoryRange[] = ['7 days', '30 days', 'All time']
 
 interface HistoryPageProps {
-  api?: Pick<SessionApi, 'getSessionHistory'>
+  api?: Pick<SessionApi, 'getSessionHistory' | 'getAnalyticsSummary'>
 }
 
 export function HistoryPage({ api = sessionApi }: HistoryPageProps) {
   const [range, setRange] = useState<HistoryRange>('7 days')
+  const [customRange, setCustomRange] = useState<LocalDateRange | null>(null)
+  const [datePickerOpen, setDatePickerOpen] = useState(false)
+  const [draftRange, setDraftRange] = useState<LocalDateRange>({ from: '', to: '' })
+  const [dateRangeError, setDateRangeError] = useState('')
   const [status, setStatus] = useState<SessionHistoryStatus | ''>('')
   const [historyNotice, setHistoryNotice] = useState('')
   const [page, setPage] = useState(0)
   const [today] = useState(() => new Date())
-  const query = useMemo(() => createHistoryQuery(range, status || undefined, page, today), [range, status, page, today])
+  const query = useMemo(() => {
+    const preset = createHistoryQuery(range, status || undefined, page, today)
+    if (!customRange) return preset
+    return { ...preset, from: customRange.from, to: customRange.to }
+  }, [range, customRange, status, page, today])
   const history = useSessionHistory(query, api)
   const result = history.data
-  const [dashboardState, setDashboardState] = useState<{ key: string; items: SessionHistoryItem[]; loading: boolean; error: boolean } | null>(null)
-  const dashboardQuery = useMemo(() => createHistoryQuery(range, status || undefined, 0, today), [range, status, today])
-  const dashboardKey = JSON.stringify([dashboardQuery.from, dashboardQuery.to, dashboardQuery.status])
+  const summaryQuery = useMemo(() => customRange ?? getHistoryDateRange(range, today), [customRange, range, today])
+  const summaryKey = JSON.stringify([summaryQuery?.from, summaryQuery?.to])
+  const [dashboardState, setDashboardState] = useState<{ key: string; summary: AnalyticsSummary | null; error: boolean } | null>(null)
   useEffect(() => {
     let current = true
-    setDashboardState({ key: dashboardKey, items: [], loading: true, error: false })
-    void (async () => {
-      const items: SessionHistoryItem[] = []
-      let page = 0
-      let total = 0
-      do {
-        const result = await api.getSessionHistory({ ...dashboardQuery, page, size: 100 })
-        items.push(...result.items)
-        total = result.total
-        page += 1
-      } while (items.length < total)
-      if (current) setDashboardState({ key: dashboardKey, items, loading: false, error: false })
-    })().catch(() => {
-      if (current) setDashboardState({ key: dashboardKey, items: [], loading: false, error: true })
+    void api.getAnalyticsSummary(summaryQuery ?? {}).then((summary) => {
+      if (current) setDashboardState({ key: summaryKey, summary, error: false })
+    }).catch(() => {
+      if (current) setDashboardState({ key: summaryKey, summary: null, error: true })
     })
     return () => { current = false }
-  }, [api, dashboardKey, dashboardQuery])
-  const dashboardItems = dashboardState?.key === dashboardKey ? dashboardState.items : []
-  const dashboardLoading = dashboardState?.key !== dashboardKey || dashboardState.loading
-  const dashboardError = dashboardState?.key === dashboardKey && dashboardState.error
-  const dashboard = useMemo(() => summarizeHistory(dashboardItems, range, today), [dashboardItems, range, today])
+  }, [api, summaryKey, summaryQuery])
+  const dashboardSummary = dashboardState?.key === summaryKey ? dashboardState.summary : null
+  const dashboardLoading = dashboardState?.key !== summaryKey
+  const dashboardError = dashboardState?.key === summaryKey && dashboardState.error
+  const dashboard = useMemo(() => dashboardSummary ? mapAnalyticsSummary(dashboardSummary) : {
+    focusSeconds: 0, completedSessions: 0, distractionsBlocked: 0, week: [], bestDay: null,
+  }, [dashboardSummary])
   const pageCount = result ? Math.ceil(result.total / PAGE_SIZE) : 0
   const [historyProbe, setHistoryProbe] = useState<{ key: string; hasAny: boolean } | null>(null)
   const shouldProbeHistory = !history.loading && !history.error && result?.total === 0
@@ -68,45 +69,82 @@ export function HistoryPage({ api = sessionApi }: HistoryPageProps) {
 
   function selectRange(next: HistoryRange) {
     setRange(next)
+    setCustomRange(null)
     setPage(0)
     setHistoryNotice('')
+    setDatePickerOpen(false)
   }
 
-  function exportCsv() {
-    if (dashboardError || dashboardLoading) {
-      setHistoryNotice('History data is not ready to export yet.')
+  function openDatePicker() {
+    const dates = customRange ?? getHistoryDateRange(range, today) ?? getHistoryDateRange('7 days', today)!
+    setDraftRange(dates)
+    setDateRangeError('')
+    setDatePickerOpen((open) => !open)
+  }
+
+  function applyDateRange() {
+    const error = validateLocalDateRange(draftRange.from, draftRange.to)
+    if (error) {
+      setDateRangeError(error)
       return
     }
-    if (dashboardItems.length === 0) {
-      setHistoryNotice('No sessions available to export.')
-      return
+    setCustomRange(draftRange)
+    setPage(0)
+    setHistoryNotice('')
+    setDatePickerOpen(false)
+  }
+
+  async function exportCsv() {
+    setHistoryNotice('')
+    try {
+      const items: SessionHistoryItem[] = []
+      let exportPage = 0
+      let total = 0
+      do {
+        const response = await api.getSessionHistory({
+          ...(customRange ?? getHistoryDateRange(range, today) ?? {}),
+          status: status || undefined,
+          page: exportPage,
+          size: 100,
+        })
+        items.push(...response.items)
+        total = response.total
+        exportPage += 1
+      } while (items.length < total)
+      if (items.length === 0) {
+        setHistoryNotice('No sessions available to export.')
+        return
+      }
+      if (await saveHistoryCsv(buildHistoryCsv(items))) setHistoryNotice('History exported as CSV.')
+    } catch {
+      setHistoryNotice('Could not export session history. Please retry.')
     }
-    const escapeCsv = (value: string) => `"${value.replaceAll('"', '""')}"`
-    const rows = [
-      ['Project', 'Started at', 'Focus time (seconds)', 'Status'],
-      ...dashboardItems.map((item) => [item.projectName, item.startedAt, String(item.actualFocusDurationSeconds), item.status]),
-    ]
-    const csv = rows.map((row) => row.map(escapeCsv).join(',')).join('\r\n')
-    const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }))
-    const link = document.createElement('a')
-    link.href = url
-    link.download = 'focus-history.csv'
-    link.click()
-    URL.revokeObjectURL(url)
-    setHistoryNotice('History exported as CSV.')
   }
 
   return <div className="history-page">
     <div className="history-toolbar">
       <div className="range-tabs" role="group" aria-label="History date range">
-        {RANGES.map((option) => <button className={`range-tab${range === option ? ' selected' : ''}`} type="button"
-          key={option} aria-pressed={range === option} onClick={() => selectRange(option)}>{option}</button>)}
+        {RANGES.map((option) => <button className={`range-tab${!customRange && range === option ? ' selected' : ''}`} type="button"
+          key={option} aria-pressed={!customRange && range === option} onClick={() => selectRange(option)}>{option}</button>)}
       </div>
       <div className="history-export-tools">
-        <button className="outlined-control history-date-range" type="button" onClick={() => setHistoryNotice('Custom date range: Not implemented yet.')}>Choose date range <span aria-hidden="true">⌄</span></button>
+        <button className="outlined-control history-date-range" type="button" aria-expanded={datePickerOpen}
+          aria-controls="history-date-range-picker" onClick={openDatePicker}>Choose date range <span aria-hidden="true">⌄</span></button>
         <button className="outlined-control" type="button" onClick={exportCsv}>↓&nbsp; Export CSV</button>
       </div>
     </div>
+    {datePickerOpen && <form id="history-date-range-picker" className="history-date-range-picker card-panel"
+      onSubmit={(event) => { event.preventDefault(); applyDateRange() }}>
+      <label>Start date<input aria-label="Start date" type="date" value={draftRange.from}
+        onChange={(event) => { setDraftRange((current) => ({ ...current, from: event.target.value })); setDateRangeError('') }} /></label>
+      <label>End date<input aria-label="End date" type="date" value={draftRange.to}
+        onChange={(event) => { setDraftRange((current) => ({ ...current, to: event.target.value })); setDateRangeError('') }} /></label>
+      {dateRangeError && <p className="history-date-range-error" role="alert">{dateRangeError}</p>}
+      <div className="history-date-range-actions">
+        <button className="outlined-control" type="button" onClick={() => { setDatePickerOpen(false); setDateRangeError('') }}>Cancel</button>
+        <button className="primary-control" type="submit">Apply</button>
+      </div>
+    </form>}
     {historyNotice && <p className="history-notice" role="status">{historyNotice}</p>}
 
     <section className="history-dashboard" aria-label="History summary">
@@ -114,7 +152,7 @@ export function HistoryPage({ api = sessionApi }: HistoryPageProps) {
         <article className="history-stat-card card-panel">
           <span>FOCUS TIME</span>
           <strong>{dashboardLoading || dashboardError ? '—' : formatDashboardDuration(dashboard.focusSeconds)}</strong>
-          <small>{dashboardError ? 'Could not load summary' : range === 'All time' ? 'Across all recorded sessions' : `Across the last ${range.toLowerCase()}`}</small>
+          <small>{dashboardError ? 'Could not load summary' : customRange ? 'Across the selected dates' : range === 'All time' ? 'Across all recorded sessions' : `Across the last ${range.toLowerCase()}`}</small>
         </article>
         <article className="history-stat-card card-panel">
           <span>SESSIONS COMPLETED</span>
@@ -130,10 +168,10 @@ export function HistoryPage({ api = sessionApi }: HistoryPageProps) {
 
       <div className="history-insights-grid">
         <section className="history-rhythm card-panel" aria-labelledby="rhythm-heading">
-          <div className="history-insight-heading"><h2 id="rhythm-heading">Your rhythm this week</h2><span>Focus time</span></div>
-          {dashboardLoading || dashboardError ? <p className="history-chart-empty" role="status">{dashboardLoading ? 'Loading weekly focus time…' : 'Weekly focus time could not be loaded.'}</p> : <div className="history-chart" role="img" aria-label={`Weekly focus time: ${dashboard.week.map((day) => `${new Intl.DateTimeFormat(undefined, { weekday: 'short' }).format(day.date)} ${formatDashboardDuration(day.focusSeconds)}`).join(', ')}`}>
+          <div className="history-insight-heading"><h2 id="rhythm-heading">Your rhythm {customRange ? 'in this range' : 'this week'}</h2><span>Focus time</span></div>
+          {dashboardLoading || dashboardError ? <p className="history-chart-empty" role="status">{dashboardLoading ? 'Loading focus time…' : 'Focus time could not be loaded.'}</p> : <div className="history-chart" role="img" aria-label={`${customRange ? 'Selected-range' : 'Weekly'} focus time: ${dashboard.week.map((day) => `${new Intl.DateTimeFormat(undefined, { weekday: 'short' }).format(day.date)} ${formatDashboardDuration(day.focusSeconds)}`).join(', ')}`}>
             <div className="chart-axis"><span>{formatDashboardDuration(Math.max(7200, ...dashboard.week.map((day) => day.focusSeconds)))}</span><span>{formatDashboardDuration(Math.max(3600, ...dashboard.week.map((day) => day.focusSeconds)) / 2)}</span><span>0</span></div>
-            <div className="chart-bars">{dashboard.week.map((day) => {
+            <div className="chart-bars" style={{ gridTemplateColumns: `repeat(${Math.max(dashboard.week.length, 1)}, minmax(0, 1fr))` }}>{dashboard.week.map((day) => {
               const max = Math.max(7200, ...dashboard.week.map((entry) => entry.focusSeconds))
               const height = day.focusSeconds ? Math.max(6, day.focusSeconds / max * 100) : 0
               const todayBar = day.date.toDateString() === today.toDateString()
@@ -143,7 +181,7 @@ export function HistoryPage({ api = sessionApi }: HistoryPageProps) {
               </div>
             })}</div>
           </div>}
-          {!dashboardLoading && !dashboardError && dashboard.week.every((day) => day.focusSeconds === 0) && <p className="history-chart-empty">No focus sessions recorded this week.</p>}
+          {!dashboardLoading && !dashboardError && dashboard.week.every((day) => day.focusSeconds === 0) && <p className="history-chart-empty">No focus sessions recorded {customRange ? 'in this range' : 'this week'}.</p>}
         </section>
         <aside className="history-best-day" aria-label="Best day">
           <span>YOUR BEST DAY</span>

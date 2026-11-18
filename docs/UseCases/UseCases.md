@@ -399,8 +399,9 @@ FR-SES-06.
 1. The learner opens **History**; the initial range is today and the previous
    6 local calendar dates (7 days total).
 2. The learner may choose 30 days or all time and may filter by terminal
-   status. Session type filtering is omitted because focus sessions currently
-   always have type `WORK`.
+   status. The learner may also choose an inclusive custom local-date range of
+   up to 366 days. Session type filtering is omitted because focus sessions
+   currently always have type `WORK`.
 3. The UI requests `GET /api/v1/sessions` with the selected filters and page.
    All time omits `from` and `to`.
 4. The system validates dates, filters and pagination.
@@ -408,6 +409,16 @@ FR-SES-06.
    `page` and `size`.
 6. The UI renders project name, date/time, actual focus duration and status,
    newest first.
+
+### Optional CSV export
+
+1. The learner selects **Export CSV**.
+2. The UI retrieves every history page using the current date and status
+   filters, then serializes project, start time, focus duration and status.
+3. In the desktop app, Tauri opens a native save dialog with
+   `focus-history.csv` as the suggested filename and writes the CSV to the
+   selected path. Cancelling the dialog writes no file. Browser preview keeps
+   the browser download behavior.
 
 ### Extensions
 
@@ -417,10 +428,12 @@ FR-SES-06.
 
 ### Postconditions
 
-- No data is modified.
+- Session and application data are not modified; CSV export only writes the
+  learner-selected file.
 - The UI shows a paginated, filterable history. Date bounds are inclusive local
-  calendar dates; omitting both returns all history. No fixed maximum range is
-  imposed.
+  calendar dates; omitting both returns all history. The UI limits its
+  selectable range to 366 days because the analytics endpoint has that limit;
+  the history endpoint itself has no fixed maximum.
 - The 30-day choice likewise includes today and the previous 29 local calendar
   dates. The API converts the inclusive local range to a UTC start instant and
   an exclusive instant at midnight after the end date. A session is assigned
@@ -432,8 +445,9 @@ BR-03, BR-06.
 
 ### Related requirements and diagrams
 
-FR-HIS-02, FR-HIS-03, FR-HIS-05. Session details, streaks and analytics are
-deferred to their own stories.
+FR-HIS-02, FR-HIS-03, FR-HIS-05. Session details, streaks and distractions are
+deferred to their own stories. The current CSV export contains the filtered
+session list only; full export including analytics remains a later requirement.
 [Sequence diagram](../SD/SD_QuerySessionHistory.puml),
 [SSD](../SSD/SSD_HistoryAndStreak.puml).
 
@@ -487,13 +501,19 @@ FR-STR-01..04.
 score for a date range.
 **Priority / phase:** Must / MVP
 **Preconditions:** The backend is running.
-**Trigger:** The learner opens the **History** screen and selects a range.
+**Trigger:** The learner opens the **Overview** or **History** screen. On
+History, the learner can select a range.
 
 ### Main success scenario
 
-1. The learner selects a range on the existing History screen (default: last 7
-   local calendar days; available presets remain 7 days, 30 days and All time).
-2. The UI requests `GET /api/v1/analytics/summary`.
+1. On Overview, the UI requests `GET /api/v1/analytics/summary` for yesterday
+   and today, then uses the daily buckets for today's focus time, completed
+   sessions and the comparison with yesterday. On History, the learner selects
+   a preset (7 days, 30 days or All time) or an inclusive custom local-date
+   range. The History default remains the last 7 local calendar days.
+2. The History UI requests `GET /api/v1/analytics/summary` using the selected
+   date bounds. The same custom bounds filter the session list; the status
+   filter applies to the list and CSV export only.
 3. The system validates that explicit `from` and `to` bounds are supplied
    together, are inclusive local dates, and span no more than 366 calendar
    days. With both bounds omitted, the request means All time.
@@ -529,6 +549,9 @@ score for a date range.
 - Focus score = `round(100 × actual work seconds / planned work seconds)` over
   completed sessions, clamped to `[0, 100]`; a zero denominator yields `0`.
   Distraction penalties are deferred until their source data exists.
+- The Overview daily goal has no persisted setting yet and remains unavailable
+  until a goal setting is implemented. Distraction counts are not inferred
+  from session analytics.
 - Totals use completed sessions only.
 - The daily breakdown includes zero days. For All time it contains only the
   latest 7 local calendar days; explicit ranges contain every date in range.

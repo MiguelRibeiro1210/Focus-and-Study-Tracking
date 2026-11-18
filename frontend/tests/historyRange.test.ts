@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { createHistoryQuery, formatFocusDuration } from '../src/pages/historyRange'
+import { createHistoryQuery, formatFocusDuration, validateLocalDateRange } from '../src/pages/historyRange'
 
 describe('history query and display formatting', () => {
   it('builds inclusive seven and thirty local-calendar-day ranges', () => {
@@ -18,5 +18,12 @@ describe('history query and display formatting', () => {
     expect(formatFocusDuration(1500)).toBe('25 min')
     expect(formatFocusDuration(3660)).toBe('1 h 01 min')
     expect(formatFocusDuration(45)).toBe('45 sec')
+  })
+
+  it('validates paired inclusive custom dates and the 366-day analytics limit', () => {
+    expect(validateLocalDateRange('', '2026-01-01')).toContain('both')
+    expect(validateLocalDateRange('2026-02-02', '2026-02-01')).toContain('on or before')
+    expect(validateLocalDateRange('2025-01-01', '2026-01-01')).toBeNull()
+    expect(validateLocalDateRange('2024-12-31', '2026-01-01')).toContain('366 days')
   })
 })

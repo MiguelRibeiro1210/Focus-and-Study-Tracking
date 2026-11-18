@@ -1,39 +1,60 @@
 import { describe, expect, it } from 'vitest'
-import type { SessionHistoryItem } from '../src/api/sessionTypes'
-import { formatDashboardDuration, summarizeHistory } from '../src/pages/historyDashboard'
+import type { AnalyticsSummary } from '../src/api/sessionTypes'
+import { formatDashboardDuration, mapAnalyticsSummary } from '../src/pages/historyDashboard'
 
-function session(overrides: Partial<SessionHistoryItem> = {}): SessionHistoryItem {
+function summary(overrides: Partial<AnalyticsSummary> = {}): AnalyticsSummary {
   return {
-    sessionId: 'one', projectName: 'Study', sessionType: 'WORK', status: 'COMPLETED',
-    startedAt: '2026-11-15T10:00:00', endedAt: '2026-11-15T10:25:00', actualFocusDurationSeconds: 1500,
+    from: '2026-11-11', to: '2026-11-17', totalFocusSeconds: 2700, totalBreakSeconds: 0,
+    completedSessions: 1, averageSessionSeconds: 2700, focusScore: 100,
+    bestDay: { date: '2026-11-16', focusSeconds: 2700, completedSessions: 1 },
+    daily: [
+      { date: '2026-11-11', focusSeconds: 0, breakSeconds: 0, completedSessions: 0 },
+      { date: '2026-11-12', focusSeconds: 0, breakSeconds: 0, completedSessions: 0 },
+      { date: '2026-11-13', focusSeconds: 0, breakSeconds: 0, completedSessions: 0 },
+      { date: '2026-11-14', focusSeconds: 0, breakSeconds: 0, completedSessions: 0 },
+      { date: '2026-11-15', focusSeconds: 0, breakSeconds: 0, completedSessions: 0 },
+      { date: '2026-11-16', focusSeconds: 2700, breakSeconds: 0, completedSessions: 1 },
+      { date: '2026-11-17', focusSeconds: 0, breakSeconds: 0, completedSessions: 0 },
+    ],
     ...overrides,
   }
 }
 
 describe('history dashboard aggregation', () => {
-  const today = new Date(2026, 10, 17, 12)
+  it('maps the backend summary and its daily buckets to existing dashboard presentation', () => {
+    const dashboard = mapAnalyticsSummary(summary())
 
-  it('totals selected-range focus time, completed sessions, weekly bars, and best day', () => {
-    const summary = summarizeHistory([
-      session({ startedAt: '2026-11-16T10:00:00', actualFocusDurationSeconds: 1800 }),
-      session({ sessionId: 'two', startedAt: '2026-11-16T11:00:00', status: 'ABANDONED', actualFocusDurationSeconds: 900 }),
-      session({ sessionId: 'three', startedAt: '2026-11-10T10:00:00', actualFocusDurationSeconds: 6000 }),
-    ], '7 days', today)
-
-    expect(summary.focusSeconds).toBe(2700)
-    expect(summary.completedSessions).toBe(1)
-    expect(summary.distractionsBlocked).toBe(0)
-    expect(summary.week.find((day) => day.date.getDate() === 16)?.focusSeconds).toBe(2700)
-    expect(summary.bestDay?.date.getDate()).toBe(16)
-    expect(summary.bestDay?.sessionCount).toBe(2)
+    expect(dashboard.focusSeconds).toBe(2700)
+    expect(dashboard.completedSessions).toBe(1)
+    expect(dashboard.distractionsBlocked).toBe(0)
+    expect(dashboard.week).toHaveLength(7)
+    expect(dashboard.week.find((day) => day.date.getDate() === 16)?.focusSeconds).toBe(2700)
+    expect(dashboard.bestDay?.date.getDate()).toBe(16)
+    expect(dashboard.bestDay?.sessionCount).toBe(1)
   })
 
-  it('returns zero totals and no best day for an empty range', () => {
-    const summary = summarizeHistory([], '30 days', today)
-    expect(summary.focusSeconds).toBe(0)
-    expect(summary.completedSessions).toBe(0)
-    expect(summary.bestDay).toBeNull()
-    expect(summary.week.every((day) => day.focusSeconds === 0)).toBe(true)
+  it('uses only the most recent seven buckets for the existing weekly chart', () => {
+    const fullRange = summary({ daily: Array.from({ length: 30 }, (_, index) => ({
+      date: `2026-10-${String(index + 1).padStart(2, '0')}`,
+      focusSeconds: index + 1, breakSeconds: 0, completedSessions: 1,
+    })) })
+
+    const dashboard = mapAnalyticsSummary(fullRange)
+
+    expect(dashboard.week).toHaveLength(7)
+    expect(dashboard.week[0].focusSeconds).toBe(24)
+    expect(dashboard.week[6].focusSeconds).toBe(30)
+  })
+
+  it('keeps the empty-state values when the backend has no completed sessions', () => {
+    const dashboard = mapAnalyticsSummary(summary({
+      totalFocusSeconds: 0, completedSessions: 0, bestDay: null,
+      daily: summary().daily.map((day) => ({ ...day, focusSeconds: 0, completedSessions: 0 })),
+    }))
+    expect(dashboard.focusSeconds).toBe(0)
+    expect(dashboard.completedSessions).toBe(0)
+    expect(dashboard.bestDay).toBeNull()
+    expect(dashboard.week.every((day) => day.focusSeconds === 0)).toBe(true)
   })
 
   it('formats durations in hours and minutes', () => {

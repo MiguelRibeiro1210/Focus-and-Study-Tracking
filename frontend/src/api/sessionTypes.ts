@@ -42,6 +42,31 @@ export interface SessionHistoryQuery {
   size?: number
 }
 
+export interface AnalyticsDailySummary {
+  date: string
+  focusSeconds: number
+  breakSeconds: number
+  completedSessions: number
+}
+
+export interface AnalyticsBestDay {
+  date: string
+  focusSeconds: number
+  completedSessions: number
+}
+
+export interface AnalyticsSummary {
+  from: string | null
+  to: string | null
+  totalFocusSeconds: number
+  totalBreakSeconds: number
+  completedSessions: number
+  averageSessionSeconds: number
+  focusScore: number
+  bestDay: AnalyticsBestDay | null
+  daily: AnalyticsDailySummary[]
+}
+
 export type SessionType = 'WORK' | 'SHORT_BREAK' | 'LONG_BREAK'
 export type SessionState = 'IDLE' | 'RUNNING' | 'PAUSED' | 'WAITING_FOR_NEXT_INTERVAL' | 'COMPLETED' | 'ABANDONED'
 export type IntervalState = 'PENDING' | 'RUNNING' | 'COMPLETED' | 'SKIPPED'
@@ -85,6 +110,38 @@ export function isSessionHistoryPage(value: unknown): value is SessionHistoryPag
     && Number.isInteger(page.total)
     && Number.isInteger(page.page)
     && Number.isInteger(page.size)
+}
+
+export function isAnalyticsSummary(value: unknown): value is AnalyticsSummary {
+  if (typeof value !== 'object' || value === null) return false
+  const summary = value as Record<string, unknown>
+  return (typeof summary.from === 'string' || summary.from === null)
+    && (typeof summary.to === 'string' || summary.to === null)
+    && Number.isFinite(summary.totalFocusSeconds)
+    && Number.isFinite(summary.totalBreakSeconds)
+    && Number.isInteger(summary.completedSessions)
+    && Number.isFinite(summary.averageSessionSeconds)
+    && Number.isInteger(summary.focusScore)
+    && (summary.bestDay === null || isAnalyticsBestDay(summary.bestDay))
+    && Array.isArray(summary.daily)
+    && summary.daily.every(isAnalyticsDailySummary)
+}
+
+function isAnalyticsBestDay(value: unknown): value is AnalyticsBestDay {
+  if (typeof value !== 'object' || value === null) return false
+  const day = value as Record<string, unknown>
+  return typeof day.date === 'string'
+    && Number.isFinite(day.focusSeconds)
+    && Number.isInteger(day.completedSessions)
+}
+
+function isAnalyticsDailySummary(value: unknown): value is AnalyticsDailySummary {
+  if (typeof value !== 'object' || value === null) return false
+  const day = value as Record<string, unknown>
+  return typeof day.date === 'string'
+    && Number.isFinite(day.focusSeconds)
+    && Number.isFinite(day.breakSeconds)
+    && Number.isInteger(day.completedSessions)
 }
 
 function isSessionHistoryItem(value: unknown): value is SessionHistoryItem {

@@ -3,13 +3,14 @@ import type { SessionResponse } from '../api/sessionTypes'
 import { sessionApi, type SessionApi } from '../api/sessionApi'
 import type { TimerAction, TimerController } from './useTimerSession'
 import { overviewSummary } from '../pages/futureData'
+import { localDateKey, mapOverviewAnalytics, type OverviewAnalytics } from '../pages/overviewAnalytics'
 import { formatFocusDuration, formatHistoryDateTime } from '../pages/historyRange'
 import { useSessionHistory } from '../pages/useSessionHistory'
 
 interface TimerScreenProps {
   timer: TimerController
   onViewHistory?: () => void
-  api?: Pick<SessionApi, 'getSessionHistory'>
+  api?: Pick<SessionApi, 'getSessionHistory'> & Partial<Pick<SessionApi, 'getAnalyticsSummary'>>
 }
 
 function intervalLabel(type: SessionResponse['intervalType']): string {
@@ -63,6 +64,30 @@ export function TimerScreen({ timer, onViewHistory, api = sessionApi }: TimerScr
   const cancelStopRef = useRef<HTMLButtonElement>(null)
   const stopTriggerRef = useRef<HTMLButtonElement>(null)
   const session = timer.session
+  const [today] = useState(() => new Date())
+  const [overviewState, setOverviewState] = useState<{ analytics: OverviewAnalytics | null; error: string | null } | null>(null)
+  const getAnalyticsSummary = api.getAnalyticsSummary
+  useEffect(() => {
+    if (!getAnalyticsSummary) return
+    let current = true
+    const yesterday = new Date(today)
+    yesterday.setDate(yesterday.getDate() - 1)
+    void getAnalyticsSummary({ from: localDateKey(yesterday), to: localDateKey(today) }).then((summary) => {
+      if (current) setOverviewState({ analytics: mapOverviewAnalytics(summary, today), error: null })
+    }).catch((cause: unknown) => {
+      if (current) setOverviewState({
+        analytics: null,
+        error: cause instanceof Error ? cause.message : 'Could not load today’s summary.',
+      })
+    })
+    return () => { current = false }
+  }, [getAnalyticsSummary, today])
+  const overview = overviewState?.analytics ?? {
+    focusSecondsToday: overviewSummary.focusSecondsToday,
+    focusSecondsYesterday: overviewSummary.focusSecondsYesterday,
+    completedSessionsToday: overviewSummary.completedSessionsToday,
+  }
+  const overviewLoading = Boolean(getAnalyticsSummary) && overviewState === null
   const canEditProjectName = !session || session.state === 'COMPLETED' || session.state === 'ABANDONED'
   const projectName = session && (!canEditProjectName || projectDraft.sessionId !== session.sessionId)
     ? session.projectName : projectDraft.value
@@ -79,9 +104,9 @@ export function TimerScreen({ timer, onViewHistory, api = sessionApi }: TimerScr
     : session?.state === 'COMPLETED' ? 100 : 0
   const ringStyle = { '--progress': `${progress}%` } as CSSProperties
   const dailyProgress = overviewSummary.dailyGoalSeconds > 0
-    ? Math.min(100, Math.round((overviewSummary.focusSecondsToday / overviewSummary.dailyGoalSeconds) * 100))
+    ? Math.min(100, Math.round((overview.focusSecondsToday / overviewSummary.dailyGoalSeconds) * 100))
     : 0
-  const focusTimeDifferenceMinutes = Math.round((overviewSummary.focusSecondsToday - overviewSummary.focusSecondsYesterday) / 60)
+  const focusTimeDifferenceMinutes = Math.round((overview.focusSecondsToday - overview.focusSecondsYesterday) / 60)
 
   useEffect(() => {
     if (confirmStop) cancelStopRef.current?.focus()
@@ -156,8 +181,8 @@ export function TimerScreen({ timer, onViewHistory, api = sessionApi }: TimerScr
 
   return <div className="overview-layout">
     <section className="overview-stats" aria-label="Today's focus summary">
-      <article className="stat-card"><p>Focus time today</p><strong>{formatSummaryDuration(overviewSummary.focusSecondsToday)}</strong><small>{focusTimeDifferenceMinutes >= 0 ? '+' : ''}{focusTimeDifferenceMinutes} min compared to yesterday</small></article>
-      <article className="stat-card"><p>Working sessions completed</p><strong>{overviewSummary.completedSessionsToday}</strong><small>Sessions completed today</small></article>
+      <article className="stat-card"><p>Focus time today</p><strong>{overviewLoading || overviewState?.error ? '—' : formatSummaryDuration(overview.focusSecondsToday)}</strong><small>{overviewState?.error ?? (overviewLoading ? 'Loading today’s summary…' : `${focusTimeDifferenceMinutes >= 0 ? '+' : ''}${focusTimeDifferenceMinutes} min compared to yesterday`)}</small></article>
+      <article className="stat-card"><p>Working sessions completed</p><strong>{overviewLoading || overviewState?.error ? '—' : overview.completedSessionsToday}</strong><small>{overviewState?.error ? 'Summary unavailable' : 'Sessions completed today'}</small></article>
       <article className="stat-card"><p>Distractions blocked</p><strong>{overviewSummary.distractionsBlockedToday}</strong><small>Blocked distractions today</small></article>
     </section>
 
@@ -207,10 +232,10 @@ export function TimerScreen({ timer, onViewHistory, api = sessionApi }: TimerScr
       <aside className="daily-goal-panel">
         <h2>Focus is a habit.</h2><p className="goal-intro">And you’re making room for it.</p>
         <p className="goal-label">DAILY GOAL</p>
-        <div className="goal-total"><strong>{formatSummaryDuration(overviewSummary.focusSecondsToday)}</strong><span>/ {formatSummaryDuration(overviewSummary.dailyGoalSeconds)}</span></div>
+        <div className="goal-total"><strong>{overviewLoading || overviewState?.error ? '—' : formatSummaryDuration(overview.focusSecondsToday)}</strong><span>/ {formatSummaryDuration(overviewSummary.dailyGoalSeconds)}</span></div>
         <div className="goal-progress"><span style={{ width: `${dailyProgress}%` }} /></div>
         <p className="goal-complete">{dailyProgress}% complete</p>
-        <p className="goal-remaining">{formatSummaryDuration(Math.max(0, overviewSummary.dailyGoalSeconds - overviewSummary.focusSecondsToday))} left to reach your goal.</p>
+        <p className="goal-remaining">{formatSummaryDuration(Math.max(0, overviewSummary.dailyGoalSeconds - overview.focusSecondsToday))} left to reach your goal.</p>
         <p className="goal-copy">Every session counts. Go at your own pace.</p>
         <p className="goal-footer">Taking a break is progress, too.</p>
       </aside>

@@ -15,6 +15,7 @@ use std::{
     time::{Duration, Instant},
 };
 use tauri::{AppHandle, Emitter, Manager, State};
+use tauri_plugin_dialog::DialogExt;
 use tungstenite::{client::IntoClientRequest, connect, stream::MaybeTlsStream, Message};
 
 const API_BASE: &str = "http://127.0.0.1:8080";
@@ -471,6 +472,30 @@ fn backend_status(supervisor: State<'_, Arc<BackendSupervisor>>) -> BackendStatu
 }
 
 #[tauri::command]
+async fn save_history_csv(app: AppHandle, csv: String) -> Result<bool, String> {
+    let result = tauri::async_runtime::spawn_blocking(move || {
+        let Some(file_path) = app
+            .dialog()
+            .file()
+            .add_filter("CSV", &["csv"])
+            .set_file_name("focus-history.csv")
+            .blocking_save_file()
+        else {
+            return Ok(false);
+        };
+        let path = file_path
+            .into_path()
+            .map_err(|error| format!("Could not use the selected export path: {error}"))?;
+        fs::write(path, csv.as_bytes())
+            .map_err(|error| format!("Could not save CSV file: {error}"))?;
+        Ok(true)
+    })
+    .await
+    .map_err(|error| format!("CSV save operation failed: {error}"))?;
+    result
+}
+
+#[tauri::command]
 fn retry_backend(
     app: AppHandle,
     supervisor: State<'_, Arc<BackendSupervisor>>,
@@ -645,6 +670,7 @@ pub fn run() {
     );
     let supervisor_for_exit = Arc::clone(&supervisor);
     tauri::Builder::default()
+        .plugin(tauri_plugin_dialog::init())
         .manage(supervisor.clone())
         .setup(move |app| {
             supervisor.start(app.handle().clone());
@@ -654,6 +680,7 @@ pub fn run() {
             backend_status,
             retry_backend,
             api_request,
+            save_history_csv,
             connect_session_websocket,
             disconnect_session_websocket
         ])
