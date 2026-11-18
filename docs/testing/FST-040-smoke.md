@@ -16,6 +16,8 @@ npm run smoke:tauri
 The runner covers:
 
 - Tauri starts the backend and waits until `/health` responds.
+- The authenticated `/api/v1/analytics/summary` route returns totals and daily
+  buckets through the sidecar API.
 - An authenticated REST request starts a session.
 - The authenticated WebSocket receives the matching `session.started` event.
 - Closing and reopening the Tauri shell stops and restarts its backend; the

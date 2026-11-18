@@ -110,6 +110,11 @@ async function run() {
   let app = launchApp()
   await waitForHealth(app)
   const token = await apiToken()
+  const analyticsResponse = await request(token, '/api/v1/analytics/summary')
+  assert(analyticsResponse.status === 200, `Expected analytics summary status 200, got ${analyticsResponse.status}`)
+  const analyticsSummary = await analyticsResponse.json()
+  assert(Number.isFinite(analyticsSummary.totalFocusSeconds), 'Analytics summary did not contain a focus total.')
+  assert(Array.isArray(analyticsSummary.daily), 'Analytics summary did not contain daily buckets.')
   const socket = new WebSocket('ws://127.0.0.1:8080/ws', { headers: { Authorization: `Bearer ${token}`, Origin: 'tauri://localhost' } })
   await new Promise((resolveOpen, rejectOpen) => {
     socket.once('open', resolveOpen)
