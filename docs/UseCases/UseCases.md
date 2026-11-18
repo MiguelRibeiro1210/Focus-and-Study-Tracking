@@ -27,7 +27,7 @@ view. It complements the [use case diagram](UseCases.svg) and the
 | UC-07 | View session history | Learner | Must | MVP | [SD](../SD/SD_QuerySessionHistory.puml) |
 | UC-08 | View daily streak | Learner | Must | MVP | [SD](../SD/SD_CalculateDailyStreak.puml) |
 | UC-09 | View productivity analytics | Learner | Must | MVP | [SD](../SD/SD_ViewAnalytics.puml) |
-| UC-10 | Configure timer settings | Learner | Must | MVP | [SD](../SD/SD_ConfigureTimerSettings.puml) |
+| UC-10 | Configure timer profiles and settings | Learner | Must | MVP | [SD](../SD/SD_ConfigureTimerSettings.puml) |
 | UC-11 | Configure application settings | Learner | Should | MVP | [SD](../SD/SD_ConfigureApplicationSettings.puml) |
 | UC-12 | Manage blocking rules | Learner | Should | Phase 2 | [SD](../SD/SD_ManageBlockingRules.puml) |
 | UC-13 | Detect distracting application | Operating System | Should | Phase 2 | [SD](../SD/SD_DetectDistraction.puml) |
@@ -524,10 +524,13 @@ History, the learner can select a range.
    best day and focus score.
 6. The system returns the summary and zero-filled daily breakdown. Daily
    buckets use each session's `startedAt` local date.
-7. The UI uses returned values in the existing History screen layout. This
-   story preserves the current visual design; the focus score is returned by
-   the API but is not placed on the screen until its location is approved in a
-   later UI story.
+7. On Overview, the UI also loads the saved daily goal and active-session
+   snapshot. It counts completed work intervals from that active session and
+   adds the current work interval's actual duration only after that interval
+   reaches 300 seconds. The live amount updates while that interval runs and
+   freezes while paused or on a break.
+   History continues to show completed-session analytics only. The focus score
+   remains off the UI in this story.
 
 ### Extensions
 
@@ -549,9 +552,15 @@ History, the learner can select a range.
 - Focus score = `round(100 × actual work seconds / planned work seconds)` over
   completed sessions, clamped to `[0, 100]`; a zero denominator yields `0`.
   Distraction penalties are deferred until their source data exists.
-- The Overview daily goal has no persisted setting yet and remains unavailable
-  until a goal setting is implemented. Distraction counts are not inferred
-  from session analytics.
+- The Overview daily goal is a persisted integer from 1 to 24 hours. Its
+  progress combines completed-session focus time, completed work intervals
+  from the active session, and the current work interval's actual duration
+  only once that interval reaches 300 seconds. The live contribution updates
+  while the interval runs and pauses during breaks or when the session is
+  paused. Analytics totals remain based on completed sessions only.
+  Distraction counts are not inferred from session analytics.
+- Overview displays daily-goal progress, but does not add a focus-score or
+  distraction widget in this story.
 - Totals use completed sessions only.
 - The daily breakdown includes zero days. For All time it contains only the
   latest 7 local calendar days; explicit ranges contain every date in range.
@@ -571,37 +580,46 @@ FR-ANA-01..05.
 [SSD](../SSD/SSD_Analytics.puml),
 [domain model](../DM/DomainModel.md).
 
-## 13. UC-10 — Configure timer settings
+## 13. UC-10 — Configure timer profiles and settings
 
 **Actor:** Learner
-**Goal:** Change work and break durations and auto-start behaviour.
+**Goal:** Manage saved timer profiles and select the profile used for new
+sessions.
 **Priority / phase:** Must / MVP
 **Preconditions:** The backend is running.
-**Trigger:** The learner opens **Settings → Timer** and saves.
+**Trigger:** The learner opens **Settings → Timer profiles**.
 
 ### Main success scenario
 
-1. The learner edits work duration, short break, long break, intervals before a
-   long break, and auto-start options.
-2. The UI sends `PUT /api/v1/settings/timer`.
-3. The system validates every field.
-4. The system loads `AppSettings` and updates the timer settings.
-5. The system persists the settings.
-6. The system returns the updated DTO.
-7. The UI confirms the change and shows the new defaults.
+1. The UI requests `GET /api/v1/settings` and displays the saved profiles and
+   selected default.
+2. The learner creates a profile, edits any profile (including a starter
+   profile), or selects a profile as the default.
+3. The UI sends the corresponding profile create, update or default-selection
+   request.
+4. The system validates the profile name and all timer preferences, updates
+   the `AppSettings` aggregate, and persists it.
+5. The system returns the updated settings and profile list.
+6. The learner may delete any profile after selecting a replacement when the
+   profile being removed is the current default.
 
 ### Extensions
 
-- **3a. Invalid field.** `422 VALIDATION_ERROR` with field-level details.
-- **3b. Long break shorter than short break.** `422 VALIDATION_ERROR`.
-- **5a. Persistence fails.** The previous settings remain in effect.
-- **6a. A session is active.** The change is accepted for future sessions; the
+- **4a. Invalid field or duplicate profile name.** `422 VALIDATION_ERROR` with
+  field-level details.
+- **4b. Long break shorter than short break.** `422 VALIDATION_ERROR`.
+- **4c. The learner tries to remove the last profile or the default without
+  first selecting a replacement.** The request is rejected and no data changes.
+- **4d. Persistence fails.** The previous settings remain in effect.
+- **5a. A session is active.** The change is accepted for future sessions; the
   active session keeps its snapshot.
 
 ### Postconditions
 
-- The new settings are persisted.
-- New sessions use the new values.
+- At least one profile always exists, and exactly one profile is the default.
+- Profile names are trimmed and unique without regard to letter case.
+- New profiles begin as a copy of the current default profile.
+- New sessions use the current default profile's values.
 - Active sessions are unchanged.
 
 ### Business rules
@@ -614,42 +632,64 @@ FR-ANA-01..05.
 
 ### Related requirements and diagrams
 
-FR-SET-01, FR-SET-02, FR-SET-03, FR-SET-05, FR-SET-06.
+FR-SET-01..03, FR-SET-05..06, FR-SET-07.
 [Sequence diagram](../SD/SD_ConfigureTimerSettings.puml),
 [SSD](../SSD/SSD_Settings.puml).
+
+### One-session timer override from Overview
+
+Overview displays the selected default profile's durations. The learner may
+change work, short-break and long-break durations before starting a session.
+Each changed duration overrides only that session; unchanged values and the
+interval count and independent auto-start settings come from the default
+profile. The override is validated using the timer duration rules and is not
+saved to the profile. The session stores the resulting immutable settings
+snapshot.
 
 ## 14. UC-11 — Configure application settings
 
 **Actor:** Learner
-**Goal:** Change theme, notifications, retention and data controls.
+**Goal:** Change application preferences and manage local data.
 **Priority / phase:** Should / MVP
 **Preconditions:** The backend is running.
-**Trigger:** The learner opens **Settings → Application**.
+**Trigger:** The learner opens **Settings**.
 
 ### Main success scenario
 
-1. The UI requests `GET /api/v1/settings`.
-2. The system returns timer, theme, notification and retention settings.
-3. The learner changes theme, notifications or retention.
-4. The UI sends `PUT /api/v1/settings/application`.
-5. The system validates and persists the changes.
-6. The system returns the updated settings.
-7. The UI applies the theme immediately.
+1. The UI requests `GET /api/v1/settings` and displays the daily focus goal,
+   theme, notification and retention preferences.
+2. The learner changes one or more preferences; the system validates and
+   persists the update.
+3. The system returns updated settings and the UI applies the theme
+   immediately.
+4. The learner may open the local data directory or export all settings,
+   profiles, sessions and analytics as a JSON file or a ZIP of CSV files.
+5. The learner may clear session history; after explicit confirmation the
+   system removes completed and abandoned sessions while preserving settings
+   and any active session.
+6. The learner may request deletion of all personal data; the system requires
+   explicit confirmation, stops an active session, deletes all personal data,
+   then recreates default settings and starter profiles.
 
 ### Extensions
 
-- **5a. Invalid retention.** `422 VALIDATION_ERROR`.
-- **5b. Unsupported theme.** `422 VALIDATION_ERROR`.
-- **5c. The learner requests deletion of all data.** The system requires an
+- **2a. Invalid goal or retention.** `422 VALIDATION_ERROR`.
+- **2b. Unsupported theme.** `422 VALIDATION_ERROR`.
+- **5a. The learner cancels history deletion.** No data is changed.
+- **6a. The learner cancels deletion of all data.** No data is changed.
+- **6b. The learner requests deletion of all data.** The system requires an
   explicit confirmation, then deletes sessions, intervals, distractions,
-  progress and settings, recreates defaults, and returns `204 No Content`.
-- **5d. Retention cleanup is triggered.** The system deletes data older than the
+  progress, profiles, outbox events and settings, recreates defaults, and
+  returns `204 No Content`.
+- **7a. Retention cleanup is triggered.** The system deletes data older than the
   configured retention, never the active session.
 
 ### Postconditions
 
 - Settings are persisted and applied.
-- Deletion is irreversible and leaves a clean default state.
+- History clearing is irreversible but does not stop the active session or
+  delete preferences.
+- Delete-all is irreversible and leaves the clean default state.
 
 ### Business rules
 
@@ -659,7 +699,7 @@ FR-SET-01, FR-SET-02, FR-SET-03, FR-SET-05, FR-SET-06.
 
 ### Related requirements and diagrams
 
-FR-SET-04, FR-PRV-04, FR-PRV-05.
+FR-SET-04, FR-SET-09, FR-PRV-04..08.
 [Sequence diagram](../SD/SD_ConfigureApplicationSettings.puml),
 [SSD](../SSD/SSD_Settings.puml).
 

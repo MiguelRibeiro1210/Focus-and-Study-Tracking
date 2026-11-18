@@ -144,6 +144,10 @@ Every requirement is traced to a use case and to the project board in
 | FR-SET-04 | The learner can configure theme, notifications and data retention. | Should | MVP | UC-11 | FST-020 |
 | FR-SET-05 | Invalid settings are rejected with field-level validation errors. | Must | MVP | UC-10 | FST-020 |
 | FR-SET-06 | Settings changes apply to new sessions; active sessions keep their snapshot. | Must | MVP | UC-10 | FST-005 |
+| FR-SET-07 | The learner can create, edit, select as default, and delete timer profiles, including the built-in profiles. | Must | MVP | UC-10 | FST-020 |
+| FR-SET-08 | The learner can override work, short-break and long-break durations for one session from Overview without changing a saved profile. | Must | MVP | UC-01, UC-10 | FST-017, FST-020 |
+| FR-SET-09 | The learner can set a daily focus goal from 1 to 24 whole hours. | Should | MVP | UC-09, UC-11 | FST-020 |
+| FR-SET-10 | Overview goal progress includes the active session's current work interval after it reaches five minutes. | Should | MVP | UC-09 | FST-020 |
 
 ### Acceptance criteria — settings
 
@@ -152,7 +156,38 @@ Every requirement is traced to a use case and to the project board in
 - Long break must be between 1 and 120 minutes and not shorter than the short
   break.
 - `intervalsBeforeLongBreak` must be between 1 and 12.
+- Each timer profile has a trimmed, non-empty name unique without regard to
+  letter case. A profile contains the three durations, intervals before a long
+  break, and independent work/break auto-start flags.
+- Built-in starter profiles can be edited and deleted. At least one profile
+  must remain; deleting the current default requires selecting another default
+  first. Creating a profile starts with a copy of the current default profile.
+- Overview starts with the selected default profile. Editing one or more
+  duration fields changes only those values for that session; unchanged
+  durations, interval count and auto-start flags come from the default profile.
+  The override is not saved as a profile. Duration bounds are the same as
+  FR-SET-01..03 and long break must remain at least as long as short break.
+- Daily goal is an integer number of hours from 1 to 24. The default is 3 hours.
+- Daily goal progress uses completed-session focus time, completed work
+  intervals from the active session, and the current work interval's actual
+  duration only after that interval reaches 300 seconds. It updates live while
+  that interval runs and stops increasing while paused or on a break. The
+  progress bar caps at 100%; the displayed focus total may continue above the
+  goal.
+- Starter profiles are Classic (25/5/15 minutes), Deep work (50/10/20 minutes)
+  and Quick session (15/3/10 minutes). Classic is the initial default; all
+  start with four work intervals before a long break and both auto-start flags
+  disabled. The initial theme is light, notifications are enabled and data
+  retention is keep forever.
+- Export all data offers a JSON file or a ZIP archive of CSV files and includes
+  settings, profiles, sessions and analytics. Clear session history deletes
+  only completed and abandoned sessions, preserving settings and any active
+  session. Delete all data is a separate confirmed action that stops an active
+  session, deletes all personal data and recreates default settings and starter
+  profiles. The data-folder action opens the local application-data directory.
 - Retention must be between 7 and 3650 days, or "keep forever".
+- Notifications cover session and break completion. Theme changes apply
+  immediately; supported choices are light, dark and system.
 - A rejected update leaves the previous settings unchanged.
 
 ## 6. Distraction control (Phase 2)
@@ -188,7 +223,9 @@ Every requirement is traced to a use case and to the project board in
 | FR-PRV-03 | The local API binds to loopback and requires a per-installation token. | Must | MVP | all | FST-014 |
 | FR-PRV-04 | The learner can configure data retention and trigger cleanup. | Should | MVP | UC-11 | FST-020 |
 | FR-PRV-05 | The learner can delete all personal data after an explicit confirmation. | Should | MVP | UC-11 | FST-020 |
-| FR-PRV-06 | The learner can export sessions and analytics as JSON/CSV. | Could | Phase 3 | — | FST-031 |
+| FR-PRV-06 | The learner can export settings, profiles, sessions and analytics as a JSON file or CSV archive. | Should | MVP | UC-11 | FST-020, FST-036 |
+| FR-PRV-07 | The learner can clear completed and abandoned session history without deleting settings or an active session. | Should | MVP | UC-11 | FST-020 |
+| FR-PRV-08 | The learner can open the local application-data directory from Settings. | Could | MVP | UC-11 | FST-020 |
 
 ### Acceptance criteria — privacy
 
@@ -198,6 +235,11 @@ Every requirement is traced to a use case and to the project board in
 - The API rejects non-loopback origins.
 - Deleting all data removes sessions, intervals, distractions, progress and
   settings, then recreates default settings.
+- Clearing session history removes only completed and abandoned sessions and
+  their intervals/outbox records; it preserves settings and active sessions.
+- An export contains settings, timer profiles, session and interval history,
+  and analytics. JSON is a single portable file; CSV is a ZIP archive with
+  separate tables for settings, profiles, sessions, intervals and analytics.
 - Retention cleanup never deletes the active session.
 
 ## 8. Future content intelligence (Phase 3)

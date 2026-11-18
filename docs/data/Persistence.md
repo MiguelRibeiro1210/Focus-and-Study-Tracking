@@ -74,10 +74,29 @@ columns). `blocking_rule` stores the entity rows (`id`, `policy_id`, `pattern`,
 `action`, `category`, `enabled`, `created_at`). A partial/unique index enforces
 **at most one active policy** and `(policy_id, pattern)` uniqueness.
 
-### `app_settings`
+### `app_settings` and `timer_profile`
 
-One row per installation: timer defaults, theme, notifications and retention.
-The active session does not read this row; it uses its snapshot.
+`app_settings` stores one row per installation: the selected default
+`timer_profile_id`, daily goal hours, theme, notification preference and data
+retention policy. `timer_profile` stores the entity rows owned by the
+`AppSettings` aggregate: profile ID, name, work/short-break/long-break seconds,
+intervals before a long break, independent auto-start flags, and audit fields.
+Profile names are unique without regard to case. The aggregate always retains
+at least one profile; deleting the current default requires selecting a
+replacement first. Starter profiles are editable and deletable.
+
+At first run, seed Classic (25/5/15 minutes), Deep work (50/10/20 minutes) and
+Quick session (15/3/10 minutes), each with four work intervals before a long
+break and both auto-start flags disabled. Classic is the initial default. The
+initial daily goal is three hours, theme is light, notifications are enabled
+and retention is keep forever. New profiles copy the current default's timer
+preferences. The active session does not read this row after creation; it uses
+its own `settings_snapshot`.
+
+An Overview one-session duration override is not written to `timer_profile` or
+`app_settings`. The session's `settings_snapshot` stores the overridden work,
+short-break and long-break durations together with the default profile's
+interval count and auto-start flags.
 
 ## 3. Event delivery and read-model tables
 
@@ -159,7 +178,11 @@ events, that data can no longer be reconstructed.
 - "Keep forever" disables time-based deletion.
 - "Delete all data" requires explicit confirmation, stops the active session,
   removes sessions, intervals, distraction logs, daily progress, outbox events,
-  projection receipts and settings, then recreates default settings.
+  projection receipts, profiles and settings, then recreates default settings
+  and starter profiles.
+- "Clear session history" requires explicit confirmation and removes completed
+  and abandoned sessions, their intervals and related outbox events. It
+  preserves settings and any active session.
 - The read models can be rebuilt after deletion only from data that still
   exists; deletion is intentionally irreversible.
 

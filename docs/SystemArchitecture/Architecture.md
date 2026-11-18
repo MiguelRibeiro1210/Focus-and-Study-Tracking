@@ -60,9 +60,10 @@ runtime interactions and persistence are described in the sequence diagrams and
 ### 4.1 Session lifecycle
 
 1. The UI sends `POST /api/v1/sessions`.
-2. `StartSessionUseCase` loads `AppSettings`, maps `TimerPreferences` to a
-   `SessionSettings` snapshot, creates `FocusSession` through
-   `FocusSessionFactory` and saves it.
+2. `StartSessionUseCase` loads `AppSettings`, resolves the selected default
+   `TimerProfile`, applies any one-session duration overrides from Overview,
+   maps the effective preferences to a `SessionSettings` snapshot, creates
+   `FocusSession` through `FocusSessionFactory` and saves it.
 3. The session and `SessionStarted` outbox record commit atomically; the
    dispatcher forwards the event to projections and WebSocket after commit.
 4. The backend scheduler invokes interval completion internally. The
@@ -120,7 +121,7 @@ The write side never updates the `DistractionLog` directly.
 
 The write model and read model share one local database but use separate tables.
 The write side includes `focus_session`, `session_interval`, `blocking_policy`,
-`blocking_rule`, `app_settings` and the durable outbox. `daily_progress` and
+`blocking_rule`, `app_settings`, `timer_profile` and the durable outbox. `daily_progress` and
 `distraction_log` are read-model tables. `ProductivitySummary` is computed on
 read and is not stored as a table. See
 [`../data/Persistence.md`](../data/Persistence.md).

@@ -9,6 +9,9 @@ Learner -> System : requestAnalytics(from, to)
 System --> Learner : analytics(from, to, totalFocusSeconds, totalBreakSeconds, completedSessions, averageSessionSeconds, focusScore, bestDay)
 System --> Learner : dailyBreakdown(date, focusSeconds, breakSeconds, completedSessions)
 
+Learner -> System : requestOverviewGoalProgress(today)
+System --> Learner : dailyGoalProgress(completedFocus, activeCompletedWork, currentWorkIntervalAfter300Seconds, goalHours)
+
 note right of System
   Explicit date bounds are inclusive local dates
   and limited to 366 days. With no bounds, totals
@@ -18,6 +21,9 @@ note right of System
   time, rounded and clamped to 0..100. Distraction
   metrics are deferred until tracking exists.
   No data leaves the device.
+  Overview also counts completed work intervals from the active session and
+  adds its current work interval after that interval reaches 300 seconds. The
+  current interval contribution pauses during a break or session pause.
 end note
 
 @enduml

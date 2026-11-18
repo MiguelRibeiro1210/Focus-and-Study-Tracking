@@ -6,15 +6,29 @@ actor Learner
 participant "FocusDesktop System" as System
 
 Learner -> System : requestSettings()
-System --> Learner : settings(timer, theme, notifications, retention)
+System --> Learner : settings(profiles, defaultProfileId, dailyGoalHours, theme, notifications, retention)
 
-Learner -> System : updateTimerSettings(workSeconds, shortBreakSeconds, longBreakSeconds, intervalsBeforeLongBreak, autoStartBreaks, autoStartWork)
+Learner -> System : createProfile(name) / updateProfile(profileId, preferences) / deleteProfile(profileId)
+System --> Learner : profileUpdated(settings)
+
+Learner -> System : selectDefaultProfile(profileId)
 System --> Learner : settingsUpdated(settings)
 
-Learner -> System : updateApplicationSettings(theme, notifications, retentionDays)
+Learner -> System : updateApplicationSettings(dailyGoalHours, theme, notifications, retentionDays)
 System --> Learner : settingsUpdated(settings)
+
+Learner -> System : exportAllData(JSON | CSV_ZIP)
+System --> Learner : exportFile
+
+Learner -> System : clearSessionHistory()
+System --> Learner : historyCleared
+
+Learner -> System : deleteAllData(confirmation)
+System --> Learner : dataDeletedAndDefaultsRestored
 
 note right of System
+  At least one profile remains. Select a different default before deleting
+  the current default; new profiles copy the selected default.
   Timer changes apply to new sessions only.
   Active sessions keep their snapshotted settings.
 end note

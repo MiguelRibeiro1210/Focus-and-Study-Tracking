@@ -132,12 +132,15 @@ model in `Progress & Analytics`, fed by the events above.
 ### 3.3 Preferences — `AppSettings`
 
 **Aggregate root:** `AppSettings`
-**Value objects:** `SettingsId`, `TimerPreferences`, `NotificationPreference`,
-`DataRetentionPolicy`, `Theme`
+**Entities:** `TimerProfile`
+**Value objects:** `SettingsId`, `TimerProfileId`, `TimerPreferences`,
+`DailyFocusGoal`, `NotificationPreference`, `DataRetentionPolicy`, `Theme`
 
-`AppSettings` owns the user's defaults. `TimerPreferences` is the write-side
-preference value; when a new session starts, the application layer maps it to
-the `SessionSettings` snapshot owned by `FocusSession`.
+`AppSettings` owns all timer profiles and application preferences. It identifies
+exactly one profile as the default. Built-in profiles are starter data only;
+they can be edited and deleted like user-created profiles. The application
+layer maps the selected profile's `TimerPreferences` to the immutable
+`SessionSettings` snapshot owned by `FocusSession`.
 
 **Invariants**
 
@@ -145,10 +148,29 @@ the `SessionSettings` snapshot owned by `FocusSession`.
 - Short break: 1–60 minutes.
 - Long break: 1–120 minutes and not shorter than the short break.
 - Intervals before a long break: 1–12.
+- Auto-start work and auto-start breaks are independent profile preferences.
+- Profile names are trimmed, non-empty and unique without regard to case.
+- At least one profile exists. A profile cannot be deleted while it is the
+  default; another profile must first be selected as default.
+- A new profile starts as a copy of the current default profile.
+- Daily focus goal is an integer number of hours from 1 to 24.
 - Retention: 7–3650 days or "keep forever".
 - A rejected update leaves the previous settings unchanged.
 
 **Repository:** `AppSettingsRepository`.
+
+**Starter state:** Classic (25/5/15 minutes) is initially selected, with four
+completed work intervals before a long break and both auto-start preferences
+disabled. Deep work (50/10/20) and Quick session (15/3/10) are also seeded.
+The initial daily goal is three hours, theme is light, notifications are
+enabled and retention is keep forever. All three starter profiles may later be
+edited or deleted subject to the aggregate invariants.
+
+**Overview timer override:** A learner may change any subset of the work,
+short-break and long-break durations before starting a session. Unchanged
+durations, interval count and auto-start preferences come from the default
+profile. The override is not persisted to `AppSettings`; the resulting values
+are copied to that session's `SessionSettings` snapshot.
 
 ### 3.4 Content Intelligence — `StudyMaterial` (Phase 3)
 

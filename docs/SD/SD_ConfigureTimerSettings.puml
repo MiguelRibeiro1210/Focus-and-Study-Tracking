@@ -1,26 +1,29 @@
 @startuml
-title Sequence Diagram - UC-10 - Configure Timer Settings
+title Sequence Diagram - UC-10 - Configure Timer Profiles
 
 autonumber
 actor Learner
 participant "Desktop UI" as UI
 participant "SettingsController" as Controller
-participant "UpdateTimerSettingsUseCase" as UseCase
+participant "ManageTimerProfilesUseCase" as UseCase
 participant "AppSettingsRepository" as Repo
 participant "AppSettings" as Settings
-participant "TimerPreferences" as TimerSettings
+participant "TimerProfile" as Profile
 participant "SettingsMapper" as Mapper
 
-Learner -> UI : edit durations and click "Save"
-UI -> Controller : PUT /api/v1/settings/timer\n{workSeconds, shortBreakSeconds, ...}
-Controller -> UseCase : update(command)
+Learner -> UI : create, edit, delete profile or select default
+alt Create, edit or delete a profile
+  UI -> Controller : POST /api/v1/settings/profiles or PUT/DELETE /api/v1/settings/profiles/{profileId}
+  Controller -> UseCase : manageProfile(command)
+else Select default profile
+  UI -> Controller : PUT /api/v1/settings/profiles/default\n{profileId}
+  Controller -> UseCase : selectDefault(profileId)
+end
 UseCase -> Repo : load()
 Repo --> UseCase : AppSettings
-UseCase -> TimerSettings : fromCommand(command)
-activate TimerSettings
-TimerSettings -> TimerSettings : validate()
-TimerSettings --> UseCase : TimerPreferences
-UseCase -> Settings : updateTimerSettings(timerSettings)
+UseCase -> Profile : create copy / validate preferences
+Profile --> UseCase : validated profile
+UseCase -> Settings : add, update, select or remove profile
 Settings --> UseCase : updated
 UseCase -> Repo : save(settings)
 Repo --> UseCase : saved
@@ -28,20 +31,24 @@ UseCase -> Mapper : toDto(settings)
 Mapper --> UseCase : SettingsDto
 UseCase --> Controller : SettingsDto
 Controller --> UI : 200 OK\n{...}
-deactivate TimerSettings
 
-note over TimerSettings
+note over Profile
   Validation rules:
   - work: 1..180 minutes
   - short break: 1..60 minutes
   - long break: 1..120 minutes
   - intervalsBeforeLongBreak: 1..12
   - long break >= short break
+  - profile name is trimmed, non-empty and case-insensitively unique
+  - at least one profile remains; select a new default before deleting
+    the current default
+  - new profiles copy the current default profile
 end note
 
 note over Settings
-  Settings changes apply to new sessions.
-  The active session keeps its snapshotted settings.
+  Timer profiles include independent work and break auto-start flags.
+  Settings changes apply to new sessions; active sessions keep their
+  snapshotted settings.
 end note
 
 @enduml

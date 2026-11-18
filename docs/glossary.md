@@ -16,6 +16,7 @@
 | **Distraction log** | An append-only read model of detected applications and the resulting policy and blocking outcomes. |
 | **Distraction policy** | The active set of rules that determines whether an observed application is logged, warned about or blocked. |
 | **Focus session** | A learner's work period containing an ordered sequence of work and break intervals. |
+| **Daily focus goal** | A saved target of 1–24 whole focus hours for one local calendar day; Overview shows progress toward it. |
 | **Project name** | Required, trimmed label for one focus session; it is immutable after start and is not a reusable project-catalogue record. |
 | **Factory** | A domain object that creates or reconstitutes entities and validates their initial structure. |
 | **Interval** | A timed work period, short break or long break within a focus session. |
@@ -29,6 +30,9 @@
 | **Remaining time** | The interval time still due according to backend timestamps; the UI may animate a local countdown between authoritative snapshots. |
 | **Reconstitution snapshot** | Persistence-neutral values used by a factory to rebuild an aggregate or entity and validate its consistency. |
 | **Session settings snapshot** | The timer settings copied into a session at creation so later preference changes do not alter that active session. |
+| **Timer profile** | A saved set of work/break durations, long-break interval count and independent auto-start preferences. One profile is the default for new sessions. |
+| **One-session timer override** | Work, short-break and long-break durations entered on Overview for one session; omitted values and non-duration settings come from the selected default profile. |
+| **Live goal progress** | Daily-goal progress that includes completed work intervals in the active session and the current work interval only after it reaches five minutes of actual focus time; it pauses during breaks and when the session is paused. |
 | **Abandoned session** | A stopped session with less than five minutes of actual work time; it is retained but excluded from completed-session totals and streaks. |
 | **Short break** | A rest interval that follows a work interval when the long-break threshold has not been reached. |
 | **Snapshot (timer)** | An authoritative server response containing session state, interval type, remaining time and relevant timestamps. |

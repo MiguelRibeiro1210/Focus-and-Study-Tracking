@@ -31,6 +31,10 @@ Mapper --> UseCase : AnalyticsDto
 UseCase --> Controller : AnalyticsDto
 Controller --> UI : 200 OK\n{totals, focusScore, bestDay, daily}
 
+UI -> Controller : GET /api/v1/sessions/active
+Controller --> UI : active session snapshot (if any)
+UI -> UI : calculate goal progress from completed sessions and completed active-session work intervals; include current interval only after 300 seconds
+
 note over SessionRepo
   The query reads completed sessions and their
   persisted work/break intervals. All time uses
@@ -45,9 +49,10 @@ note over Assembler
 end note
 
 note over UI
-  Render the response in the existing History
-  screen layout. The selected range also filters
-  the session list.
+  History uses completed-session analytics only. Overview also counts completed
+  work intervals from the active session and adds the current interval after it
+  reaches 300 seconds; elapsed work does not grow during a pause or break.
+  Focus score remains absent from the UI; distraction counts are not inferred.
 end note
 
 @enduml

@@ -83,11 +83,14 @@ package ContentIntelligence <<Folder>> {
 ' PREFERENCES'
 package Preferences <<Folder>> {
     class AppSettings <<AggregateRoot>>
+    class TimerProfile <<Entity>>
 
     class TimerPreferences <<VO>>
+    class DailyFocusGoal <<VO>>
     class NotificationPreference <<VO>>
     class DataRetentionPolicy <<VO>>
     class SettingsId <<VO>>
+    class TimerProfileId <<VO>>
     class Theme <<Enum>>
 }
 
@@ -130,10 +133,14 @@ DistractionLog "1" *-- "1" BlockingDecision : records >
 DailyProgress ..> FocusSession : aggregates
 
 ' PREFERENCES RELATIONSHIPS'
-AppSettings "1" *-- "1" TimerPreferences : configures >
+AppSettings "1" *-- "1..*" TimerProfile : owns >
+AppSettings "1" --> "1" TimerProfile : selects default >
+TimerProfile "1" *-- "1" TimerPreferences : configures >
 AppSettings "1" *-- "1" NotificationPreference : configures >
 AppSettings "1" *-- "1" DataRetentionPolicy : configures >
+AppSettings "1" *-- "1" DailyFocusGoal : sets >
 AppSettings "1" -- "1" SettingsId : is identified by >
+TimerProfile "1" -- "1" TimerProfileId : is identified by >
 AppSettings "1" -- "1" Theme : has >
 
 ' CONTENT INTELLIGENCE RELATIONSHIPS'

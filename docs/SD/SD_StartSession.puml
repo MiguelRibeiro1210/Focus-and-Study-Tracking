@@ -15,7 +15,7 @@ participant "Outbox Dispatcher" as Dispatcher
 participant "SessionWebSocketHandler" as WS
 
 Learner -> UI : enter project name and click "Start focus"
-UI -> Controller : POST /api/v1/sessions\n{sessionType: WORK, projectName}
+UI -> Controller : POST /api/v1/sessions\n{sessionType: WORK, projectName, timerOverride?}
 Controller -> UseCase : start(command)
 UseCase -> UseCase : trim and validate projectName (1..120 chars)
 UseCase -> SessionRepo : findActive()
@@ -23,7 +23,9 @@ SessionRepo --> UseCase : Optional.empty()
 
 UseCase -> SettingsRepo : load()
 SettingsRepo --> UseCase : AppSettings
-UseCase -> UseCase : sessionSettings = SessionSettings.from(settings.timer())
+UseCase -> UseCase : resolve selected default profile
+UseCase -> UseCase : apply optional duration-only override
+UseCase -> UseCase : sessionSettings = SessionSettings.from(profile, override)
 UseCase -> Factory : create(projectName, sessionSettings, now)
 Factory --> UseCase : FocusSession (IDLE)
 activate Session

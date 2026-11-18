@@ -39,6 +39,10 @@ case, diagram and task should be visible in one place.
 | FR-SET-04 | UC-11 | [SD_ConfigureApplicationSettings](../SD/SD_ConfigureApplicationSettings.puml) | FST-020 |
 | FR-SET-05 | UC-10 | [SD_ConfigureTimerSettings](../SD/SD_ConfigureTimerSettings.puml) | FST-020 |
 | FR-SET-06 | UC-10 | [SD_ConfigureTimerSettings](../SD/SD_ConfigureTimerSettings.puml) | FST-005, FST-020 |
+| FR-SET-07 | UC-10 | [SD_ConfigureTimerSettings](../SD/SD_ConfigureTimerSettings.puml) | FST-020 |
+| FR-SET-08 | UC-01, UC-10 | [SD_StartSession](../SD/SD_StartSession.puml) | FST-017, FST-020 |
+| FR-SET-09 | UC-09, UC-11 | [SD_ViewAnalytics](../SD/SD_ViewAnalytics.puml), [SD_ConfigureApplicationSettings](../SD/SD_ConfigureApplicationSettings.puml) | FST-020 |
+| FR-SET-10 | UC-09 | [SD_ViewAnalytics](../SD/SD_ViewAnalytics.puml) | FST-020 |
 | FR-DIS-01 | UC-12 | [SD_ManageBlockingRules](../SD/SD_ManageBlockingRules.puml) | FST-028 |
 | FR-DIS-02 | UC-12 | [SD_ManageBlockingRules](../SD/SD_ManageBlockingRules.puml) | FST-028 |
 | FR-DIS-03 | UC-13 | [SD_DetectDistraction](../SD/SD_DetectDistraction.puml) | FST-027 |
@@ -53,7 +57,9 @@ case, diagram and task should be visible in one place.
 | FR-PRV-03 | all | [REST API](../api/RESTAndWebSocket.md) | FST-014 |
 | FR-PRV-04 | UC-11 | [SD_ConfigureApplicationSettings](../SD/SD_ConfigureApplicationSettings.puml) | FST-020 |
 | FR-PRV-05 | UC-11 | [SD_ConfigureApplicationSettings](../SD/SD_ConfigureApplicationSettings.puml) | FST-020 |
-| FR-PRV-06 | — | — | FST-036 |
+| FR-PRV-06 | UC-11 | [SD_ConfigureApplicationSettings](../SD/SD_ConfigureApplicationSettings.puml) | FST-020, FST-036 |
+| FR-PRV-07 | UC-11 | [SD_ConfigureApplicationSettings](../SD/SD_ConfigureApplicationSettings.puml) | FST-020 |
+| FR-PRV-08 | UC-11 | [SD_ConfigureApplicationSettings](../SD/SD_ConfigureApplicationSettings.puml) | FST-020 |
 | FR-CAP-01 | UC-16 | — | FST-030 |
 | FR-REC-01 | UC-17 | — | FST-029 |
 | FR-REC-02 | UC-18 | — | FST-029 |
@@ -71,8 +77,8 @@ case, diagram and task should be visible in one place.
 | UC-07 View session history | FR-HIS-02, FR-HIS-03, FR-HIS-05 |
 | UC-08 View daily streak | FR-STR-01..04 |
 | UC-09 View productivity analytics | FR-ANA-01..05 |
-| UC-10 Configure timer settings | FR-SET-01, FR-SET-02, FR-SET-03, FR-SET-05, FR-SET-06 |
-| UC-11 Configure application settings | FR-SET-04, FR-PRV-04, FR-PRV-05 |
+| UC-10 Configure timer profiles and settings | FR-SET-01..03, FR-SET-05..08 |
+| UC-11 Configure application settings | FR-SET-04, FR-SET-09, FR-PRV-04..08 |
 | UC-12 Manage blocking rules | FR-DIS-01, FR-DIS-02 |
 | UC-13 Detect distracting application | FR-DIS-03, FR-DIS-04, FR-DIS-06, FR-DIS-08 |
 | UC-14 Block distracting application | FR-DIS-05, FR-DIS-09 |
@@ -118,7 +124,7 @@ case, diagram and task should be visible in one place.
 | FST-042 Daily streak summary view | [Use case UC-08](../UseCases/UseCases.md) |
 | FST-043 Session detail view | [Use case UC-07](../UseCases/UseCases.md) |
 | FST-019 Analytics dashboard | [Use case UC-09](../UseCases/UseCases.md) |
-| FST-020 Settings screen | [Use case UC-10/UC-11](../UseCases/UseCases.md) |
+| FST-020 Settings and Overview preferences/widgets | [Use cases UC-01, UC-09, UC-10/UC-11](../UseCases/UseCases.md), [REST API](../api/RESTAndWebSocket.md), [Persistence](../data/Persistence.md) |
 | FST-021 Frontend integration | [REST and WebSocket API](../api/RESTAndWebSocket.md) |
 | FST-022 Tauri packaging | [ADR-003](../decisions/ADR-003-TauriVsElectron.md) |
 | FST-023 Domain unit tests | [Test strategy](../testing/TestStrategy.md) |

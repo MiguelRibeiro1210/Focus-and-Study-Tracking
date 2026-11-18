@@ -29,7 +29,7 @@ not a learner-facing session API operation.
 
 | Method | Path | Purpose | Success |
 |---|---|---|---|
-| `POST` | `/sessions` | Start a focus session. Request: `{"sessionType":"WORK","projectName":"Exam preparation"}`. | `201 Created` + `SessionResponse` |
+| `POST` | `/sessions` | Start a focus session. Optional `timerOverride` supplies one-session work/short/long duration overrides. | `201 Created` + `SessionResponse` |
 | `GET` | `/sessions/active` | Get the active session, if any. | `200 OK` + `SessionResponse` / `204 No Content` |
 | `POST` | `/sessions/{id}/pause` | Pause a running session. | `200 OK` + `SessionResponse` |
 | `POST` | `/sessions/{id}/resume` | Resume a paused session. | `200 OK` + `SessionResponse` |
@@ -91,6 +91,13 @@ Example history response:
 characters after trimming, rejects missing/blank/overlength values with
 `400 VALIDATION_ERROR`, and stores the normalized name immutably with the
 session. `SessionResponse` and live session snapshots include `projectName`.
+
+The optional `timerOverride` object may contain any subset of `workSeconds`,
+`shortBreakSeconds` and `longBreakSeconds`. Omitted values come from the
+currently selected default profile. `intervalsBeforeLongBreak` and the
+independent auto-start flags always come from that profile. The resulting
+settings are validated and snapshotted in the session; the override is not
+persisted as a profile.
 
 `SessionResponse` contains the session identity, project name, type, state,
 interval type, remaining time, planned/actual durations, timestamps and the
@@ -188,20 +195,36 @@ even when its values are zero.
 
 | Method | Path | Purpose | Success |
 |---|---|---|---|
-| `GET` | `/settings` | Read timer, theme, notification and retention settings. | `200 OK` + `SettingsDto` |
-| `PUT` | `/settings/timer` | Update work/break durations and auto-start flags. | `200 OK` + `SettingsDto` |
-| `PUT` | `/settings/application` | Update theme, notifications and retention. | `200 OK` + `SettingsDto` |
+| `GET` | `/settings` | Read timer profiles, selected default, daily goal, theme, notifications and retention. | `200 OK` + `SettingsDto` |
+| `POST` | `/settings/profiles` | Create a profile by copying the current default; request includes its name. | `201 Created` + `TimerProfileDto` |
+| `PUT` | `/settings/profiles/{profileId}` | Edit a profile name, durations, interval count and auto-start flags. | `200 OK` + `TimerProfileDto` |
+| `PUT` | `/settings/profiles/default` | Select the profile used by new sessions. Request includes `profileId`. | `200 OK` + `SettingsDto` |
+| `DELETE` | `/settings/profiles/{profileId}` | Delete a non-default profile; any starter profile may be deleted. | `204 No Content` |
+| `PUT` | `/settings/application` | Update theme, notifications, retention and daily goal. | `200 OK` + `SettingsDto` |
+| `GET` | `/settings/export?format=json\|csv-zip` | Export all settings, profiles, sessions and analytics. | `200 OK` + JSON or ZIP of CSV files |
+| `DELETE` | `/sessions/history` | Delete completed and abandoned sessions, preserving settings and any active session. | `204 No Content` |
 | `DELETE` | `/settings/data` | Delete all personal data after confirmation. | `204 No Content` |
 
 Timer validation: work 1–180 minutes, short break 1–60 minutes, long break
 1–120 minutes and not shorter than the short break, intervals before long break
-1–12. Retention is 7–3650 days or "keep forever". Settings changes apply to new
-sessions only; the active session keeps its snapshot.
+1–12. Auto-start work and breaks are independent. Profile names are trimmed,
+non-empty and unique without regard to case. At least one profile must remain;
+the default cannot be deleted until another profile has been selected. New
+profiles copy the current default's timer preferences. Retention is 7–3650 days
+or "keep forever"; daily goal is an integer from 1–24 hours. Settings changes
+apply to new sessions only; the active session keeps its snapshot.
+
+The CSV ZIP contains separate files for settings, profiles, sessions,
+intervals, and analytics. The JSON export contains the equivalent data in one
+file. The data-folder action is a Tauri local command and does not expose a
+filesystem path through the HTTP API.
 
 The delete request requires a confirmation token in the body. It removes
-sessions, intervals, distraction logs, daily progress and settings, then
-recreates defaults. The active session is stopped first; cleanup never deletes an
-active session silently.
+sessions, intervals, distraction logs, daily progress, profiles, outbox events
+and settings, then recreates default settings and starter profiles. The active
+session is stopped first. History deletion is a separate confirmed operation
+and leaves the active session and all settings in place. Retention cleanup never
+deletes the active session.
 
 ## 5. Blocking rules (Phase 2)
 
