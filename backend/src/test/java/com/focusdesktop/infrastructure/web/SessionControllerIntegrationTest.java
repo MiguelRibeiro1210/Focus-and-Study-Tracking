@@ -95,7 +95,7 @@ class SessionControllerIntegrationTest {
                 .andExpect(jsonPath("$.sessionId").isString())
                 .andExpect(jsonPath("$.projectName").value("Exam preparation"))
                 .andExpect(jsonPath("$.state").value("RUNNING"))
-                .andExpect(jsonPath("$.remainingSeconds").value(60))
+                .andExpect(jsonPath("$.remainingSeconds").value(25 * 60))
                 .andReturn().getResponse().getContentAsString();
 
         String id = new com.fasterxml.jackson.databind.ObjectMapper()

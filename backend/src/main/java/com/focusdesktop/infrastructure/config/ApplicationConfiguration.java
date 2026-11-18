@@ -17,7 +17,6 @@ import com.focusdesktop.application.port.SessionHistoryReader;
 import com.focusdesktop.domain.service.SessionIntervalScheduleService;
 import java.time.Clock;
 import java.time.ZoneId;
-import java.util.Optional;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.scheduling.annotation.EnableScheduling;
@@ -28,11 +27,6 @@ public class ApplicationConfiguration {
     @Bean
     Clock applicationClock() {
         return Clock.systemUTC();
-    }
-
-    @Bean
-    SessionSettingsProvider sessionSettingsProvider() {
-        return Optional::empty;
     }
 
     @Bean

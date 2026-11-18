@@ -2,6 +2,7 @@ package com.focusdesktop.infrastructure.web;
 
 import com.focusdesktop.application.usecase.GetActiveSessionUseCase;
 import com.focusdesktop.application.usecase.GetSessionHistoryUseCase;
+import com.focusdesktop.application.usecase.ClearSessionHistoryUseCase;
 import com.focusdesktop.application.usecase.SkipBreakUseCase;
 import com.focusdesktop.application.usecase.StartNextIntervalUseCase;
 import com.focusdesktop.application.usecase.PauseSessionUseCase;
@@ -35,11 +36,12 @@ public class SessionController {
     private final StartNextIntervalUseCase startNextInterval;
     private final SkipBreakUseCase skipBreak;
     private final GetSessionHistoryUseCase history;
+    private final ClearSessionHistoryUseCase clearHistory;
 
     public SessionController(StartSessionUseCase start, GetActiveSessionUseCase active,
             PauseSessionUseCase pause, ResumeSessionUseCase resume, StopSessionUseCase stop,
             StartNextIntervalUseCase startNextInterval, SkipBreakUseCase skipBreak,
-            GetSessionHistoryUseCase history) {
+            GetSessionHistoryUseCase history, ClearSessionHistoryUseCase clearHistory) {
         this.start = start;
         this.active = active;
         this.pause = pause;
@@ -48,6 +50,7 @@ public class SessionController {
         this.startNextInterval = startNextInterval;
         this.skipBreak = skipBreak;
         this.history = history;
+        this.clearHistory = clearHistory;
     }
 
     @PostMapping
@@ -56,7 +59,9 @@ public class SessionController {
             throw new IllegalArgumentException("sessionType and projectName are required");
         }
         SessionResponse response = SessionResponse.from(start.execute(
-                new StartSessionCommand(request.projectName(), request.sessionType())));
+                new StartSessionCommand(request.projectName(), request.sessionType(), request.timerOverride() == null
+                        ? null : new StartSessionCommand.TimerOverride(request.timerOverride().workSeconds(),
+                        request.timerOverride().shortBreakSeconds(), request.timerOverride().longBreakSeconds()))));
         return ResponseEntity.created(URI.create("/api/v1/sessions/" + response.sessionId())).body(response);
     }
 
@@ -75,6 +80,12 @@ public class SessionController {
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
         return history.execute(from, to, status, page, size);
+    }
+
+    @org.springframework.web.bind.annotation.DeleteMapping("/history")
+    public ResponseEntity<Void> clearHistory() {
+        clearHistory.execute();
+        return ResponseEntity.noContent().build();
     }
 
     @PostMapping("/{id}/pause")
@@ -106,5 +117,6 @@ public class SessionController {
         return new SessionIdCommand(new SessionId(id));
     }
 
-    public record StartSessionRequest(SessionType sessionType, String projectName) { }
+    public record StartSessionRequest(SessionType sessionType, String projectName, TimerOverrideRequest timerOverride) { }
+    public record TimerOverrideRequest(Long workSeconds, Long shortBreakSeconds, Long longBreakSeconds) { }
 }
