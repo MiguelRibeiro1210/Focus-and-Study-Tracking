@@ -51,6 +51,9 @@ public class StartSessionUseCase {
 
         SessionSettings settings = settingsProvider.findCurrentSettings()
                 .orElseGet(StartSessionUseCase::defaultSettingsWithWarning);
+        if (command.timerOverride() != null) {
+            settings = command.timerOverride().apply(settings);
+        }
         TimeStamp now = new TimeStamp(clock.instant());
         FocusSession session = FocusSessionFactory.create(command.projectName(), settings, now);
         session.start(now);
