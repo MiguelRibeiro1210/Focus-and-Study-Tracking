@@ -5,9 +5,11 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.options;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.focusdesktop.application.port.DomainEventOutbox;
@@ -73,6 +75,7 @@ class SettingsControllerIntegrationTest {
                 .andExpect(jsonPath("$.theme").value("LIGHT"))
                 .andExpect(jsonPath("$.profiles.length()").value(3))
                 .andExpect(jsonPath("$.profiles[0].name").value("Classic"))
+                .andExpect(jsonPath("$.profiles[0].isDefault").isBoolean())
                 .andReturn().getResponse().getContentAsString();
         JsonNode settings = mapper.readTree(response);
         UUID defaultId = UUID.fromString(settings.get("defaultProfileId").asText());
@@ -99,6 +102,19 @@ class SettingsControllerIntegrationTest {
         mvc.perform(delete("/api/v1/settings/profiles/{id}", defaultId)
                         .header("Authorization", "Bearer test-token"))
                 .andExpect(status().isNoContent());
+    }
+
+    @Test
+    void allowsBrowserPreflightForSettingsMutationMethods() throws Exception {
+        for (String method : new String[] {"PUT", "DELETE"}) {
+            mvc.perform(options("/api/v1/settings/application")
+                            .header("Origin", "http://127.0.0.1:5173")
+                            .header("Access-Control-Request-Method", method)
+                            .header("Access-Control-Request-Headers", "authorization,content-type"))
+                    .andExpect(status().isOk())
+                    .andExpect(header().string("Access-Control-Allow-Methods",
+                            org.hamcrest.Matchers.containsString(method)));
+        }
     }
 
     @Test
@@ -178,6 +194,48 @@ class SettingsControllerIntegrationTest {
     }
 
     @Test
+    void cleansOnlyTerminalSessionsOlderThanRetentionCutoffWhenExplicitlyRequested() throws Exception {
+        mvc.perform(get("/api/v1/settings").header("Authorization", "Bearer test-token"))
+                .andExpect(status().isOk());
+        mvc.perform(put("/api/v1/settings/application").header("Authorization", "Bearer test-token")
+                        .contentType("application/json").content("{\"dailyGoalHours\":3,\"theme\":\"LIGHT\","
+                                + "\"notificationsEnabled\":true,\"retentionDays\":7}"))
+                .andExpect(status().isOk());
+
+        Instant now = Instant.now();
+        FocusSession expired = saveSession("expired", now.minusSeconds(10 * 24 * 60 * 60L), true);
+        FocusSession recent = saveSession("recent", now.minusSeconds(2 * 24 * 60 * 60L), true);
+        FocusSession active = saveSession("active retention", now.minusSeconds(12 * 60L), false);
+        assertEquals(1, jdbc.queryForObject("SELECT COUNT(*) FROM focus_session "
+                + "WHERE ended_at <= ? AND state IN ('COMPLETED', 'ABANDONED')",
+                Integer.class, java.sql.Timestamp.from(now.minusSeconds(7 * 24 * 60 * 60L))));
+
+        mvc.perform(delete("/api/v1/sessions/history/expired").header("Authorization", "Bearer test-token"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.deletedSessions").value(1));
+
+        assertEquals(2, jdbc.queryForObject("SELECT COUNT(*) FROM focus_session", Integer.class));
+        assertEquals(2, jdbc.queryForObject("SELECT COUNT(*) FROM domain_event_outbox", Integer.class));
+        assertEquals(recent.id().value(), sessions.findById(recent.id()).orElseThrow().id().value());
+        assertEquals(active.id().value(), sessions.findActive().orElseThrow().id().value());
+        org.junit.jupiter.api.Assertions.assertFalse(sessions.findById(expired.id()).isPresent());
+        assertEquals(3, jdbc.queryForObject("SELECT COUNT(*) FROM timer_profile", Integer.class));
+    }
+
+    @Test
+    void keepForeverRetentionCleanupIsANoOp() throws Exception {
+        mvc.perform(get("/api/v1/settings").header("Authorization", "Bearer test-token"))
+                .andExpect(status().isOk());
+        FocusSession old = saveSession("old keep forever", Instant.parse("2000-01-01T00:00:00Z"), true);
+
+        mvc.perform(delete("/api/v1/sessions/history/expired").header("Authorization", "Bearer test-token"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.deletedSessions").value(0));
+
+        assertEquals(old.id().value(), sessions.findById(old.id()).orElseThrow().id().value());
+    }
+
+    @Test
     void exportsJsonAndCsvZipWithExpectedDataFiles() throws Exception {
         saveSession("completed for export", true);
         mvc.perform(get("/api/v1/settings/export?format=json").header("Authorization", "Bearer test-token"))
@@ -203,8 +261,12 @@ class SettingsControllerIntegrationTest {
     }
 
     private FocusSession saveSession(String name, boolean terminal) {
+        return saveSession(name, START.plusSeconds(name.equals("active") ? 0 : 10), terminal);
+    }
+
+    private FocusSession saveSession(String name, Instant startedAt, boolean terminal) {
         return new TransactionTemplate(transactionManager).execute(status -> {
-            TimeStamp started = new TimeStamp(START.plusSeconds(name.equals("active") ? 0 : 10));
+            TimeStamp started = new TimeStamp(startedAt);
             FocusSession session = FocusSessionFactory.create(name, SESSION_SETTINGS, started);
             session.start(started);
             if (terminal) session.stop(new TimeStamp(started.value().plusSeconds(6 * 60L)));

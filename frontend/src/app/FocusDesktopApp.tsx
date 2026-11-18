@@ -1,9 +1,10 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import type { TimerController } from '../timer/useTimerSession'
 import { TimerScreen } from '../timer/TimerScreen'
 import { DistractionsPage } from '../pages/DistractionsPage'
 import { HistoryPage } from '../pages/HistoryPage'
 import { SettingsPage } from '../pages/SettingsPage'
+import { useAppSettings } from '../pages/useAppSettings'
 
 type Page = 'overview' | 'distractions' | 'history' | 'settings'
 
@@ -27,7 +28,21 @@ interface FocusDesktopAppProps {
 
 export function FocusDesktopApp({ timer }: FocusDesktopAppProps) {
   const [page, setPage] = useState<Page>('overview')
+  const settings = useAppSettings()
   const copy = pageCopy[page]
+
+  useEffect(() => {
+    const requestedTheme = settings.settings?.theme ?? 'LIGHT'
+    if (requestedTheme !== 'SYSTEM') {
+      document.documentElement.dataset.theme = requestedTheme
+      return
+    }
+    const media = window.matchMedia('(prefers-color-scheme: dark)')
+    const apply = () => { document.documentElement.dataset.theme = media.matches ? 'DARK' : 'LIGHT' }
+    apply()
+    media.addEventListener('change', apply)
+    return () => media.removeEventListener('change', apply)
+  }, [settings.settings?.theme])
 
   return (
     <div className="desktop-app">
@@ -69,10 +84,10 @@ export function FocusDesktopApp({ timer }: FocusDesktopAppProps) {
           <div className="local-status"><img src="/figma/connected.svg" width="6" height="6" alt="" />Running locally</div>
         </header>
         <main className={`workspace-content page-${page}`}>
-          {page === 'overview' && <TimerScreen timer={timer} onViewHistory={() => setPage('history')} />}
+          {page === 'overview' && <TimerScreen timer={timer} settings={settings.settings} onViewHistory={() => setPage('history')} />}
           {page === 'distractions' && <DistractionsPage />}
           {page === 'history' && <HistoryPage />}
-          {page === 'settings' && <SettingsPage />}
+          {page === 'settings' && <SettingsPage controller={settings} />}
         </main>
       </div>
     </div>

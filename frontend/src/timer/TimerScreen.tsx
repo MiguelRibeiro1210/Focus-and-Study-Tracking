@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent } from 'react'
 import type { SessionResponse } from '../api/sessionTypes'
-import { sessionApi, type SessionApi } from '../api/sessionApi'
+import { sessionApi, type SessionApi, type TimerOverride } from '../api/sessionApi'
+import type { AppSettings } from '../api/settingsApi'
 import type { TimerAction, TimerController } from './useTimerSession'
 import { overviewSummary } from '../pages/futureData'
 import { localDateKey, mapOverviewAnalytics, type OverviewAnalytics } from '../pages/overviewAnalytics'
@@ -11,6 +12,7 @@ interface TimerScreenProps {
   timer: TimerController
   onViewHistory?: () => void
   api?: Pick<SessionApi, 'getSessionHistory'> & Partial<Pick<SessionApi, 'getAnalyticsSummary'>>
+  settings?: AppSettings | null
 }
 
 function intervalLabel(type: SessionResponse['intervalType']): string {
@@ -56,15 +58,17 @@ function statusLabel(session: SessionResponse | null): string {
   }
 }
 
-export function TimerScreen({ timer, onViewHistory, api = sessionApi }: TimerScreenProps) {
+export function TimerScreen({ timer, onViewHistory, api = sessionApi, settings = null }: TimerScreenProps) {
   const [confirmStop, setConfirmStop] = useState(false)
   const [durations, setDurations] = useState({ work: '', short: '', long: '' })
   const [projectDraft, setProjectDraft] = useState<{ sessionId: string | null; value: string }>({ sessionId: null, value: '' })
   const [projectNameError, setProjectNameError] = useState('')
+  const [durationError, setDurationError] = useState('')
   const cancelStopRef = useRef<HTMLButtonElement>(null)
   const stopTriggerRef = useRef<HTMLButtonElement>(null)
   const session = timer.session
   const [today] = useState(() => new Date())
+  const [summaryRevision, setSummaryRevision] = useState(0)
   const [overviewState, setOverviewState] = useState<{ analytics: OverviewAnalytics | null; error: string | null } | null>(null)
   const getAnalyticsSummary = api.getAnalyticsSummary
   useEffect(() => {
@@ -81,7 +85,7 @@ export function TimerScreen({ timer, onViewHistory, api = sessionApi }: TimerScr
       })
     })
     return () => { current = false }
-  }, [getAnalyticsSummary, today])
+  }, [getAnalyticsSummary, today, summaryRevision])
   const overview = overviewState?.analytics ?? {
     focusSecondsToday: overviewSummary.focusSecondsToday,
     focusSecondsYesterday: overviewSummary.focusSecondsYesterday,
@@ -97,14 +101,30 @@ export function TimerScreen({ timer, onViewHistory, api = sessionApi }: TimerScr
   const isRunning = session?.state === 'RUNNING'
   const isPaused = session?.state === 'PAUSED'
   const isWaiting = session?.state === 'WAITING_FOR_NEXT_INTERVAL'
-  const configuredSeconds = session?.plannedDurationSeconds ?? 25 * 60
+  const defaultProfile = settings?.profiles.find((profile) => profile.id === settings.defaultProfileId)
+  const configuredSeconds = session?.plannedDurationSeconds ?? defaultProfile?.workSeconds ?? 25 * 60
   const remaining = session ? timer.remainingSeconds : (timer.isLoading ? null : configuredSeconds)
   const progress = session && (isRunning || isPaused)
     ? Math.min(100, Math.max(0, ((session.plannedDurationSeconds - (remaining ?? 0)) / Math.max(1, session.plannedDurationSeconds)) * 100))
     : session?.state === 'COMPLETED' ? 100 : 0
   const ringStyle = { '--progress': `${progress}%` } as CSSProperties
-  const dailyProgress = overviewSummary.dailyGoalSeconds > 0
-    ? Math.min(100, Math.round((overview.focusSecondsToday / overviewSummary.dailyGoalSeconds) * 100))
+  const activeSessionIsToday = Boolean(session && session.startedAt
+    && ['RUNNING', 'PAUSED', 'WAITING_FOR_NEXT_INTERVAL'].includes(session.state)
+    && localDateKey(new Date(session.startedAt)) === localDateKey(today))
+  let activeFocusSeconds = session && activeSessionIsToday ? session.actualFocusDurationSeconds : 0
+  if (session && activeSessionIsToday && session.intervalType === 'WORK'
+      && (session.state === 'RUNNING' || session.state === 'PAUSED')) {
+    const currentWorkSeconds = session.state === 'RUNNING'
+      ? Math.max(0, session.plannedDurationSeconds - (remaining ?? session.remainingSeconds))
+      : session.actualDurationSeconds
+    activeFocusSeconds = Math.max(0, session.actualFocusDurationSeconds - session.actualDurationSeconds)
+      + (currentWorkSeconds >= 300 ? currentWorkSeconds : 0)
+  }
+  const goalHours = settings?.dailyGoalHours ?? 3
+  const goalSeconds = goalHours * 60 * 60
+  const goalFocusSeconds = overview.focusSecondsToday + activeFocusSeconds
+  const dailyProgress = goalSeconds > 0
+    ? Math.min(100, Math.round((goalFocusSeconds / goalSeconds) * 100))
     : 0
   const focusTimeDifferenceMinutes = Math.round((overview.focusSecondsToday - overview.focusSecondsYesterday) / 60)
 
@@ -120,6 +140,7 @@ export function TimerScreen({ timer, onViewHistory, api = sessionApi }: TimerScr
     const terminal = sessionState === 'COMPLETED' || sessionState === 'ABANDONED'
     if (terminal && previous && (previous.id !== sessionId || previous.state !== sessionState)) {
       refreshRecentHistory()
+      setSummaryRevision((revision) => revision + 1)
     }
     previousSessionRef.current = sessionId && sessionState ? { id: sessionId, state: sessionState } : null
   }, [sessionId, sessionState, refreshRecentHistory])
@@ -135,7 +156,31 @@ export function TimerScreen({ timer, onViewHistory, api = sessionApi }: TimerScr
       return
     }
     setProjectNameError('')
-    void timer.runAction('start', normalized)
+    setDurationError('')
+    const profile = defaultProfile
+    const fields = [
+      { key: 'workSeconds' as const, value: durations.work, minimum: 1, maximum: 180 },
+      { key: 'shortBreakSeconds' as const, value: durations.short, minimum: 1, maximum: 60 },
+      { key: 'longBreakSeconds' as const, value: durations.long, minimum: 1, maximum: 120 },
+    ]
+    const override: TimerOverride = {}
+    for (const field of fields) {
+      if (!field.value.trim()) continue
+      const minutes = Number(field.value)
+      if (!Number.isInteger(minutes) || minutes < field.minimum || minutes > field.maximum) {
+        setDurationError(`Timer durations must be whole minutes from ${field.minimum} to ${field.maximum}.`)
+        return
+      }
+      override[field.key] = minutes * 60
+    }
+    const effectiveShort = override.shortBreakSeconds ?? profile?.shortBreakSeconds ?? 5 * 60
+    const effectiveLong = override.longBreakSeconds ?? profile?.longBreakSeconds ?? 15 * 60
+    if (effectiveLong < effectiveShort) {
+      setDurationError('The long break must be at least as long as the short break.')
+      return
+    }
+    if (Object.keys(override).length) void timer.runAction('start', normalized, override)
+    else void timer.runAction('start', normalized)
   }
 
   function handleDialogKeyDown(event: KeyboardEvent<HTMLDivElement>) {
@@ -216,10 +261,11 @@ export function TimerScreen({ timer, onViewHistory, api = sessionApi }: TimerScr
             {projectNameError && <p className="field-error" id="project-name-error" role="alert">{projectNameError}</p>}
             <p className="field-label">Session duration</p>
             <div className="duration-options" aria-label="Session duration in minutes">
-              <label className="duration-field">Work<input className="duration-option" type="number" min="1" max="180" step="1" inputMode="numeric" aria-label="Work duration in minutes" value={durations.work} onChange={(event) => setDurations((current) => ({ ...current, work: event.target.value }))} /></label>
-              <label className="duration-field">Short<input className="duration-option" type="number" min="1" max="60" step="1" inputMode="numeric" aria-label="Short break duration in minutes" value={durations.short} onChange={(event) => setDurations((current) => ({ ...current, short: event.target.value }))} /></label>
-              <label className="duration-field">Long<input className="duration-option" type="number" min="1" max="120" step="1" inputMode="numeric" aria-label="Long break duration in minutes" value={durations.long} onChange={(event) => setDurations((current) => ({ ...current, long: event.target.value }))} /></label>
+              <label className="duration-field">Work<input className="duration-option" type="number" min="1" max="180" step="1" inputMode="numeric" aria-label="Work duration in minutes" placeholder={String(Math.round((defaultProfile?.workSeconds ?? 25 * 60) / 60))} value={durations.work} onChange={(event) => { setDurationError(''); setDurations((current) => ({ ...current, work: event.target.value })) }} /></label>
+              <label className="duration-field">Short<input className="duration-option" type="number" min="1" max="60" step="1" inputMode="numeric" aria-label="Short break duration in minutes" placeholder={String(Math.round((defaultProfile?.shortBreakSeconds ?? 5 * 60) / 60))} value={durations.short} onChange={(event) => { setDurationError(''); setDurations((current) => ({ ...current, short: event.target.value })) }} /></label>
+              <label className="duration-field">Long<input className="duration-option" type="number" min="1" max="120" step="1" inputMode="numeric" aria-label="Long break duration in minutes" placeholder={String(Math.round((defaultProfile?.longBreakSeconds ?? 15 * 60) / 60))} value={durations.long} onChange={(event) => { setDurationError(''); setDurations((current) => ({ ...current, long: event.target.value })) }} /></label>
             </div>
+            {durationError && <p className="field-error" role="alert">{durationError}</p>}
             <div className="session-meta">
               <div><p className="field-label">Session controls</p><p className="profile-summary">Choose a session interval.</p></div>
             </div>
@@ -232,10 +278,10 @@ export function TimerScreen({ timer, onViewHistory, api = sessionApi }: TimerScr
       <aside className="daily-goal-panel">
         <h2>Focus is a habit.</h2><p className="goal-intro">And you’re making room for it.</p>
         <p className="goal-label">DAILY GOAL</p>
-        <div className="goal-total"><strong>{overviewLoading || overviewState?.error ? '—' : formatSummaryDuration(overview.focusSecondsToday)}</strong><span>/ {formatSummaryDuration(overviewSummary.dailyGoalSeconds)}</span></div>
+        <div className="goal-total"><strong>{overviewLoading || overviewState?.error ? '—' : formatSummaryDuration(goalFocusSeconds)}</strong><span>/ {formatSummaryDuration(goalSeconds)}</span></div>
         <div className="goal-progress"><span style={{ width: `${dailyProgress}%` }} /></div>
         <p className="goal-complete">{dailyProgress}% complete</p>
-        <p className="goal-remaining">{formatSummaryDuration(Math.max(0, overviewSummary.dailyGoalSeconds - overview.focusSecondsToday))} left to reach your goal.</p>
+        <p className="goal-remaining">{formatSummaryDuration(Math.max(0, goalSeconds - goalFocusSeconds))} left to reach your goal.</p>
         <p className="goal-copy">Every session counts. Go at your own pace.</p>
         <p className="goal-footer">Taking a break is progress, too.</p>
       </aside>

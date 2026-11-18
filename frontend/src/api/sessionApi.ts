@@ -36,7 +36,7 @@ export class SessionApiError extends Error {
 }
 
 export interface SessionApi {
-  startSession(projectName: string): Promise<SessionResponse>
+  startSession(projectName: string, timerOverride?: TimerOverride): Promise<SessionResponse>
   getActiveSession(): Promise<ActiveSession>
   getSessionHistory(query?: SessionHistoryQuery): Promise<SessionHistoryPage>
   getAnalyticsSummary(query?: Pick<SessionHistoryQuery, 'from' | 'to'>): Promise<AnalyticsSummary>
@@ -45,6 +45,12 @@ export interface SessionApi {
   stopSession(sessionId: string): Promise<SessionResponse>
   startNextInterval(sessionId: string): Promise<SessionResponse>
   skipBreak(sessionId: string): Promise<SessionResponse>
+}
+
+export interface TimerOverride {
+  workSeconds?: number
+  shortBreakSeconds?: number
+  longBreakSeconds?: number
 }
 
 function isApiErrorBody(value: unknown): value is ApiErrorBody {
@@ -169,10 +175,10 @@ export function createSessionApi(
   }
 
   return {
-    startSession: (projectName) => request('/sessions', {
+    startSession: (projectName, timerOverride) => request('/sessions', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ sessionType: 'WORK', projectName }),
+      body: JSON.stringify({ sessionType: 'WORK', projectName, ...(timerOverride ? { timerOverride } : {}) }),
     }) as Promise<SessionResponse>,
     getActiveSession: () => request('/sessions/active', { method: 'GET' }, true) as Promise<ActiveSession>,
     getSessionHistory: requestHistory,

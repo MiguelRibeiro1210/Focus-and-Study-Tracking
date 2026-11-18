@@ -496,6 +496,68 @@ async fn save_history_csv(app: AppHandle, csv: String) -> Result<bool, String> {
 }
 
 #[tauri::command]
+async fn save_data_export(
+    app: AppHandle,
+    format: String,
+    supervisor: State<'_, Arc<BackendSupervisor>>,
+) -> Result<bool, String> {
+    if supervisor.status().phase != "ready" {
+        return Err("The local API is not ready yet.".to_owned());
+    }
+    let (extension, mime, file_name) = match format.as_str() {
+        "json" => ("json", "JSON", "focusdesktop-export.json"),
+        "csv-zip" => ("zip", "ZIP archive", "focusdesktop-export.zip"),
+        _ => return Err("Unsupported export format.".to_owned()),
+    };
+    let token = api_token(&supervisor)?;
+    let result = tauri::async_runtime::spawn_blocking(move || {
+        let response = Client::new()
+            .get(format!("{API_BASE}/api/v1/settings/export?format={format}"))
+            .bearer_auth(token)
+            .header("Origin", "tauri://localhost")
+            .send()
+            .map_err(|error| format!("Could not export local data: {error}"))?;
+        if !response.status().is_success() {
+            return Err(format!("The local API export failed with HTTP {}.", response.status()));
+        }
+        let bytes = response.bytes().map_err(|error| error.to_string())?;
+        let Some(file_path) = app
+            .dialog()
+            .file()
+            .add_filter(mime, &[extension])
+            .set_file_name(file_name)
+            .blocking_save_file()
+        else {
+            return Ok(false);
+        };
+        let path = file_path
+            .into_path()
+            .map_err(|error| format!("Could not use the selected export path: {error}"))?;
+        fs::write(path, bytes.as_ref()).map_err(|error| format!("Could not save data export: {error}"))?;
+        Ok(true)
+    })
+    .await
+    .map_err(|error| format!("Data export failed: {error}"))?;
+    result
+}
+
+#[tauri::command]
+fn open_data_folder(supervisor: State<'_, Arc<BackendSupervisor>>) -> Result<(), String> {
+    fs::create_dir_all(&supervisor.data_dir)
+        .map_err(|error| format!("Could not access the data directory: {error}"))?;
+    let mut command = if cfg!(target_os = "windows") {
+        Command::new("explorer")
+    } else if cfg!(target_os = "macos") {
+        Command::new("open")
+    } else {
+        Command::new("xdg-open")
+    };
+    command.arg(&supervisor.data_dir).spawn()
+        .map(|_| ())
+        .map_err(|error| format!("Could not open the data directory: {error}"))
+}
+
+#[tauri::command]
 fn retry_backend(
     app: AppHandle,
     supervisor: State<'_, Arc<BackendSupervisor>>,
@@ -534,6 +596,8 @@ fn api_request(
     let method = match method.as_str() {
         "GET" => reqwest::Method::GET,
         "POST" => reqwest::Method::POST,
+        "PUT" => reqwest::Method::PUT,
+        "DELETE" => reqwest::Method::DELETE,
         _ => return Err("Unsupported API method".to_owned()),
     };
     let token = api_token(&supervisor)?;
@@ -681,6 +745,8 @@ pub fn run() {
             retry_backend,
             api_request,
             save_history_csv,
+            save_data_export,
+            open_data_folder,
             connect_session_websocket,
             disconnect_session_websocket
         ])

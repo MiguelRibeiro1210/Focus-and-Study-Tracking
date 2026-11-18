@@ -18,6 +18,17 @@ describe('session REST client', () => {
     }))
   })
 
+  it('sends only supplied duration overrides without changing the saved profile', async () => {
+    const fetcher = vi.fn().mockResolvedValue(Response.json(session, { status: 201 }))
+    const api = createSessionApi(fetcher)
+    await api.startSession('Exam preparation', { workSeconds: 2700, shortBreakSeconds: 420 })
+    expect(fetcher).toHaveBeenCalledWith('/api/v1/sessions', expect.objectContaining({
+      method: 'POST',
+      body: JSON.stringify({ sessionType: 'WORK', projectName: 'Exam preparation',
+        timerOverride: { workSeconds: 2700, shortBreakSeconds: 420 } }),
+    }))
+  })
+
   it('serializes history filters and validates the history response contract', async () => {
     const history = { items: [], total: 0, page: 1, size: 20 }
     const fetcher = vi.fn().mockResolvedValue(Response.json(history))

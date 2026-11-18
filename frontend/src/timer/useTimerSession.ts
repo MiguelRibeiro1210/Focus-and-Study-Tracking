@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { SessionApiError, sessionApi, type SessionApi } from '../api/sessionApi'
+import { SessionApiError, sessionApi, type SessionApi, type TimerOverride } from '../api/sessionApi'
 import { createSessionEventClient, type SessionEventClientOptions } from '../api/sessionEvents'
 import type { ActiveSession, SessionResponse } from '../api/sessionTypes'
 import { createNativeWebSocket, isDesktopShell } from '../api/nativeTransport'
@@ -12,7 +12,7 @@ export interface TimerController {
   isLoading: boolean
   pendingAction: TimerAction | null
   error: string | null
-  runAction: (action: TimerAction, projectName?: string) => Promise<void>
+  runAction: (action: TimerAction, projectName?: string, timerOverride?: TimerOverride) => Promise<void>
   retry: () => void
 }
 
@@ -111,7 +111,7 @@ export function useTimerSession(dependencies: TimerSessionDependencies = {}): Ti
     eventClientRef.current?.reconcile()
   }, [])
 
-  const runAction = useCallback(async (action: TimerAction, projectName?: string) => {
+  const runAction = useCallback(async (action: TimerAction, projectName?: string, timerOverride?: TimerOverride) => {
     if (pendingActionRef.current) return
     pendingActionRef.current = true
     setPendingAction(action)
@@ -125,7 +125,7 @@ export function useTimerSession(dependencies: TimerSessionDependencies = {}): Ti
       switch (action) {
         case 'start':
           if (!projectName?.trim()) throw new SessionApiError('Enter a project name before starting.', 'http', 400, 'VALIDATION_ERROR')
-          result = await api.startSession(projectName.trim())
+          result = await api.startSession(projectName.trim(), timerOverride)
           break
         case 'pause':
           if (!current) return

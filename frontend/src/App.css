@@ -295,6 +295,138 @@
 .nav-item:focus-visible, .outlined-control:focus-visible, .profile-action:focus-visible, .filter-tab:focus-visible, .range-tab:focus-visible, .toggle-switch:focus-visible, .search-field:focus-visible, .project-field:focus-visible, .text-action:focus-visible { outline: 3px solid #a8ceb1; outline-offset: 2px; }
 .theme-select, .daily-goal-select { font-family: inherit; }
 
+/* Settings actions and editable profile controls */
+.profile-row-actions { display: flex; flex: none; align-items: center; gap: 7px; }
+.profile-link { padding: 3px 5px; border: 0; background: transparent; color: #245644; cursor: pointer; font: inherit; font-size: 9px; }
+.profile-link:hover:not(:disabled) { text-decoration: underline; }
+.profile-link:disabled, .clear-history:disabled { cursor: not-allowed; opacity: .55; }
+.danger-link, .delete-all-action > strong { color: #a6423d; }
+.visually-hidden { position: absolute; width: 1px; height: 1px; padding: 0; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
+.daily-goal-select { width: 152px; }
+.retention-row { min-height: 76px; }
+.retention-control { display: grid; min-width: 150px; gap: 6px; }
+.retention-control > input { width: 100%; }
+.retention-control > label, .profile-checkbox { display: flex; align-items: center; gap: 7px; color: #69766c; font-size: 10px; }
+.retention-control input[type="checkbox"], .profile-checkbox input { accent-color: #245644; }
+.export-controls { display: grid; grid-template-columns: minmax(0, 1fr); gap: 8px; margin-top: 10px; }
+.export-controls select { width: 100%; }
+.export-controls .full-control { margin-top: 0; }
+.cleanup-expired { border-top: 1px solid #e3e8df; }
+.delete-all-action { border-top: 1px solid #e3e8df; }
+.settings-feedback { grid-column: 1 / -1; margin: 0; color: #426345; font-size: 11px; }
+.settings-error { color: #883c36; }
+.settings-load-error { display: flex; grid-column: 1 / -1; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 14px; border: 1px solid #e5b7b2; border-radius: 8px; background: #fff4f2; color: #883c36; font-size: 11px; }
+.profile-dialog { display: grid; gap: 13px; max-height: min(90vh, 760px); overflow: auto; }
+.profile-dialog h2 { margin-bottom: 4px; }
+.profile-form-field { display: grid; gap: 6px; color: #365341; font-size: 11px; }
+.profile-form-field input { min-height: 38px; padding: 0 10px; border: 1px solid #dce5dc; border-radius: 7px; background: #fafbf8; color: #183b32; font: inherit; }
+.profile-form-durations { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.profile-form-hint { margin: 0; color: #69766c; font-size: 10px; }
+.profile-dialog .dialog-actions { margin-top: 4px; }
+
+html[data-theme="DARK"] { color-scheme: dark; }
+@media (prefers-color-scheme: dark) {
+  html[data-theme="DARK"] { color-scheme: dark; }
+}
+html[data-theme="DARK"], html[data-theme="DARK"] {
+  --theme-bg: #121a16;
+  --theme-surface: #1b2821;
+  --theme-surface-soft: #223129;
+  --theme-border: #35463b;
+  --theme-text: #e4eee6;
+  --theme-muted: #a8b8ac;
+  --theme-tint: #29382b;
+  --theme-tint-text: #d5e5c8;
+}
+@media (prefers-color-scheme: dark) {
+  html[data-theme="DARK"] {
+    --theme-bg: #121a16;
+    --theme-surface: #1b2821;
+    --theme-surface-soft: #223129;
+    --theme-border: #35463b;
+    --theme-text: #e4eee6;
+    --theme-muted: #a8b8ac;
+    --theme-tint: #29382b;
+    --theme-tint-text: #d5e5c8;
+  }
+}
+html[data-theme="DARK"] body, html[data-theme="DARK"] body { background: var(--theme-bg); color: var(--theme-text); }
+html[data-theme="DARK"] .desktop-app, html[data-theme="DARK"] .desktop-app,
+html[data-theme="DARK"] .workspace, html[data-theme="DARK"] .workspace { background: var(--theme-bg); color: var(--theme-text); }
+html[data-theme="DARK"] .workspace-header h1, html[data-theme="DARK"] .workspace-header h1,
+html[data-theme="DARK"] .workspace-content h2, html[data-theme="DARK"] .workspace-content h2,
+html[data-theme="DARK"] .stat-card strong, html[data-theme="DARK"] .stat-card strong,
+html[data-theme="DARK"] .timer-display, html[data-theme="DARK"] .timer-display,
+html[data-theme="DARK"] .field-label, html[data-theme="DARK"] .field-label,
+html[data-theme="DARK"] .saved-profile-row strong, html[data-theme="DARK"] .saved-profile-row strong,
+html[data-theme="DARK"] .daily-goal-setting strong, html[data-theme="DARK"] .daily-goal-setting strong,
+html[data-theme="DARK"] .preference-row strong, html[data-theme="DARK"] .preference-row strong,
+html[data-theme="DARK"] .goal-total strong, html[data-theme="DARK"] .goal-total strong,
+html[data-theme="DARK"] .goal-remaining, html[data-theme="DARK"] .goal-remaining,
+html[data-theme="DARK"] .recent-row, html[data-theme="DARK"] .recent-row,
+html[data-theme="DARK"] .history-row, html[data-theme="DARK"] .history-row,
+html[data-theme="DARK"] .distraction-row, html[data-theme="DARK"] .distraction-row,
+html[data-theme="DARK"] .history-stat-card strong, html[data-theme="DARK"] .history-stat-card strong,
+html[data-theme="DARK"] .history-best-day h2, html[data-theme="DARK"] .history-best-day h2,
+html[data-theme="DARK"] .history-best-day > strong, html[data-theme="DARK"] .history-best-day > strong { color: var(--theme-text); }
+html[data-theme="DARK"] .card-panel, html[data-theme="DARK"] .card-panel,
+html[data-theme="DARK"] .stat-card, html[data-theme="DARK"] .stat-card,
+html[data-theme="DARK"] .focus-panel, html[data-theme="DARK"] .focus-panel,
+html[data-theme="DARK"] .recent-panel, html[data-theme="DARK"] .recent-panel,
+html[data-theme="DARK"] .distraction-table, html[data-theme="DARK"] .distraction-table,
+html[data-theme="DARK"] .history-summary-card, html[data-theme="DARK"] .history-summary-card,
+html[data-theme="DARK"] .history-stat-card, html[data-theme="DARK"] .history-stat-card,
+html[data-theme="DARK"] .history-chart-panel, html[data-theme="DARK"] .history-chart-panel,
+html[data-theme="DARK"] .history-best-day, html[data-theme="DARK"] .history-best-day,
+html[data-theme="DARK"] .confirm-dialog, html[data-theme="DARK"] .confirm-dialog { border-color: var(--theme-border); background: var(--theme-surface); }
+html[data-theme="DARK"] .saved-profile-row, html[data-theme="DARK"] .saved-profile-row,
+html[data-theme="DARK"] .project-field, html[data-theme="DARK"] .project-field,
+html[data-theme="DARK"] .profile-form-field input, html[data-theme="DARK"] .profile-form-field input,
+html[data-theme="DARK"] .duration-option, html[data-theme="DARK"] .duration-option,
+html[data-theme="DARK"] .outlined-control, html[data-theme="DARK"] .outlined-control,
+html[data-theme="DARK"] .search-field, html[data-theme="DARK"] .search-field,
+html[data-theme="DARK"] .history-filter select, html[data-theme="DARK"] .history-filter select,
+html[data-theme="DARK"] .history-date-range-picker input, html[data-theme="DARK"] .history-date-range-picker input,
+html[data-theme="DARK"] .filter-tab.selected, html[data-theme="DARK"] .filter-tab.selected,
+html[data-theme="DARK"] .range-tab.selected, html[data-theme="DARK"] .range-tab.selected,
+html[data-theme="DARK"] .profile-action, html[data-theme="DARK"] .profile-action,
+html[data-theme="DARK"] .profile-action.default, html[data-theme="DARK"] .profile-action.default { border-color: var(--theme-border); background: var(--theme-surface-soft); color: var(--theme-text); }
+html[data-theme="DARK"] .workspace-header p, html[data-theme="DARK"] .workspace-header p,
+html[data-theme="DARK"] .muted-copy, html[data-theme="DARK"] .muted-copy,
+html[data-theme="DARK"] .future-empty-state, html[data-theme="DARK"] .future-empty-state,
+html[data-theme="DARK"] .stat-card p, html[data-theme="DARK"] .stat-card p,
+html[data-theme="DARK"] .stat-card small, html[data-theme="DARK"] .stat-card small,
+html[data-theme="DARK"] .saved-profiles-heading p, html[data-theme="DARK"] .saved-profiles-heading p,
+html[data-theme="DARK"] .saved-profile-row small, html[data-theme="DARK"] .saved-profile-row small,
+html[data-theme="DARK"] .preference-row small, html[data-theme="DARK"] .preference-row small,
+html[data-theme="DARK"] .shortcut-row, html[data-theme="DARK"] .shortcut-row,
+html[data-theme="DARK"] .shortcuts-panel > p, html[data-theme="DARK"] .shortcuts-panel > p,
+html[data-theme="DARK"] .storage-label, html[data-theme="DARK"] .storage-label,
+html[data-theme="DARK"] .profile-form-hint, html[data-theme="DARK"] .profile-form-hint,
+html[data-theme="DARK"] .profile-form-field, html[data-theme="DARK"] .profile-form-field,
+html[data-theme="DARK"] .profile-checkbox, html[data-theme="DARK"] .profile-checkbox { color: var(--theme-muted); }
+html[data-theme="DARK"] .daily-goal-panel, html[data-theme="DARK"] .daily-goal-panel,
+html[data-theme="DARK"] .privacy-panel, html[data-theme="DARK"] .privacy-panel,
+html[data-theme="DARK"] .boundaries-banner, html[data-theme="DARK"] .boundaries-banner { background: var(--theme-tint); color: var(--theme-tint-text); }
+html[data-theme="DARK"] .goal-intro, html[data-theme="DARK"] .goal-intro,
+html[data-theme="DARK"] .goal-label, html[data-theme="DARK"] .goal-label,
+html[data-theme="DARK"] .goal-total span, html[data-theme="DARK"] .goal-total span,
+html[data-theme="DARK"] .goal-complete, html[data-theme="DARK"] .goal-complete,
+html[data-theme="DARK"] .goal-copy, html[data-theme="DARK"] .goal-copy,
+html[data-theme="DARK"] .goal-footer, html[data-theme="DARK"] .goal-footer,
+html[data-theme="DARK"] .privacy-panel li, html[data-theme="DARK"] .privacy-panel li,
+html[data-theme="DARK"] .privacy-panel > p, html[data-theme="DARK"] .privacy-panel > p { color: var(--theme-muted); }
+html[data-theme="DARK"] .preference-row, html[data-theme="DARK"] .preference-row,
+html[data-theme="DARK"] .daily-goal-setting, html[data-theme="DARK"] .daily-goal-setting,
+html[data-theme="DARK"] .recent-row, html[data-theme="DARK"] .recent-row,
+html[data-theme="DARK"] .history-row, html[data-theme="DARK"] .history-row,
+html[data-theme="DARK"] .shortcut-row, html[data-theme="DARK"] .shortcut-row { border-color: var(--theme-border); }
+html[data-theme="DARK"] .goal-progress, html[data-theme="DARK"] .goal-progress { background: #46543b; }
+html[data-theme="DARK"] .project-field:disabled, html[data-theme="DARK"] .project-field:disabled { background: #29352e; }
+html[data-theme="DARK"] .button-secondary, html[data-theme="DARK"] .button-secondary { border-color: var(--theme-border); background: var(--theme-surface-soft); color: var(--theme-text); }
+html[data-theme="DARK"] .profile-link, html[data-theme="DARK"] .profile-link,
+html[data-theme="DARK"] .outlined-control, html[data-theme="DARK"] .outlined-control { color: #c7e6c0; }
+
 @media (max-width: 1180px) {
   .workspace-header { margin-right: 28px; margin-left: 28px; }
   .workspace-content { margin-right: 28px; margin-left: 28px; }

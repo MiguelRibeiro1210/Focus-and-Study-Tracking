@@ -3,6 +3,7 @@ package com.focusdesktop.infrastructure.web;
 import com.focusdesktop.application.usecase.GetActiveSessionUseCase;
 import com.focusdesktop.application.usecase.GetSessionHistoryUseCase;
 import com.focusdesktop.application.usecase.ClearSessionHistoryUseCase;
+import com.focusdesktop.application.usecase.CleanupExpiredSessionHistoryUseCase;
 import com.focusdesktop.application.usecase.SkipBreakUseCase;
 import com.focusdesktop.application.usecase.StartNextIntervalUseCase;
 import com.focusdesktop.application.usecase.PauseSessionUseCase;
@@ -37,11 +38,13 @@ public class SessionController {
     private final SkipBreakUseCase skipBreak;
     private final GetSessionHistoryUseCase history;
     private final ClearSessionHistoryUseCase clearHistory;
+    private final CleanupExpiredSessionHistoryUseCase cleanupExpiredHistory;
 
     public SessionController(StartSessionUseCase start, GetActiveSessionUseCase active,
             PauseSessionUseCase pause, ResumeSessionUseCase resume, StopSessionUseCase stop,
             StartNextIntervalUseCase startNextInterval, SkipBreakUseCase skipBreak,
-            GetSessionHistoryUseCase history, ClearSessionHistoryUseCase clearHistory) {
+            GetSessionHistoryUseCase history, ClearSessionHistoryUseCase clearHistory,
+            CleanupExpiredSessionHistoryUseCase cleanupExpiredHistory) {
         this.start = start;
         this.active = active;
         this.pause = pause;
@@ -51,6 +54,7 @@ public class SessionController {
         this.skipBreak = skipBreak;
         this.history = history;
         this.clearHistory = clearHistory;
+        this.cleanupExpiredHistory = cleanupExpiredHistory;
     }
 
     @PostMapping
@@ -88,6 +92,11 @@ public class SessionController {
         return ResponseEntity.noContent().build();
     }
 
+    @org.springframework.web.bind.annotation.DeleteMapping("/history/expired")
+    public CleanupExpiredHistoryResponse cleanupExpiredHistory() {
+        return new CleanupExpiredHistoryResponse(cleanupExpiredHistory.execute());
+    }
+
     @PostMapping("/{id}/pause")
     public SessionResponse pause(@PathVariable UUID id) {
         return SessionResponse.from(pause.execute(command(id)));
@@ -119,4 +128,5 @@ public class SessionController {
 
     public record StartSessionRequest(SessionType sessionType, String projectName, TimerOverrideRequest timerOverride) { }
     public record TimerOverrideRequest(Long workSeconds, Long shortBreakSeconds, Long longBreakSeconds) { }
+    public record CleanupExpiredHistoryResponse(int deletedSessions) { }
 }

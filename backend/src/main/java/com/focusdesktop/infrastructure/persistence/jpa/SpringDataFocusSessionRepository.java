@@ -19,6 +19,11 @@ interface SpringDataFocusSessionRepository extends JpaRepository<FocusSessionJpa
     @Query("select s.id from FocusSessionJpaEntity s where s.state in :states")
     List<UUID> findIdsByStateIn(@Param("states") Collection<SessionState> states);
 
+    @Query("select s.id from FocusSessionJpaEntity s where s.state in :states "
+            + "and s.endedAt <= :endedAtOrBefore")
+    List<UUID> findIdsByStateInAndEndedAtLessThanEqual(@Param("states") Collection<SessionState> states,
+            @Param("endedAtOrBefore") Instant endedAtOrBefore);
+
     @EntityGraph(attributePaths = "intervals")
     @Query("select s from FocusSessionJpaEntity s where s.state = :state "
             + "and (:fromInclusive is null or s.startedAt >= :fromInclusive) "

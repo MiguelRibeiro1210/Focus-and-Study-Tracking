@@ -241,6 +241,13 @@ Every requirement is traced to a use case and to the project board in
   and analytics. JSON is a single portable file; CSV is a ZIP archive with
   separate tables for settings, profiles, sessions, intervals and analytics.
 - Retention cleanup never deletes the active session.
+- Retention cleanup runs only when the learner explicitly requests it. It
+  removes completed or abandoned sessions whose end time is at least the
+  configured number of days old, plus their intervals and outbox records.
+  "Keep forever" removes nothing. Startup and scheduled automatic cleanup are
+  not performed.
+- Clearing all session history is a separate action and requires explicit
+  confirmation; it preserves settings and active sessions.
 
 ## 8. Future content intelligence (Phase 3)
 

@@ -3,6 +3,7 @@ import { listen } from '@tauri-apps/api/event'
 
 interface NativeResponse { status: number; body: unknown | null }
 interface NativeSocketEvent { connectionId: string; kind: 'open' | 'message' | 'error' | 'close'; data: string }
+export type NativeExportFormat = 'json' | 'csv-zip'
 
 export function isDesktopShell(): boolean { return isTauri() }
 
@@ -17,6 +18,14 @@ export const nativeFetch: typeof fetch = async (input, init = {}) => {
     status: response.status,
     headers: response.body === null ? undefined : { 'Content-Type': 'application/json' },
   })
+}
+
+export function saveNativeDataExport(format: NativeExportFormat): Promise<boolean> {
+  return invoke<boolean>('save_data_export', { format })
+}
+
+export function openNativeDataFolder(): Promise<void> {
+  return invoke<void>('open_data_folder')
 }
 
 export function createNativeWebSocket(): Pick<WebSocket, 'close' | 'onopen' | 'onmessage' | 'onclose' | 'onerror'> {

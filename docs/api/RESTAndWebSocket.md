@@ -203,6 +203,7 @@ even when its values are zero.
 | `PUT` | `/settings/application` | Update theme, notifications, retention and daily goal. | `200 OK` + `SettingsDto` |
 | `GET` | `/settings/export?format=json\|csv-zip` | Export all settings, profiles, sessions and analytics. | `200 OK` + JSON or ZIP of CSV files |
 | `DELETE` | `/sessions/history` | Delete completed and abandoned sessions, preserving settings and any active session. | `204 No Content` |
+| `DELETE` | `/sessions/history/expired` | On explicit request, delete terminal sessions older than the configured retention period. | `200 OK` + `{ "deletedSessions": 3 }` |
 | `DELETE` | `/settings/data` | Delete all personal data after confirmation. | `204 No Content` |
 
 Timer validation: work 1–180 minutes, short break 1–60 minutes, long break
@@ -224,8 +225,13 @@ The delete request requires a confirmation token in the body. It removes
 sessions, intervals, distraction logs, daily progress, profiles, outbox events
 and settings, then recreates default settings and starter profiles. The active
 session is stopped first. History deletion is a separate confirmed operation
-and leaves the active session and all settings in place. Retention cleanup never
-deletes the active session.
+and leaves the active session and all settings in place. The Settings UI asks
+for explicit confirmation before clearing history. Retention cleanup is a
+separate, user-triggered action: it deletes completed or abandoned sessions
+whose `endedAt` is at or before `now - retentionDays`, together with their
+intervals and outbox events. It preserves active sessions and all settings. A
+`null` retention period means keep forever and makes cleanup a no-op. Cleanup
+does not run automatically at startup or on a schedule.
 
 ## 5. Blocking rules (Phase 2)
 

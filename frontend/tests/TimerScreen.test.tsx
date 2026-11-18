@@ -138,6 +138,58 @@ describe('timer screen', () => {
     expect(onViewHistory).toHaveBeenCalledOnce()
   })
 
+  it('uses the selected profile as the timer baseline and sends only one-session duration overrides', async () => {
+    const user = userEvent.setup()
+    const timer = makeTimer(null)
+    const settings = {
+      defaultProfileId: 'deep', profiles: [
+        { id: 'deep', name: 'Deep work', workSeconds: 3000, shortBreakSeconds: 600, longBreakSeconds: 1200,
+          intervalsBeforeLongBreak: 4, autoStartBreaks: true, autoStartWork: false, isDefault: true },
+      ], dailyGoalHours: 3, theme: 'LIGHT' as const, notificationsEnabled: true, retentionDays: null,
+    }
+    render(<TimerScreen timer={timer} settings={settings} api={historyApi} />)
+
+    expect(screen.getByRole('timer').textContent).toContain('50:00')
+    expect((screen.getByRole('spinbutton', { name: 'Short break duration in minutes' }) as HTMLInputElement).placeholder).toBe('10')
+    await user.type(screen.getByRole('textbox', { name: 'What will you work on?' }), 'Exam preparation')
+    await user.type(screen.getByRole('spinbutton', { name: 'Work duration in minutes' }), '45')
+    await user.click(screen.getByRole('button', { name: 'Start focus session' }))
+    expect(timer.runAction).toHaveBeenCalledWith('start', 'Exam preparation', { workSeconds: 2700 })
+  })
+
+  it('rejects a one-session long break shorter than its short break', async () => {
+    const user = userEvent.setup()
+    const timer = makeTimer(null)
+    render(<TimerScreen timer={timer} api={historyApi} />)
+    await user.type(screen.getByRole('textbox', { name: 'What will you work on?' }), 'Exam preparation')
+    await user.type(screen.getByRole('spinbutton', { name: 'Short break duration in minutes' }), '12')
+    await user.type(screen.getByRole('spinbutton', { name: 'Long break duration in minutes' }), '10')
+    await user.click(screen.getByRole('button', { name: 'Start focus session' }))
+    expect(screen.getByRole('alert').textContent).toContain('long break must be at least as long')
+    expect(timer.runAction).not.toHaveBeenCalled()
+  })
+
+  it.each([
+    [299, '0 min'],
+    [300, '5 min'],
+  ])('counts a live work interval toward the daily goal only after 300 seconds (%i)', (seconds, expected) => {
+    const sessionStartedAt = new Date().toISOString()
+    const active = makeSession({
+      startedAt: sessionStartedAt,
+      plannedDurationSeconds: 1500,
+      actualDurationSeconds: seconds,
+      actualFocusDurationSeconds: seconds,
+      remainingSeconds: 1500 - seconds,
+    })
+    const timer = makeTimer(active, { remainingSeconds: 1500 - seconds })
+    const settings = {
+      defaultProfileId: 'classic', profiles: [], dailyGoalHours: 1,
+      theme: 'LIGHT' as const, notificationsEnabled: true, retentionDays: null,
+    }
+    const { container } = render(<TimerScreen timer={timer} settings={settings} api={historyApi} />)
+    expect(container.querySelector('.goal-total strong')?.textContent).toBe(expected)
+  })
+
   it('renders running controls and confirms before stopping', async () => {
     const user = userEvent.setup()
     const timer = makeTimer(makeSession())
