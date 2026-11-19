@@ -16,7 +16,10 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 import jakarta.persistence.EntityManager;
 import org.springframework.stereotype.Repository;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.TransactionDefinition;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 
 @Repository
 public class JpaAppSettingsRepositoryAdapter implements AppSettingsRepository, SessionSettingsProvider {
@@ -24,23 +27,39 @@ public class JpaAppSettingsRepositoryAdapter implements AppSettingsRepository, S
     private final SpringDataAppSettingsRepository settings;
     private final SpringDataTimerProfileRepository profiles;
     private final EntityManager entityManager;
+    private final TransactionTemplate initializationTransaction;
+    private final Object initializationLock = new Object();
 
     public JpaAppSettingsRepositoryAdapter(SpringDataAppSettingsRepository settings,
                                            SpringDataTimerProfileRepository profiles,
-                                           EntityManager entityManager) {
+                                           EntityManager entityManager,
+                                           PlatformTransactionManager transactionManager) {
         this.settings = settings;
         this.profiles = profiles;
         this.entityManager = entityManager;
+        this.initializationTransaction = new TransactionTemplate(transactionManager);
+        this.initializationTransaction.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
     }
 
     @Override
     @Transactional
     public AppSettings loadOrCreate() {
         AppSettingsJpaEntity entity = settings.findById(INSTALLATION_ID).orElseGet(() -> {
-            AppSettings defaults = AppSettings.defaults();
-            return persistNew(defaults);
+            initializeDefaults();
+            return settings.findById(INSTALLATION_ID).orElseThrow();
         });
         return toDomain(entity);
+    }
+
+    private void initializeDefaults() {
+        // Hold the lock through commit, including when the caller already has a transaction.
+        synchronized (initializationLock) {
+            initializationTransaction.executeWithoutResult(status -> {
+                if (settings.findById(INSTALLATION_ID).isEmpty()) {
+                    persistNew(AppSettings.defaults());
+                }
+            });
+        }
     }
 
     @Override

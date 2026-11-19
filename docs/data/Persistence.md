@@ -157,6 +157,13 @@ removed with their session or by delete-all.
 
 ## 5. Transactions and consistency
 
+On the first settings read, the local backend serializes initialization and
+commits the installation settings and all default timer profiles in a separate
+transaction before returning to the caller. Concurrent startup requests then
+read the same complete defaults, even when a caller's session transaction has
+not committed yet. Initialization survives a later rollback of that caller.
+Subsequent settings edits remain in their application-service transaction.
+
 1. The application service opens a transaction.
 2. The aggregate is loaded, validated and saved.
 3. Domain events are collected by the aggregate and appended to

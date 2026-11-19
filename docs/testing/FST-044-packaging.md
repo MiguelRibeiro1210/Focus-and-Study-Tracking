@@ -19,6 +19,19 @@ All packaged smoke checks confirm the local backend becomes healthy and the
 timer REST/WebSocket flow works. The Linux AppImage targets the Ubuntu
 22.04-compatible baseline. The DEB uses package-manager dependencies.
 
+## First-launch settings regression
+
+The macOS x64 packaged smoke exposed concurrent settings initialization: the
+desktop UI and session-start request both attempted to insert the installation
+row, causing session creation to return HTTP 500. Initialization now commits
+one complete settings/profile aggregate before callers continue.
+
+`JpaAppSettingsRepositoryAdapterTest` covers concurrent first reads and a
+session-settings read while the initializing caller's transaction is still
+open, including rollback of that caller. Both tests fail with the previous
+initialization behavior; all 132 backend tests pass with the fix locally.
+Packaged confirmation on macOS x64 remains part of the CI matrix above.
+
 ## Clean-install checks
 
 Before publishing a release, perform these checks on clean supported systems:
