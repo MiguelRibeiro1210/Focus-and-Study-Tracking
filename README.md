@@ -150,5 +150,4 @@ FocusDesktop adheres strictly to a **local-first philosophy**. All user producti
 Contributions, feature suggestions, and architectural feedback are highly welcome! Feel free to open an issue or submit a pull request.
 
 ## 📄 License
-The repository does not yet include a license file. The license choice and
-copyright notice remain to be recorded before distribution.
+This project is licensed under the [MIT License](LICENSE).
