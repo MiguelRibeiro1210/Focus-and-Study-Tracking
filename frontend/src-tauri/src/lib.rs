@@ -18,6 +18,9 @@ use tauri::{AppHandle, Emitter, Manager, State};
 use tauri_plugin_dialog::DialogExt;
 use tungstenite::{client::IntoClientRequest, connect, stream::MaybeTlsStream, Message};
 
+#[cfg(windows)]
+use std::os::windows::process::CommandExt;
+
 const API_BASE: &str = "http://127.0.0.1:8080";
 const HEALTH_TIMEOUT: Duration = Duration::from_secs(30);
 
@@ -198,7 +201,8 @@ impl BackendSupervisor {
                 return;
             }
         };
-        let child = Command::new(&java)
+        let mut command = Command::new(&java);
+        command
             .arg("-jar")
             .arg(java_compatible_path(&jar))
             .arg("--server.address=127.0.0.1")
@@ -206,8 +210,10 @@ impl BackendSupervisor {
             .env("FOCUSDESKTOP_DATA_DIR", &self.data_dir)
             .stdin(Stdio::null())
             .stdout(Stdio::from(log))
-            .stderr(Stdio::from(stderr))
-            .spawn();
+            .stderr(Stdio::from(stderr));
+        #[cfg(windows)]
+        command.creation_flags(0x08000000); // CREATE_NO_WINDOW
+        let child = command.spawn();
         let child = match child {
             Ok(child) => child,
             Err(error) => {
