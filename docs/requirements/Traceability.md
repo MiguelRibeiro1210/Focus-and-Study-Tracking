@@ -130,6 +130,8 @@ case, diagram and task should be visible in one place.
 | FST-023 Domain unit tests | [Test strategy](../testing/TestStrategy.md) |
 | FST-024 REST integration tests | [Test strategy](../testing/TestStrategy.md) |
 | FST-025 CI workflow | [Test strategy](../testing/TestStrategy.md) |
+| FST-041 native installers and bundled runtime | [Architecture](../SystemArchitecture/Architecture.md), [Packaging verification](../testing/FST-044-packaging.md) |
+| FST-044 installer runtime and platform dependency verification | [Non-functional requirements](NonFunctionalRequirements.md), [Packaging verification](../testing/FST-044-packaging.md) |
 | FST-026 Privacy audit | [ADR-001](../decisions/ADR-001-LocalFirst.md), [Test strategy](../testing/TestStrategy.md) |
 | FST-027 OS active-window detection | [SD_DetectDistraction](../SD/SD_DetectDistraction.puml) |
 | FST-028 Distraction blocking | [SD_BlockDistraction](../SD/SD_BlockDistraction.puml), [SD_ManageBlockingRules](../SD/SD_ManageBlockingRules.puml) |

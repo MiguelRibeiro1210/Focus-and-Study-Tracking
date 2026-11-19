@@ -29,6 +29,7 @@ the source of truth.
 | API | [REST and WebSocket API](api/RESTAndWebSocket.md) | Endpoints, DTOs, errors and live timer events |
 | Data | [Persistence](data/Persistence.md) | Schema, indexes, transactions, retention and migrations |
 | Quality | [Test strategy](testing/TestStrategy.md) | Test levels, privacy audit, coverage and CI gates |
+| Quality | [FST-044 packaging verification](testing/FST-044-packaging.md) | Packaged runtime checks and clean-install steps across supported platforms |
 | Decisions | [ADR-001 Local-first](decisions/ADR-001-LocalFirst.md) | Why the product never depends on a cloud service |
 | Decisions | [ADR-002 Spring Boot sidecar](decisions/ADR-002-SpringBootSidecar.md) | Why the core engine is a local Java process |
 | Decisions | [ADR-003 Tauri vs Electron](decisions/ADR-003-TauriVsElectron.md) | Desktop shell choice and trade-offs |

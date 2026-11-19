@@ -51,7 +51,7 @@ for the MVP unless a phase is stated.
 | NFR-PORT-02 | Portability | Support macOS 12+. | Installer and smoke test | CI matrix / manual |
 | NFR-PORT-03 | Portability | Support modern Linux (Ubuntu 22.04+). | AppImage/deb and smoke test | CI matrix / manual |
 | NFR-PORT-04 | Portability | The application runs without administrator privileges. | Standard user install | Manual test |
-| NFR-PORT-05 | Portability | The backend runs on Java 17+. | `java -version` check in installer | Packaging test |
+| NFR-PORT-05 | Portability | The packaged backend runs on the bundled app-private Java 17+ runtime; users do not need system Java. | Runtime included for each target architecture | Package inspection and packaged startup smoke test with system Java unavailable |
 | NFR-PORT-06 | Portability | No internet connection is required after installation. | Full MVP flow offline | Offline E2E test |
 
 ## 5. Usability and accessibility

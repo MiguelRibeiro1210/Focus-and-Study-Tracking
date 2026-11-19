@@ -101,6 +101,8 @@ try {
 
   const javaHome = await findJavaHome(extractedDir);
   if (!javaHome) throw new Error(`Temurin archive did not contain bin/${javaExecutable}`);
+  console.log('Verifying the staged Java runtime…');
+  run(path.join(javaHome, 'bin', javaExecutable), ['-version']);
 
   await mkdir(path.join(resourceDir, 'backend'), { recursive: true });
   await mkdir(runtimeDir, { recursive: true });

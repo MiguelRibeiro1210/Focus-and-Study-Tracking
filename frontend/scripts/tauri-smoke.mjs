@@ -1,6 +1,7 @@
 import { access, mkdtemp, readFile, rm } from 'node:fs/promises'
+import { existsSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join, resolve } from 'node:path'
+import { delimiter, join, resolve } from 'node:path'
 import { spawn } from 'node:child_process'
 import WebSocket from 'ws'
 
@@ -16,10 +17,19 @@ function assert(condition, message) {
   if (!condition) throw new Error(message)
 }
 
+function pathWithoutJava(pathValue) {
+  const javaNames = process.platform === 'win32' ? ['java.exe', 'java.cmd', 'java.bat'] : ['java']
+  return pathValue.split(delimiter).filter((directory) =>
+    !javaNames.some((javaName) => existsSync(join(directory, javaName))),
+  ).join(delimiter)
+}
+
 async function waitForHealth(processHandle, timeoutMs = 60_000) {
   const startedAt = Date.now()
   while (Date.now() - startedAt < timeoutMs) {
-    if (processHandle.exitCode !== null) throw new Error(`Tauri exited early with status ${processHandle.exitCode}`)
+    if (processHandle.exitCode !== null || processHandle.signalCode !== null) {
+      throw new Error(`Tauri exited early with status ${processHandle.exitCode ?? processHandle.signalCode}`)
+    }
     try {
       const response = await fetch(`${api}/health`, { signal: AbortSignal.timeout(500) })
       if (response.ok) return
@@ -34,13 +44,18 @@ function launchApp() {
   const args = packagedApp
     ? (packagedApp.toLowerCase().endsWith('.appimage') ? ['--appimage-extract-and-run'] : [])
     : ['run', 'tauri:dev']
+  const appEnvironment = {
+    ...process.env,
+    FOCUSDESKTOP_DATA_DIR: temporaryData,
+  }
+  if (packagedApp) {
+    appEnvironment.FOCUSDESKTOP_JAVA = join(temporaryData, 'java-must-not-be-used')
+    appEnvironment.JAVA_HOME = ''
+    appEnvironment.PATH = pathWithoutJava(process.env.PATH || '')
+  }
   const processHandle = spawn(command, args, {
     cwd: frontendDir,
-    env: {
-      ...process.env,
-      FOCUSDESKTOP_DATA_DIR: temporaryData,
-      ...(packagedApp ? { FOCUSDESKTOP_JAVA: join(temporaryData, 'java-must-not-be-used') } : {}),
-    },
+    env: appEnvironment,
     detached: process.platform !== 'win32',
     stdio: 'inherit',
   })
@@ -49,16 +64,24 @@ function launchApp() {
 }
 
 async function stopApp(processHandle) {
-  if (processHandle.exitCode !== null) return
-  if (process.platform !== 'win32' && processHandle.pid) {
+  if (processHandle.exitCode !== null || processHandle.signalCode !== null) return
+  if (process.platform === 'win32' && processHandle.pid) {
+    const taskkill = spawn('taskkill', ['/PID', String(processHandle.pid), '/T', '/F'], { stdio: 'ignore' })
+    await new Promise((resolveExit) => taskkill.once('exit', resolveExit))
+  } else if (processHandle.pid) {
     try { process.kill(-processHandle.pid, 'SIGINT') } catch { /* already stopped */ }
   } else processHandle.kill('SIGINT')
   await Promise.race([
     new Promise((resolveExit) => processHandle.once('exit', resolveExit)),
     new Promise((resolveTimeout) => setTimeout(resolveTimeout, 10_000)),
   ])
-  if (processHandle.exitCode === null && process.platform !== 'win32' && processHandle.pid) {
-    try { process.kill(-processHandle.pid, 'SIGTERM') } catch { /* already stopped */ }
+  if (processHandle.exitCode === null && processHandle.signalCode === null && processHandle.pid) {
+    try {
+      if (process.platform === 'win32') {
+        const taskkill = spawn('taskkill', ['/PID', String(processHandle.pid), '/T', '/F'], { stdio: 'ignore' })
+        await new Promise((resolveExit) => taskkill.once('exit', resolveExit))
+      } else process.kill(-processHandle.pid, 'SIGTERM')
+    } catch { /* already stopped */ }
   }
   childApps.delete(processHandle)
 }
@@ -94,7 +117,6 @@ async function waitForSocketEvent(socket, predicate, timeoutMs = 10_000) {
 }
 
 async function run() {
-  assert(process.platform !== 'win32', 'This smoke runner currently uses Unix process-group shutdown. Use the manual checks in docs/testing/FST-041-packaging.md on Windows.')
   if (packagedApp) {
     assert(await access(packagedApp).then(() => true).catch(() => false), `Packaged app not found: ${packagedApp}`)
   } else {
@@ -143,7 +165,7 @@ async function run() {
   await stopApp(app)
   app = undefined
   await waitForHealthToStop()
-  console.log(`${packagedApp ? 'FST-041 packaged' : 'FST-040'} smoke passed: startup, authenticated REST, WebSocket event, active-session recovery and sidecar shutdown.`)
+  console.log(`${packagedApp ? 'FST-044 packaged' : 'FST-040'} smoke passed: startup, authenticated REST, WebSocket event, active-session recovery and sidecar shutdown.`)
 }
 
 async function waitForHealthToStop() {

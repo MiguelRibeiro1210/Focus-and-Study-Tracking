@@ -146,11 +146,15 @@ impl BackendSupervisor {
             return;
         }
         if !cfg!(debug_assertions) && !java.is_file() {
+            let message = format!(
+                "Bundled Java runtime not found at {}. Reinstall FocusDesktop and inspect the local diagnostics log.",
+                java.display()
+            );
             self.set_status(
                 &app,
                 BackendStatus::new(
                     "failed",
-                    format!("Java runtime not found at {}.", java.display()),
+                    message,
                     Some(self.log_path.to_string_lossy().into_owned()),
                 ),
             );
@@ -201,7 +205,19 @@ impl BackendSupervisor {
         let child = match child {
             Ok(child) => child,
             Err(error) => {
-                self.set_status(&app, BackendStatus::new("failed", format!("Could not start Java backend: {error}. Install a compatible Java runtime and retry."), Some(self.log_path.to_string_lossy().into_owned())));
+                let recovery = if cfg!(debug_assertions) {
+                    "Check that Java 17+ is installed and available, then retry."
+                } else {
+                    "The bundled Java runtime could not start. Reinstall FocusDesktop and inspect the local diagnostics log."
+                };
+                self.set_status(
+                    &app,
+                    BackendStatus::new(
+                        "failed",
+                        format!("Could not start Java backend: {error}. {recovery}"),
+                        Some(self.log_path.to_string_lossy().into_owned()),
+                    ),
+                );
                 return;
             }
         };

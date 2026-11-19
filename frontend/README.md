@@ -34,7 +34,8 @@ npm run tauri:dev
 The shell starts the JAR on loopback port 8080, waits for `/health`, and only
 then enables the timer UI. It passes `FOCUSDESKTOP_DATA_DIR` to the backend,
 keeps the bearer token inside the Rust process, and shuts the sidecar down when
-the desktop app exits. Java 17 is required for development. Rust stable and
+the desktop app exits. Java 17 is required when running the development shell;
+release installers use their bundled runtime. Rust stable and
 Tauri's platform-specific native dependencies are also required. On
 Debian/Ubuntu, install the packages listed in the repository's root README.
 
@@ -61,6 +62,12 @@ under `src-tauri/target/release/bundle/`. macOS apps use ad-hoc signing and are
 not notarized; the tester may need to approve the app in **System Settings →
 Privacy & Security → Open Anyway** on first launch. Other local packages are
 unsigned.
+
+The Windows NSIS installer uses Tauri's default WebView2 bootstrapper if the
+runtime is missing, which may require internet access during installation.
+Once installed, the app and bundled backend runtime work offline. Debian
+packages declare their system dependencies for the package manager; AppImage
+targets the documented Ubuntu 22.04-compatible baseline.
 
 To create an installer without asking the tester to clone or build the project,
 run the **Build and package FocusDesktop** workflow from GitHub Actions on the

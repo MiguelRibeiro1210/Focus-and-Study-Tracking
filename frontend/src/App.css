@@ -369,6 +369,7 @@ html[data-theme="DARK"] .distraction-row, html[data-theme="DARK"] .distraction-r
 html[data-theme="DARK"] .history-stat-card strong, html[data-theme="DARK"] .history-stat-card strong,
 html[data-theme="DARK"] .history-best-day h2, html[data-theme="DARK"] .history-best-day h2,
 html[data-theme="DARK"] .history-best-day > strong, html[data-theme="DARK"] .history-best-day > strong { color: var(--theme-text); }
+html[data-theme="DARK"] .timer-display { color: #183b32; }
 html[data-theme="DARK"] .card-panel, html[data-theme="DARK"] .card-panel,
 html[data-theme="DARK"] .stat-card, html[data-theme="DARK"] .stat-card,
 html[data-theme="DARK"] .focus-panel, html[data-theme="DARK"] .focus-panel,
