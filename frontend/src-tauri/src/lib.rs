@@ -427,7 +427,26 @@ fn backend_launch_paths(app: &AppHandle) -> Result<(PathBuf, PathBuf), String> {
     let resources = app
         .path()
         .resource_dir()
-        .map_err(|error| format!("Could not locate the packaged application resources: {error}"))?;
+        .ok()
+        .or_else(|| {
+            #[cfg(target_os = "macos")]
+            {
+                env::current_exe()
+                    .ok()
+                    .and_then(|executable| {
+                        executable
+                            .parent()?
+                            .parent()
+                            .map(|contents| contents.join("Resources"))
+                    })
+                    .filter(|resources| resources.is_dir())
+            }
+            #[cfg(not(target_os = "macos"))]
+            {
+                None
+            }
+        })
+        .ok_or_else(|| "Could not locate the packaged application resources".to_owned())?;
     let java_name = if cfg!(target_os = "windows") {
         "java.exe"
     } else {
@@ -563,7 +582,10 @@ async fn save_data_export(
             .send()
             .map_err(|error| format!("Could not export local data: {error}"))?;
         if !response.status().is_success() {
-            return Err(format!("The local API export failed with HTTP {}.", response.status()));
+            return Err(format!(
+                "The local API export failed with HTTP {}.",
+                response.status()
+            ));
         }
         let bytes = response.bytes().map_err(|error| error.to_string())?;
         let Some(file_path) = app
@@ -578,7 +600,8 @@ async fn save_data_export(
         let path = file_path
             .into_path()
             .map_err(|error| format!("Could not use the selected export path: {error}"))?;
-        fs::write(path, bytes.as_ref()).map_err(|error| format!("Could not save data export: {error}"))?;
+        fs::write(path, bytes.as_ref())
+            .map_err(|error| format!("Could not save data export: {error}"))?;
         Ok(true)
     })
     .await
@@ -597,7 +620,9 @@ fn open_data_folder(supervisor: State<'_, Arc<BackendSupervisor>>) -> Result<(),
     } else {
         Command::new("xdg-open")
     };
-    command.arg(&supervisor.data_dir).spawn()
+    command
+        .arg(&supervisor.data_dir)
+        .spawn()
         .map(|_| ())
         .map_err(|error| format!("Could not open the data directory: {error}"))
 }
