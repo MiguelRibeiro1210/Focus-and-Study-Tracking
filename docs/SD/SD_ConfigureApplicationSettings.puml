@@ -9,12 +9,24 @@ participant "UpdateApplicationSettingsUseCase" as UseCase
 participant "AppSettingsRepository" as Repo
 participant "AppSettings" as Settings
 participant "SettingsMapper" as Mapper
+participant "Native Notification Plugin" as Notifications
+participant "Operating System" as OS
 
-Learner -> UI : edit goal/theme/notifications/retention or request data action
-UI -> Controller : PUT /api/v1/settings/application\n{dailyGoalHours, theme, notifications, retentionDays}
+UI -> Controller : GET /api/v1/settings
+Controller -> UseCase : get()
+UseCase -> Repo : load()
+Repo --> UseCase : AppSettings
+UseCase -> Mapper : toDto(settings)
+Mapper --> UseCase : SettingsDto
+Controller --> UI : 200 OK\n{...}
+
+Learner -> UI : update preferences and enable notifications
+UI -> Notifications : isPermissionGranted()
+Notifications -> OS : check native permission
+OS --> Notifications : granted
+UI -> Controller : PUT /api/v1/settings/application\n{dailyGoalHours, theme, notificationsEnabled:true, retentionDays}
 Controller -> UseCase : update(command)
 UseCase -> UseCase : validate(command)
-
 UseCase -> Repo : load()
 Repo --> UseCase : AppSettings
 UseCase -> Settings : updateTheme(theme)
@@ -28,15 +40,6 @@ UseCase -> Mapper : toDto(settings)
 Mapper --> UseCase : SettingsDto
 UseCase --> Controller : SettingsDto
 Controller --> UI : 200 OK\n{...}
-
-note over UseCase
-  Export returns JSON or a ZIP of CSV files. Clear history deletes only
-  completed/abandoned sessions and preserves settings and any active session.
-  Clear-history and delete-all are separate confirmed commands. Clear-history
-  removes completed/abandoned sessions and their intervals, preserving the
-  active session and settings. Delete-all stops any active session, removes
-  personal data including profiles and outbox events, then recreates defaults.
-end note
 
 note over Settings
   Settings changes apply to new sessions.

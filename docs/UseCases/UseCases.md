@@ -291,6 +291,11 @@ start the pending interval.
    transaction.
 8. After commit, the dispatcher broadcasts `interval.completed` with the next
    interval type, session state and remaining time.
+9. The desktop UI handles each unique `interval.completed` event once. Before
+   applying its session snapshot, it reads the interval type currently shown
+   and asks the native notification service to display a work-complete or
+   break-complete message when notifications are enabled and OS permission is
+   granted. It does not send a second notification for `session.completed`.
 
 ### Starting a pending interval
 
@@ -331,7 +336,7 @@ BR-03, BR-05, BR-08.
 
 ### Related requirements and diagrams
 
-FR-SES-05, FR-SES-09.
+FR-SES-05, FR-SES-09, FR-SES-12.
 [Sequence diagram](../SD/SD_CompleteInterval.puml),
 [start pending interval](../SD/SD_StartNextInterval.puml),
 [domain model](../DM/DomainModel.md).
@@ -658,30 +663,48 @@ snapshot.
 
 1. The UI requests `GET /api/v1/settings` and displays the daily focus goal,
    theme, notification and retention preferences.
-2. The learner changes one or more preferences; the system validates and
-   persists the update.
-3. The system returns updated settings and the UI applies the theme
+2. The learner changes one or more preferences; the system validates and persists
+   them. The system returns updated settings and the UI applies the theme
    immediately.
-4. The learner may open the local data directory or export all settings,
+3. The learner may open the local data directory or export all settings,
    profiles, sessions and analytics as a JSON file or a ZIP of CSV files.
-5. The learner may clear session history; after explicit confirmation the
+4. The learner may clear session history; after explicit confirmation the
    system removes completed and abandoned sessions while preserving settings
    and any active session.
-6. The learner may request deletion of all personal data; the system requires
+5. The learner may request deletion of all personal data; the system requires
    explicit confirmation, stops an active session, deletes all personal data,
    then recreates default settings and starter profiles.
+
+### Notification permission behavior
+
+1. On startup, the UI loads the saved notification preference. Notifications
+   are enabled by default. If the preference is enabled, the desktop UI checks
+   native OS permission and requests it when needed.
+2. If permission is granted, the saved preference remains enabled. If denied,
+   the UI saves `notificationsEnabled=false` and shows an explanation in
+   Settings.
+3. When the learner later enables notifications, the UI checks permission and
+   calls the OS permission request again if needed. It saves `true` only after
+   permission is granted; if denied, it keeps the setting off. Whether another
+   system prompt appears after an earlier denial is controlled by the OS.
+4. Turning notifications off saves `false` and suppresses interval notifications
+   immediately.
 
 ### Extensions
 
 - **2a. Invalid goal or retention.** `422 VALIDATION_ERROR`.
 - **2b. Unsupported theme.** `422 VALIDATION_ERROR`.
-- **5a. The learner cancels history deletion.** No data is changed.
-- **6a. The learner cancels deletion of all data.** No data is changed.
-- **6b. The learner requests deletion of all data.** The system requires an
+- **2c. A completed interval event arrives.** If notifications are enabled,
+  display one native system notification based on the interval type shown just
+  before applying the event snapshot. This applies while the window is focused
+  or not focused; OS notification settings may suppress it.
+- **4a. The learner cancels history deletion.** No data is changed.
+- **5a. The learner cancels deletion of all data.** No data is changed.
+- **5b. The learner requests deletion of all data.** The system requires an
   explicit confirmation, then deletes sessions, intervals, distractions,
   progress, profiles, outbox events and settings, recreates defaults, and
   returns `204 No Content`.
-- **7a. Retention cleanup is triggered.** The system deletes data older than the
+- **6a. Retention cleanup is triggered.** The system deletes data older than the
   configured retention, never the active session.
 
 ### Postconditions

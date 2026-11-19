@@ -59,6 +59,16 @@ deterministic and does not mutate `DailyProgress` or `DistractionLog`.
   remaining time.
 - REST tests cover each endpoint, validation, 401/403/404/409/422/500 mapping.
 - WebSocket tests cover connect, event delivery, disconnect and reconnect.
+- Desktop notification tests cover one native notification per unique
+  `interval.completed` event, distinct work/break messages using the previously
+  displayed interval, no notification for `session.completed`, and suppression
+  when the preference is off or OS permission is unavailable.
+- Settings tests cover the enabled-by-default startup permission check, keeping
+  the preference on after a grant, turning it off after denial, and requesting
+  permission again after a later user activation.
+- Packaged desktop smoke checks exercise notification permission and delivery
+  for work and break completion on supported operating systems; browser-only
+  tests mock the native notification adapter.
 - Retention cleanup deletes old data but never the active session.
 - "Delete all data" leaves defaults and no user rows.
 - Flyway migrations apply to a copy of the previous schema.

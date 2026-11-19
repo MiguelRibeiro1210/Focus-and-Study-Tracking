@@ -10,6 +10,9 @@ participant "SessionSettings" as Settings
 participant "TransactionalOutbox" as Events
 participant "Outbox Dispatcher" as Dispatcher
 participant "SessionWebSocketHandler" as WS
+participant "Desktop UI" as UI
+participant "Native Notification Service" as Notification
+participant "Operating System" as OS
 
 Timer -> UseCase : completeInterval(sessionId, now)
 UseCase -> Repo : findById(sessionId)
@@ -41,6 +44,14 @@ UseCase -> Events : appendToOutbox(IntervalCompleted)
 UseCase -> UseCase : commit aggregate and outbox atomically
 UseCase --> Timer : completed
 Dispatcher -> WS : broadcast interval.completed snapshot after commit
+WS -> UI : interval.completed(eventId, latest session snapshot)
+UI -> UI : read displayed interval type before applying snapshot
+alt notifications enabled and OS permission granted
+  UI -> Notification : send native work-complete or break-complete message
+  Notification -> OS : show system notification
+else notifications disabled or permission denied
+  UI -> UI : do not send notification
+end
 deactivate Session
 
 note over Session, Settings
@@ -56,6 +67,11 @@ end note
 
 note over Events, WS
   WebSocket forwarding is best-effort; clients reconcile from REST snapshots.
+end note
+
+note over UI, Notification
+  The UI handles each unique event ID once and uses its previously displayed
+  interval type. It does not notify separately for session.completed.
 end note
 
 @enduml

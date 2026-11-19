@@ -13,6 +13,7 @@ case, diagram and task should be visible in one place.
 | FR-SES-03 | UC-03 | [SD_ResumeSession](../SD/SD_ResumeSession.puml) | FST-010, FST-014 |
 | FR-SES-04 | UC-04 | [SD_StopSession](../SD/SD_StopSession.puml) | FST-010, FST-014 |
 | FR-SES-05 | UC-05 | [SD_CompleteInterval](../SD/SD_CompleteInterval.puml), [SD_StartNextInterval](../SD/SD_StartNextInterval.puml) | FST-006, FST-038, FST-015 |
+| FR-SES-12 | UC-05 | [SD_CompleteInterval](../SD/SD_CompleteInterval.puml) | FST-045 |
 | FR-SES-06 | UC-06 | [SD_SkipBreak](../SD/SD_SkipBreak.puml) | FST-006, FST-038, FST-017 |
 | FR-SES-07 | UC-01 | [SD_StartSession](../SD/SD_StartSession.puml) | FST-005, FST-009 |
 | FR-SES-08 | UC-01 | [SD_StartSession](../SD/SD_StartSession.puml) | FST-005, FST-013 |
@@ -36,7 +37,7 @@ case, diagram and task should be visible in one place.
 | FR-SET-01 | UC-10 | [SD_ConfigureTimerSettings](../SD/SD_ConfigureTimerSettings.puml) | FST-020 |
 | FR-SET-02 | UC-10 | [SD_ConfigureTimerSettings](../SD/SD_ConfigureTimerSettings.puml) | FST-020 |
 | FR-SET-03 | UC-10 | [SD_ConfigureTimerSettings](../SD/SD_ConfigureTimerSettings.puml) | FST-020 |
-| FR-SET-04 | UC-11 | [SD_ConfigureApplicationSettings](../SD/SD_ConfigureApplicationSettings.puml) | FST-020 |
+| FR-SET-04 | UC-11 | [SD_ConfigureApplicationSettings](../SD/SD_ConfigureApplicationSettings.puml) | FST-020, FST-045 |
 | FR-SET-05 | UC-10 | [SD_ConfigureTimerSettings](../SD/SD_ConfigureTimerSettings.puml) | FST-020 |
 | FR-SET-06 | UC-10 | [SD_ConfigureTimerSettings](../SD/SD_ConfigureTimerSettings.puml) | FST-005, FST-020 |
 | FR-SET-07 | UC-10 | [SD_ConfigureTimerSettings](../SD/SD_ConfigureTimerSettings.puml) | FST-020 |
@@ -72,7 +73,7 @@ case, diagram and task should be visible in one place.
 | UC-02 Pause session | FR-SES-02 |
 | UC-03 Resume session | FR-SES-03 |
 | UC-04 Stop session | FR-SES-04, FR-SES-11, FR-HIS-01 |
-| UC-05 Complete interval | FR-SES-05, FR-SES-09 |
+| UC-05 Complete interval | FR-SES-05, FR-SES-09, FR-SES-12 |
 | UC-06 Skip break | FR-SES-06 |
 | UC-07 View session history | FR-HIS-02, FR-HIS-03, FR-HIS-05 |
 | UC-08 View daily streak | FR-STR-01..04 |
@@ -132,6 +133,7 @@ case, diagram and task should be visible in one place.
 | FST-025 CI workflow | [Test strategy](../testing/TestStrategy.md) |
 | FST-041 native installers and bundled runtime | [Architecture](../SystemArchitecture/Architecture.md), [Packaging verification](../testing/FST-044-packaging.md) |
 | FST-044 installer runtime and platform dependency verification | [Non-functional requirements](NonFunctionalRequirements.md), [Packaging verification](../testing/FST-044-packaging.md) |
+| FST-045 desktop interval notifications | [Functional requirements](FunctionalRequirements.md), [Use cases UC-05 and UC-11](../UseCases/UseCases.md), [API event delivery](../api/RESTAndWebSocket.md), [Test strategy](../testing/TestStrategy.md) |
 | FST-026 Privacy audit | [ADR-001](../decisions/ADR-001-LocalFirst.md), [Test strategy](../testing/TestStrategy.md) |
 | FST-027 OS active-window detection | [SD_DetectDistraction](../SD/SD_DetectDistraction.puml) |
 | FST-028 Distraction blocking | [SD_BlockDistraction](../SD/SD_BlockDistraction.puml), [SD_ManageBlockingRules](../SD/SD_ManageBlockingRules.puml) |

@@ -21,6 +21,7 @@ Every requirement is traced to a use case and to the project board in
 | FR-SES-09 | The system exposes the current interval type, state and remaining time at any moment. | Must | MVP | UC-01 | FST-006, FST-015 |
 | FR-SES-10 | Each session stores a snapshot of the timer settings used to create it. | Must | MVP | UC-01 | FST-005 |
 | FR-SES-11 | A stopped session with less than 5 minutes of actual work time is marked abandoned; 5 minutes or more is completed. Paused and break time do not count. | Should | MVP | UC-04 | FST-005, FST-011 |
+| FR-SES-12 | When notifications are enabled and OS permission is granted, the desktop app sends one native system notification for each completed work, short-break or long-break interval. | Should | MVP | UC-05 | FST-045 |
 
 ### Acceptance criteria — session lifecycle
 
@@ -141,7 +142,7 @@ Every requirement is traced to a use case and to the project board in
 | FR-SET-01 | The learner can configure work, short-break and long-break durations. | Must | MVP | UC-10 | FST-020 |
 | FR-SET-02 | The learner can configure the number of work intervals before a long break. | Must | MVP | UC-10 | FST-020 |
 | FR-SET-03 | The learner can enable or disable auto-start for breaks and work intervals. | Must | MVP | UC-10 | FST-020 |
-| FR-SET-04 | The learner can configure theme, notifications and data retention. | Should | MVP | UC-11 | FST-020 |
+| FR-SET-04 | The learner can configure theme, notifications and data retention. | Should | MVP | UC-11 | FST-020, FST-045 |
 | FR-SET-05 | Invalid settings are rejected with field-level validation errors. | Must | MVP | UC-10 | FST-020 |
 | FR-SET-06 | Settings changes apply to new sessions; active sessions keep their snapshot. | Must | MVP | UC-10 | FST-005 |
 | FR-SET-07 | The learner can create, edit, select as default, and delete timer profiles, including the built-in profiles. | Must | MVP | UC-10 | FST-020 |
@@ -186,8 +187,21 @@ Every requirement is traced to a use case and to the project board in
   session, deletes all personal data and recreates default settings and starter
   profiles. The data-folder action opens the local application-data directory.
 - Retention must be between 7 and 3650 days, or "keep forever".
-- Notifications cover session and break completion. Theme changes apply
-  immediately; supported choices are light, dark and system.
+- Native system notifications cover each completed work, short-break and
+  long-break interval, but not a separate `session.completed` event. The
+  desktop app sends them even while its window is focused; the operating
+  system's notification and quiet-mode settings may suppress their display.
+  Notifications require the app and its WebSocket client to be running.
+- Enabling notifications requests OS permission before saving the preference
+  as enabled. If permission is denied, the preference remains off and the UI
+  explains that delivery is blocked. Each later activation calls the OS
+  permission request again; whether the OS presents another prompt is under
+  OS control. Because notifications are enabled by default, the desktop app
+  performs this permission check/request on first startup as well. A denial
+  turns the saved preference off and is explained in Settings. Turning
+  notifications off suppresses delivery immediately.
+- Theme changes apply immediately; supported choices are light, dark and
+  system.
 - A rejected update leaves the previous settings unchanged.
 
 ## 6. Distraction control (Phase 2)

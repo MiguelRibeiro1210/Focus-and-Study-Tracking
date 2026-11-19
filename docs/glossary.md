@@ -23,6 +23,7 @@
 | **Idempotency** | The property that processing the same command or event more than once has the same effect as processing it once. |
 | **Local-first** | The application stores and processes product data on the user's device and needs no cloud service to operate. |
 | **Long break** | A rest interval after the configured number of completed work intervals; short breaks are excluded from the count, which repeats after each long break. |
+| **Native system notification** | A brief alert displayed by the operating system outside the app window; the OS decides its visible style and may suppress it according to user notification settings. |
 | **Outbox** | A table of domain events committed atomically with writes and dispatched after commit with retry. |
 | **Port / adapter** | A port describes an application-facing capability; an adapter implements it for a concrete technology such as the operating system or database. |
 | **Projection / read model** | A query-oriented representation updated from source records and domain events. |
