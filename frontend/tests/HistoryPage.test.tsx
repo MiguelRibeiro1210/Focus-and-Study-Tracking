@@ -50,6 +50,7 @@ describe('history page', () => {
       getSessionHistory: vi.fn().mockResolvedValue(makePage([makeItem()])),
       getAnalyticsSummary: vi.fn().mockResolvedValue(makeAnalytics()),
     }
+    const expectedRange = createHistoryQuery('7 days', undefined, 0)
     render(<HistoryPage api={api} />)
 
     expect(screen.getByText('Loading session history…')).toBeTruthy()
@@ -63,7 +64,7 @@ describe('history page', () => {
       size: 20,
     }))
     expect((await screen.findAllByText('25 min')).length).toBeGreaterThanOrEqual(1)
-    expect(api.getAnalyticsSummary).toHaveBeenCalledWith({ from: '2026-11-12', to: '2026-11-18' })
+    expect(api.getAnalyticsSummary).toHaveBeenCalledWith({ from: expectedRange.from, to: expectedRange.to })
   })
 
   it('queries the selected date range and status, and resets pagination on filter changes', async () => {
@@ -74,6 +75,7 @@ describe('history page', () => {
       )),
       getAnalyticsSummary: vi.fn().mockResolvedValue(makeAnalytics()),
     }
+    const expectedThirtyDayRange = createHistoryQuery('30 days', undefined, 0)
     render(<HistoryPage api={api} />)
     await screen.findByText('Exam preparation')
 
@@ -90,7 +92,10 @@ describe('history page', () => {
       ...createHistoryQuery('30 days', 'ABANDONED', 0),
       size: 20,
     })))
-    expect(api.getAnalyticsSummary).toHaveBeenLastCalledWith({ from: '2026-10-20', to: '2026-11-18' })
+    expect(api.getAnalyticsSummary).toHaveBeenLastCalledWith({
+      from: expectedThirtyDayRange.from,
+      to: expectedThirtyDayRange.to,
+    })
     await user.click(screen.getByRole('button', { name: 'All time' }))
     await waitFor(() => expect(api.getSessionHistory).toHaveBeenCalledWith({ status: 'ABANDONED', page: 0, size: 20 }))
   })
