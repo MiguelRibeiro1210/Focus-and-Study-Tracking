@@ -14,6 +14,7 @@
     "tauri:build": "npm run bundle:prepare && tauri build",
     "smoke:tauri": "node scripts/tauri-smoke.mjs",
     "smoke:tauri:packaged": "node scripts/tauri-smoke.mjs --packaged",
+    "privacy:audit": "node scripts/privacy-audit.mjs",
     "build": "tsc -b && vite build",
     "lint": "oxlint",
     "test": "vitest run",

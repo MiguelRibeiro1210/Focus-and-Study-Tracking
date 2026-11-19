@@ -243,8 +243,11 @@ Every requirement is traced to a use case and to the project board in
 
 ### Acceptance criteria — privacy
 
-- An integration test blocks all non-loopback sockets and the full MVP test
-  suite still passes.
+- The source and resolved frontend/Rust dependency audit fails on non-loopback
+  runtime endpoints or telemetry/crash-reporting SDK dependencies.
+- A packaged Linux smoke test blocks and records non-loopback TCP connections
+  and UDP sends; the complete timer smoke flow succeeds with no attempted
+  non-loopback traffic. Build-time downloads are outside the app runtime scope.
 - The API rejects requests without the token with `401`.
 - The API rejects non-loopback origins.
 - Deleting all data removes sessions, intervals, distractions, progress and

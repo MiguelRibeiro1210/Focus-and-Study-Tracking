@@ -42,7 +42,7 @@ jobs:
         working-directory: frontend
 
       - name: Run frontend checks
-        run: npm run build && npm run lint && npm test
+        run: npm run build && npm run lint && npm test && npm run privacy:audit
         working-directory: frontend
 
   package:
@@ -181,7 +181,20 @@ jobs:
 
       - name: Smoke-test the packaged AppImage without system Java
         if: runner.os == 'Linux'
-        run: xvfb-run -a npm run smoke:tauri:packaged -- "$(find src-tauri/target/release/bundle -name '*.AppImage' -print -quit)"
+        shell: bash
+        run: |
+          guard_dir="$(mktemp -d)"
+          trap 'rm -rf "$guard_dir"' EXIT
+          gcc -shared -fPIC -O2 -Wall -Wextra \
+            -o "$guard_dir/libprivacy-network-guard.so" scripts/privacy-no-external-network.c -ldl
+          export LD_PRELOAD="$guard_dir/libprivacy-network-guard.so${LD_PRELOAD:+:$LD_PRELOAD}"
+          export FOCUSDESKTOP_PRIVACY_AUDIT_LOG="$guard_dir/blocked-network.log"
+          xvfb-run -a npm run smoke:tauri:packaged -- "$(find src-tauri/target/release/bundle -name '*.AppImage' -print -quit)"
+          if [ -s "$FOCUSDESKTOP_PRIVACY_AUDIT_LOG" ]; then
+            cat "$FOCUSDESKTOP_PRIVACY_AUDIT_LOG"
+            echo "::error::The packaged app attempted a non-loopback network connection."
+            exit 1
+          fi
         working-directory: frontend
 
       - name: Upload installer artifacts

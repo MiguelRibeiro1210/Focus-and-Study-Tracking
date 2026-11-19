@@ -15,7 +15,7 @@ integration tests for adapters, and a small E2E suite for desktop flows.
 | Contract | REST/WebSocket payloads and error codes | Spring REST Docs / JSON assertions | Yes |
 | E2E | Start → pause → resume → stop, history, analytics, settings, reconnect | Playwright + Tauri driver | Nightly / release |
 | Performance | Latency, memory, seeded history/analytics | JMH / benchmark harness | Nightly |
-| Privacy | No non-loopback sockets, no telemetry dependencies | Network sandbox, dependency review | Yes |
+| Privacy | Runtime stays on loopback; no telemetry dependencies | Source/dependency audit and Linux packaged network guard | Yes |
 
 ## 2. Domain tests
 
@@ -75,7 +75,13 @@ deterministic and does not mutate `DailyProgress` or `DistractionLog`.
 
 ## 5. Privacy and security tests
 
-- A network sandbox blocks all non-loopback sockets; the MVP suite still passes.
+- `npm run privacy:audit` checks runtime source endpoints and direct/resolved
+  frontend and Rust dependencies for non-local endpoints and telemetry or
+  crash-reporting SDKs.
+- The packaged Linux smoke flow runs with a socket guard that rejects and logs
+  non-loopback TCP connects and UDP sends. The smoke flow must complete without
+  any logged attempt. Build-time dependency/runtime downloads are excluded;
+  this audit covers the installed app's runtime.
 - The app rejects requests without the bearer token (`401`) and non-loopback
   origins (`403`).
 - Dependency and licence scans fail on high/critical findings or copyleft in

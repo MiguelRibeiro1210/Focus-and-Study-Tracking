@@ -131,7 +131,8 @@ read and is not stored as a table. See
 - Loopback binding only; non-loopback origins are rejected.
 - Per-installation bearer token for every API request.
 - No analytics SDK, telemetry or crash uploader.
-- Privacy tests block non-loopback sockets.
+- The privacy audit checks runtime endpoints and telemetry dependencies; the
+  packaged Linux smoke test rejects and records non-loopback socket traffic.
 - Retention cleanup runs on startup and daily; it never deletes the active
   session.
 - "Delete all data" requires explicit confirmation and recreates defaults.
