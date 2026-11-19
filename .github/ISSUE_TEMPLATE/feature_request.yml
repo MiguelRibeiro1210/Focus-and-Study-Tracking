@@ -1,0 +1,50 @@
+name: Feature request
+description: Propose a user-facing improvement or new capability.
+title: "[Feature]: "
+labels:
+  - enhancement
+assignees:
+  - MiguelRibeiro1210
+body:
+  - type: markdown
+    attributes:
+      value: >-
+        Please search existing issues first. Feature requests should fit the
+        local-first privacy goals in the project documentation.
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem should this solve?
+      description: Describe who is affected and what they need to do.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed behavior
+      description: Describe how you expect the feature to work.
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance criteria
+      description: List observable outcomes that would make this feature complete.
+      placeholder: |
+        - [ ] ...
+        - [ ] ...
+    validations:
+      required: false
+  - type: input
+    id: story
+    attributes:
+      label: Related FST story
+      placeholder: "For example: FST-033"
+    validations:
+      required: false
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives or additional context
+    validations:
+      required: false

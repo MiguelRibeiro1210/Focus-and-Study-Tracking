@@ -40,12 +40,16 @@ Open Anyway** to approve this test build. It is not notarized.
 
 The GitHub Actions packaging matrix builds x64 installers on Ubuntu 22.04 and
 Windows Server 2025, plus x64 and ARM64 DMGs on macOS 15 Intel and Apple Silicon
-runners. It uploads each installer as a separate workflow artifact. To send the
-Apple Silicon installer to a tester, download `focusdesktop-macos-arm64-v0.1.0`
-from the workflow run and share the DMG; the tester does not need repository
-access or build tools. Workflow artifacts are retained for 14 days. Complete
-the first-launch and upgrade checks above on each platform before publishing a
-release.
+runners. It uploads each installer as a separate workflow artifact, retained for
+14 days. To send a tester a build before release, download the relevant artifact
+from the workflow run; the tester does not need repository access or build
+tools.
+
+To publish all installers as GitHub Release assets, push a version tag such as
+`v0.1.0`. After every matrix build and smoke check passes, the workflow creates
+a release containing the Windows NSIS installer, Intel and Apple Silicon DMGs,
+and Linux DEB and AppImage. Complete the first-launch and upgrade checks above
+on each platform before publishing a release.
 
 The macOS test build is ad-hoc signed but not notarized. Other local packages
 are unsigned. Developer ID signing and notarization are outside this story.

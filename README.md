@@ -143,11 +143,20 @@ On Windows, use `mvnw.cmd` with the same Maven goals.
    first-launch warning. See [frontend packaging instructions](frontend/README.md#release-packages)
    and the [FST-041 package smoke checklist](docs/testing/FST-041-packaging.md).
 
+   To publish installers on GitHub, push a version tag such as `v0.1.0`. Once
+   the build and packaging matrix passes, the workflow creates a GitHub Release
+   containing the Windows NSIS installer, both macOS DMGs, and the Linux DEB
+   and AppImage. The files are also retained as workflow artifacts for
+   non-release builds.
+
 ## 🔒 Privacy & Data Security
 FocusDesktop adheres strictly to a **local-first philosophy**. All user productivity logs, session histories, and analytical data are stored entirely on the local machine. The application does not require an internet connection for its core features, ensuring maximum data privacy.
 
 ## 👥 Contributing
-Contributions, feature suggestions, and architectural feedback are highly welcome! Feel free to open an issue or submit a pull request.
+Contributions, feature suggestions, and architectural feedback are welcome. See
+[`CONTRIBUTING.md`](CONTRIBUTING.md) for setup, code and test conventions, and
+pull request guidance. Use the GitHub issue forms to report a bug or propose a
+feature, then submit changes through a pull request.
 
 ## 📄 License
 This project is licensed under the [MIT License](LICENSE).
