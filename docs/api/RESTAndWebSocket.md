@@ -314,13 +314,18 @@ connected. WebSocket delivery is otherwise best-effort, and the timer does not
 receive one-second ticks. On connect or reconnect, clients fetch
 `GET /sessions/active` to reconcile. The timer also polls that endpoint every
 30 seconds while running.
+When `interval.completed` and the following `interval.started` share an
+occurrence timestamp, the outbox preserves their transition order and sends
+completion first. Each `interval.completed` envelope also includes
+`completedIntervalType` (`WORK`, `SHORT_BREAK`, or `LONG_BREAK`) from the domain
+event. This identifies the interval that ended even when the session snapshot
+already describes the next interval.
 
-Native interval notifications do not add fields to this WebSocket contract.
 The desktop UI reacts only to unique `interval.completed` event IDs, chooses
-the message from the interval type it was already displaying before applying
-the event's session snapshot, and ignores `session.completed` for notification
-purposes. Because event delivery is best-effort, a missed event discovered only
-through a later REST reconciliation does not produce a delayed notification.
+the message from `completedIntervalType`, and ignores `session.completed` for
+notification purposes. Because event delivery is best-effort, a missed event
+discovered only through a later REST reconciliation does not produce a delayed
+notification.
 
 Distraction event types are reserved for a later feature and are not currently
 published by FST-015.

@@ -4,7 +4,7 @@ import { TimerScreen } from '../timer/TimerScreen'
 import { DistractionsPage } from '../pages/DistractionsPage'
 import { HistoryPage } from '../pages/HistoryPage'
 import { SettingsPage } from '../pages/SettingsPage'
-import { useAppSettings } from '../pages/useAppSettings'
+import type { AppSettingsController } from '../pages/useAppSettings'
 
 type Page = 'overview' | 'distractions' | 'history' | 'settings'
 
@@ -24,11 +24,11 @@ const pageCopy: Record<Page, { title: string; subtitle: string }> = {
 
 interface FocusDesktopAppProps {
   timer: TimerController
+  settings: AppSettingsController
 }
 
-export function FocusDesktopApp({ timer }: FocusDesktopAppProps) {
+export function FocusDesktopApp({ timer, settings }: FocusDesktopAppProps) {
   const [page, setPage] = useState<Page>('overview')
-  const settings = useAppSettings()
   const copy = pageCopy[page]
 
   useEffect(() => {
@@ -48,7 +48,7 @@ export function FocusDesktopApp({ timer }: FocusDesktopAppProps) {
     <div className="desktop-app">
       <aside className="sidebar" aria-label="Main navigation">
         <a className="sidebar-brand" href="#overview" onClick={() => setPage('overview')} aria-label="FocusDesktop home">
-          <span className="sidebar-brand-mark"><img src="/figma/target.svg" width="20" height="20" alt="" /></span>
+          <span className="sidebar-brand-mark"><img src="/focusdesktop-logo.png" width="32" height="32" alt="" /></span>
           <span>FocusDesktop</span>
         </a>
         <p className="sidebar-tagline">LESS NOISE. MORE FOCUS.</p>

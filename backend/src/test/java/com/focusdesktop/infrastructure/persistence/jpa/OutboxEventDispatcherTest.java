@@ -13,6 +13,7 @@ import com.focusdesktop.domain.model.Duration;
 import com.focusdesktop.domain.model.FocusSession;
 import com.focusdesktop.domain.model.SessionId;
 import com.focusdesktop.domain.model.SessionSettings;
+import com.focusdesktop.domain.model.SessionType;
 import com.focusdesktop.domain.model.TimeStamp;
 import com.focusdesktop.domain.repository.FocusSessionRepository;
 import com.focusdesktop.infrastructure.web.SessionEventEnvelope;
@@ -68,6 +69,32 @@ class OutboxEventDispatcherTest {
         org.junit.jupiter.api.Assertions.assertEquals(1, websocket.events.size());
         org.junit.jupiter.api.Assertions.assertEquals(EVENT_ID, websocket.events.get(0).eventId());
         verify(outbox).markDelivered(EVENT_ID, NOW);
+        verify(outbox, never()).recordFailure(eq(EVENT_ID), any(), any());
+    }
+
+    @Test
+    void broadcastsIntervalCompletionWithStableEventTypeIdAndCurrentSessionSnapshot() {
+        Instant completedAt = NOW.plusSeconds(600);
+        session.completeInterval(SessionType.SHORT_BREAK, new TimeStamp(completedAt));
+        pending = new PendingOutboxEvent(EVENT_ID, "IntervalCompleted", sessionId, completedAt,
+                "{\"sessionId\":\"" + sessionId + "\",\"completedIntervalType\":\"WORK\"}", 0);
+        dispatcher = new OutboxEventDispatcher(outbox, sessions, websocket,
+                Clock.fixed(completedAt, ZoneOffset.UTC),
+                new ObjectMapper().registerModule(new com.fasterxml.jackson.datatype.jsr310.JavaTimeModule()));
+        when(outbox.findDue(completedAt, 100)).thenReturn(List.of(pending));
+        when(sessions.findById(new SessionId(sessionId))).thenReturn(Optional.of(session));
+
+        dispatcher.dispatchPendingEvents();
+
+        org.junit.jupiter.api.Assertions.assertEquals(1, websocket.events.size());
+        SessionEventEnvelope event = websocket.events.get(0);
+        org.junit.jupiter.api.Assertions.assertEquals(EVENT_ID, event.eventId());
+        org.junit.jupiter.api.Assertions.assertEquals("interval.completed", event.type());
+        org.junit.jupiter.api.Assertions.assertEquals(sessionId, event.payload().sessionId());
+        org.junit.jupiter.api.Assertions.assertEquals("SHORT_BREAK", event.payload().intervalType());
+        org.junit.jupiter.api.Assertions.assertEquals("WORK", event.completedIntervalType());
+        org.junit.jupiter.api.Assertions.assertEquals("WAITING_FOR_NEXT_INTERVAL", event.payload().state());
+        verify(outbox).markDelivered(EVENT_ID, completedAt);
         verify(outbox, never()).recordFailure(eq(EVENT_ID), any(), any());
     }
 

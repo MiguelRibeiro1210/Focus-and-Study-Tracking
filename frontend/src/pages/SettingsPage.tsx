@@ -183,10 +183,10 @@ export function SettingsPage({ controller }: SettingsPageProps) {
 
       <section className="preferences-panel card-panel">
         <h2>The app adapts to you</h2>
-        <div className="preference-row"><div><strong>Gentle notifications</strong><small>System delivery for interval endings will arrive in a follow-up update.</small></div>
+        <div className="preference-row"><div><strong>Gentle notifications</strong><small>Get a system notification when each work or break interval ends.</small></div>
           <button type="button" className={`toggle-switch${settings?.notificationsEnabled ? ' on' : ''}`} role="switch"
             aria-checked={settings?.notificationsEnabled ?? false} aria-label="Gentle notifications" disabled={!settings || pending}
-            onClick={() => void updatePreferences({ notificationsEnabled: !settings?.notificationsEnabled })}><span /></button></div>
+            onClick={() => void controller.setNotificationsEnabled(!settings?.notificationsEnabled).catch(() => {})}><span /></button></div>
         <div className="preference-row theme-preference-row"><div><strong>Application Theme</strong><small>Your focus space, looking the way you like.</small></div>
           <select className="outlined-control theme-select" aria-label="Application Theme" disabled={!settings || pending}
             value={settings?.theme ?? 'LIGHT'} onChange={(event) => {

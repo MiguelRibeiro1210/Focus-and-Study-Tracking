@@ -805,6 +805,7 @@ pub fn run() {
     let supervisor_for_exit = Arc::clone(&supervisor);
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_notification::init())
         .manage(supervisor.clone())
         .setup(move |app| {
             supervisor.start(app.handle().clone());

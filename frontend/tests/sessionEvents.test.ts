@@ -80,4 +80,40 @@ describe('session WebSocket client', () => {
     expect(onSnapshot).toHaveBeenCalledTimes(1)
     client.stop()
   })
+
+  it('notifies once for each unique interval completion before applying its snapshot', () => {
+    const socket = new FakeSocket()
+    const calls: string[] = []
+    const client = createSessionEventClient({
+      api: { getActiveSession: vi.fn().mockResolvedValue(snapshot) },
+      onIntervalCompleted: (type) => calls.push(`notify:${type}`),
+      onSnapshot: () => calls.push('snapshot'),
+      createSocket: () => socket,
+      getUrl: () => 'ws://local/ws',
+    })
+    client.start()
+    socket.message(envelope({ type: 'interval.completed', eventId: 'completed-1', completedIntervalType: 'WORK' }))
+    socket.message(envelope({ type: 'interval.completed', eventId: 'completed-1', completedIntervalType: 'WORK' }))
+    socket.message(envelope({ type: 'session.completed', eventId: 'session-ended' }))
+
+    expect(calls).toEqual(['notify:WORK', 'snapshot', 'snapshot'])
+    client.stop()
+  })
+
+  it('still delivers a completion from an older backend without the completed type field', () => {
+    const socket = new FakeSocket()
+    const onIntervalCompleted = vi.fn()
+    const client = createSessionEventClient({
+      api: { getActiveSession: vi.fn().mockResolvedValue(snapshot) },
+      onIntervalCompleted,
+      onSnapshot: vi.fn(),
+      createSocket: () => socket,
+      getUrl: () => 'ws://local/ws',
+    })
+    client.start()
+    socket.message(envelope({ type: 'interval.completed', eventId: 'legacy-completed' }))
+
+    expect(onIntervalCompleted).toHaveBeenCalledWith(undefined, snapshot)
+    client.stop()
+  })
 })

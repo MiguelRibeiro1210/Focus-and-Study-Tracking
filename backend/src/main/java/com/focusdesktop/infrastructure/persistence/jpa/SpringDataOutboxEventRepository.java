@@ -12,6 +12,8 @@ interface SpringDataOutboxEventRepository extends JpaRepository<OutboxEventJpaEn
     long deleteAllByAggregateIdIn(List<UUID> aggregateIds);
     @Query("select e from OutboxEventJpaEntity e where e.deliveredAt is null "
             + "and (e.nextAttemptAt is null or e.nextAttemptAt <= :now) "
-            + "order by e.occurredAt asc, e.eventId asc")
+            + "order by e.occurredAt asc, "
+            + "case e.eventType when 'IntervalCompleted' then 0 when 'IntervalStarted' then 1 else 2 end asc, "
+            + "e.eventId asc")
     List<OutboxEventJpaEntity> findDue(@Param("now") Instant now, Pageable pageable);
 }

@@ -3,5 +3,11 @@
   "identifier": "default",
   "description": "FocusDesktop main window with backend status and session event listeners",
   "windows": ["main"],
-  "permissions": ["core:event:default"]
+  "permissions": [
+    "core:path:default",
+    "core:event:default",
+    "notification:allow-is-permission-granted",
+    "notification:allow-request-permission",
+    "notification:allow-notify"
+  ]
 }

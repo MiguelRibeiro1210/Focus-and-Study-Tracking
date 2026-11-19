@@ -49,8 +49,11 @@ function fakeEventClientFactory(options: SessionEventClientOptions) {
   return eventClient
 }
 
-function Harness({ api }: { api: SessionApi }) {
-  const timer = useTimerSession({ api, eventClientFactory: fakeEventClientFactory })
+function Harness({ api, onIntervalCompleted }: {
+  api: SessionApi
+  onIntervalCompleted?: (intervalType: SessionResponse['intervalType']) => void
+}) {
+  const timer = useTimerSession({ api, eventClientFactory: fakeEventClientFactory, onIntervalCompleted })
   return (
     <div>
       <output data-testid="session">{timer.session?.state ?? 'NONE'}</output>
@@ -164,6 +167,43 @@ describe('timer session controller', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Stop' }))
     await flushPromises()
     expect(screen.getByTestId('session').textContent).toBe('ABANDONED')
+  })
+
+  it('uses the completed interval type from the event even if the UI already shows the next interval', async () => {
+    const onIntervalCompleted = vi.fn()
+    render(<Harness api={makeApi({ getActiveSession: vi.fn().mockResolvedValue(makeSession()) })}
+      onIntervalCompleted={onIntervalCompleted} />)
+    await flushPromises()
+
+    act(() => latestEventOptions?.onSnapshot(makeSession({
+      state: 'WAITING_FOR_NEXT_INTERVAL', intervalType: 'SHORT_BREAK', intervalState: 'PENDING',
+      intervalSequence: 2, plannedDurationSeconds: 300, remainingSeconds: 300,
+    })))
+    const shortBreak = makeSession({
+      state: 'WAITING_FOR_NEXT_INTERVAL', intervalType: 'SHORT_BREAK', intervalState: 'PENDING',
+      intervalSequence: 2, plannedDurationSeconds: 300, remainingSeconds: 300,
+    })
+    act(() => latestEventOptions?.onIntervalCompleted?.('WORK', shortBreak))
+    expect(onIntervalCompleted).toHaveBeenLastCalledWith('WORK')
+
+    act(() => latestEventOptions?.onIntervalCompleted?.('SHORT_BREAK', makeSession()))
+    expect(onIntervalCompleted).toHaveBeenLastCalledWith('SHORT_BREAK')
+  })
+
+  it('falls back to the previous interval when an older backend omits its type', async () => {
+    const onIntervalCompleted = vi.fn()
+    render(<Harness api={makeApi({ getActiveSession: vi.fn().mockResolvedValue(makeSession()) })}
+      onIntervalCompleted={onIntervalCompleted} />)
+    await flushPromises()
+    const shortBreak = makeSession({
+      state: 'WAITING_FOR_NEXT_INTERVAL', intervalType: 'SHORT_BREAK', intervalState: 'PENDING',
+      intervalSequence: 2, plannedDurationSeconds: 300, remainingSeconds: 300,
+    })
+    act(() => latestEventOptions?.onSnapshot(shortBreak))
+
+    act(() => latestEventOptions?.onIntervalCompleted?.(undefined, shortBreak))
+
+    expect(onIntervalCompleted).toHaveBeenCalledWith('WORK')
   })
 
   it('surfaces command errors and still attempts state reconciliation', async () => {

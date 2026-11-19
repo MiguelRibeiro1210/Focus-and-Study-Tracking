@@ -25,6 +25,7 @@ function makeController(overrides: Partial<AppSettingsController> = {}): AppSett
     retry: vi.fn(), createProfile: vi.fn().mockResolvedValue(undefined),
     updateProfile: vi.fn().mockResolvedValue(undefined), setDefaultProfile: vi.fn().mockResolvedValue(undefined),
     deleteProfile: vi.fn().mockResolvedValue(undefined), updateApplicationSettings: vi.fn().mockResolvedValue(undefined),
+    setNotificationsEnabled: vi.fn().mockResolvedValue(undefined),
     clearSessionHistory: vi.fn().mockResolvedValue(undefined), cleanExpiredHistory: vi.fn().mockResolvedValue(2),
     deleteAllData: vi.fn().mockResolvedValue(undefined), exportAllData: vi.fn().mockResolvedValue(true),
     openDataFolder: vi.fn().mockResolvedValue(undefined), ...overrides,
@@ -106,5 +107,15 @@ describe('settings screen', () => {
     expect(confirm.disabled).toBe(false)
     await user.click(confirm)
     expect(controller.deleteAllData).toHaveBeenCalledOnce()
+  })
+
+  it('routes notification preference changes through the permission-aware controller', async () => {
+    const user = userEvent.setup()
+    const controller = makeController()
+    render(<SettingsPage controller={controller} />)
+
+    await user.click(screen.getByRole('switch', { name: 'Gentle notifications' }))
+
+    expect(controller.setNotificationsEnabled).toHaveBeenCalledWith(false)
   })
 })

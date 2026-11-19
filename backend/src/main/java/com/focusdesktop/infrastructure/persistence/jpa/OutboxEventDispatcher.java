@@ -68,9 +68,16 @@ public class OutboxEventDispatcher {
                             new TimeStamp(clock.instant()))))
                     .orElseThrow(() -> new IllegalStateException(
                             "Session for outbox event was not found: " + event.aggregateId()));
-            objectMapper.readTree(event.payload());
+            String completedIntervalType = null;
+            if ("IntervalCompleted".equals(event.eventType())) {
+                completedIntervalType = objectMapper.readTree(event.payload())
+                        .path("completedIntervalType").asText(null);
+                if (completedIntervalType == null) {
+                    throw new IllegalStateException("IntervalCompleted outbox payload has no completed interval type");
+                }
+            }
             websocket.broadcast(new SessionEventEnvelope(event.eventId(), 1, type,
-                    event.occurredAt(), snapshot));
+                    event.occurredAt(), snapshot, completedIntervalType));
             outbox.markDelivered(event.eventId(), clock.instant());
         } catch (Exception exception) {
             Instant retryAt = clock.instant().plus(retryDelay(event.attemptCount()));

@@ -7,6 +7,7 @@ export interface SessionEventEnvelope {
   type: string
   occurredAt: string
   payload: SessionResponse
+  completedIntervalType?: SessionResponse['intervalType']
 }
 
 type SocketLike = Pick<WebSocket, 'close' | 'onopen' | 'onmessage' | 'onclose' | 'onerror'>
@@ -33,6 +34,10 @@ function parseEnvelope(data: unknown): SessionEventEnvelope | undefined {
 export interface SessionEventClientOptions {
   api: Pick<SessionApi, 'getActiveSession'>
   onSnapshot: (snapshot: ActiveSession) => void
+  onIntervalCompleted?: (
+    completedIntervalType: SessionResponse['intervalType'] | undefined,
+    eventSnapshot: SessionResponse,
+  ) => void
   onError?: (error: unknown) => void
   createSocket?: (url: string) => SocketLike
   getUrl?: () => string
@@ -101,6 +106,13 @@ export function createSessionEventClient(options: SessionEventClientOptions) {
         if (!remember(envelope.eventId)) return
         revision += 1
         reconciliation += 1
+        if (envelope.type === 'interval.completed') {
+          const intervalTypes = ['WORK', 'SHORT_BREAK', 'LONG_BREAK']
+          const completedType = intervalTypes.includes(String(envelope.completedIntervalType))
+            ? envelope.completedIntervalType
+            : undefined
+          options.onIntervalCompleted?.(completedType, envelope.payload)
+        }
         options.onSnapshot(envelope.payload)
       }
       connection.onclose = scheduleReconnect

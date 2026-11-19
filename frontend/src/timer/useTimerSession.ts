@@ -19,6 +19,7 @@ export interface TimerController {
 interface TimerSessionDependencies {
   api?: SessionApi
   eventClientFactory?: (options: SessionEventClientOptions) => ReturnType<typeof createSessionEventClient>
+  onIntervalCompleted?: (intervalType: SessionResponse['intervalType']) => void
 }
 
 const defaultEventClientFactory: NonNullable<TimerSessionDependencies['eventClientFactory']> = (options) =>
@@ -57,12 +58,24 @@ export function useTimerSession(dependencies: TimerSessionDependencies = {}): Ti
   const snapshotRevisionRef = useRef(0)
   const pendingActionRef = useRef(false)
   const sessionRef = useRef<ActiveSession>(null)
+  const previousIntervalTypeRef = useRef<SessionResponse['intervalType'] | null>(null)
+  const intervalCompletedHandlerRef = useRef(dependencies.onIntervalCompleted)
+
+  useEffect(() => {
+    intervalCompletedHandlerRef.current = dependencies.onIntervalCompleted
+  }, [dependencies.onIntervalCompleted])
 
   const acceptSnapshot = useCallback((next: ActiveSession) => {
     snapshotRevisionRef.current += 1
     // The active-session endpoint returns 204 after a terminal response. Keep
     // that result visible until the learner starts another session.
     if (next === null && sessionRef.current !== null && isTerminal(sessionRef.current)) return
+    const previous = sessionRef.current
+    if (next === null || previous?.sessionId !== next.sessionId) {
+      previousIntervalTypeRef.current = null
+    } else if (next.intervalSequence > previous.intervalSequence) {
+      previousIntervalTypeRef.current = previous.intervalType
+    }
     const receivedAt = performance.now()
     sessionRef.current = next
     setSession(next)
@@ -81,6 +94,22 @@ export function useTimerSession(dependencies: TimerSessionDependencies = {}): Ti
     const client = eventClientFactory({
       api,
       onSnapshot: acceptSnapshot,
+      onIntervalCompleted: (completedIntervalType, eventSnapshot) => {
+        if (completedIntervalType) {
+          intervalCompletedHandlerRef.current?.(completedIntervalType)
+          return
+        }
+        const displayedSession = sessionRef.current
+        const endedType = displayedSession?.sessionId === eventSnapshot.sessionId
+          && displayedSession.intervalSequence < eventSnapshot.intervalSequence
+          ? displayedSession.intervalType
+          : previousIntervalTypeRef.current
+        // Older backends do not include the completed type. If that interval
+        // cannot be recovered from prior state, a next WORK interval implies
+        // a break; short is the only safe legacy fallback available.
+        intervalCompletedHandlerRef.current?.(endedType
+          ?? (eventSnapshot.intervalType === 'WORK' ? 'SHORT_BREAK' : 'WORK'))
+      },
       onError: reportSyncError,
     })
     eventClientRef.current = client

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { invoke } from '@tauri-apps/api/core'
 import { listen } from '@tauri-apps/api/event'
 import { getCurrentWindow } from '@tauri-apps/api/window'
@@ -6,6 +6,9 @@ import { isDesktopShell } from './api/nativeTransport'
 import './App.css'
 import { useTimerSession } from './timer/useTimerSession'
 import { FocusDesktopApp } from './app/FocusDesktopApp'
+import { useAppSettings } from './pages/useAppSettings'
+import { sendIntervalCompletionNotificationIfEnabled } from './api/nativeNotifications'
+import type { SessionResponse } from './api/sessionTypes'
 
 interface BackendStatus { phase: string; message: string; diagnosticsPath?: string }
 
@@ -49,8 +52,16 @@ function BackendStartup() {
 }
 
 function TimerApplication() {
-  const timer = useTimerSession()
-  return <FocusDesktopApp timer={timer} />
+  const settings = useAppSettings()
+  const notificationsEnabled = useRef(false)
+  useLayoutEffect(() => {
+    notificationsEnabled.current = settings.settings?.notificationsEnabled ?? false
+  }, [settings.settings?.notificationsEnabled])
+  const notifyIntervalCompleted = useCallback((intervalType: SessionResponse['intervalType']) => {
+    void sendIntervalCompletionNotificationIfEnabled(intervalType, () => notificationsEnabled.current).catch(() => {})
+  }, [])
+  const timer = useTimerSession({ onIntervalCompleted: notifyIntervalCompleted })
+  return <FocusDesktopApp timer={timer} settings={settings} />
 }
 
 function App() {

@@ -4,6 +4,8 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import com.focusdesktop.application.port.DomainEventOutbox;
+import com.focusdesktop.domain.event.IntervalCompleted;
+import com.focusdesktop.domain.event.IntervalStarted;
 import com.focusdesktop.domain.event.SessionPausedOrResumed;
 import com.focusdesktop.domain.event.SessionStarted;
 import com.focusdesktop.domain.factories.FocusSessionFactory;
@@ -16,6 +18,7 @@ import com.focusdesktop.domain.model.TimeStamp;
 import jakarta.persistence.EntityManager;
 import com.focusdesktop.domain.repository.FocusSessionRepository;
 import java.time.Instant;
+import java.util.List;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -137,6 +140,22 @@ class JpaDomainEventOutboxAdapterTest {
         assertEquals(1, jdbc.queryForObject("SELECT COUNT(*) FROM domain_event_outbox "
                 + "WHERE event_id = ? AND delivered_at = ? AND last_error IS NULL",
                 Integer.class, eventId, retryAt));
+    }
+
+    @Test
+    void dispatchesIntervalCompletionBeforeTheSameTimeNextIntervalStart() {
+        FocusSession session = startedSession();
+        sessions.save(session);
+        outbox.append(new IntervalStarted(session.id(), SessionType.SHORT_BREAK,
+                SessionState.WAITING_FOR_NEXT_INTERVAL, Duration.ofSeconds(300), START));
+        outbox.append(new IntervalCompleted(session.id(), SessionType.WORK, SessionType.SHORT_BREAK,
+                SessionState.WAITING_FOR_NEXT_INTERVAL, Duration.ofSeconds(300), START));
+        entityManager.flush();
+
+        var due = deliveryStore.findDue(START.value(), 10);
+
+        assertEquals(List.of("IntervalCompleted", "IntervalStarted"),
+                due.stream().map(PendingOutboxEvent::eventType).toList());
     }
 
     private static FocusSession startedSession() {
