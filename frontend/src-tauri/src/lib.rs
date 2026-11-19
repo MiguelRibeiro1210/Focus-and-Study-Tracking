@@ -3,9 +3,9 @@ use serde::Serialize;
 use std::{
     env,
     fs::{self, OpenOptions},
-    io,
+    io::{self, Write},
     net::TcpListener,
-    path::PathBuf,
+    path::{Path, PathBuf},
     process::{Child, Command, Stdio},
     sync::{
         atomic::{AtomicBool, Ordering},
@@ -123,6 +123,7 @@ impl BackendSupervisor {
         let (jar, java) = match backend_launch_paths(&app) {
             Ok(paths) => paths,
             Err(error) => {
+                self.log_startup_diagnostic(&error);
                 self.set_status(
                     &app,
                     BackendStatus::new(
@@ -135,6 +136,7 @@ impl BackendSupervisor {
             }
         };
         if !jar.is_file() {
+            self.log_startup_diagnostic(format!("Backend JAR not found at {}.", jar.display()));
             self.set_status(
                 &app,
                 BackendStatus::new(
@@ -146,6 +148,10 @@ impl BackendSupervisor {
             return;
         }
         if !cfg!(debug_assertions) && !java.is_file() {
+            self.log_startup_diagnostic(format!(
+                "Bundled Java runtime not found at {}.",
+                java.display()
+            ));
             let message = format!(
                 "Bundled Java runtime not found at {}. Reinstall FocusDesktop and inspect the local diagnostics log.",
                 java.display()
@@ -194,7 +200,7 @@ impl BackendSupervisor {
         };
         let child = Command::new(&java)
             .arg("-jar")
-            .arg(&jar)
+            .arg(java_compatible_path(&jar))
             .arg("--server.address=127.0.0.1")
             .arg("--server.port=8080")
             .env("FOCUSDESKTOP_DATA_DIR", &self.data_dir)
@@ -332,6 +338,16 @@ impl BackendSupervisor {
             ),
         );
     }
+
+    fn log_startup_diagnostic(&self, message: impl AsRef<str>) {
+        if let Ok(mut log) = OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open(&self.log_path)
+        {
+            let _ = writeln!(log, "{}", message.as_ref());
+        }
+    }
 }
 
 #[cfg(unix)]
@@ -421,6 +437,19 @@ fn backend_launch_paths(app: &AppHandle) -> Result<(PathBuf, PathBuf), String> {
         resources.join("backend/focusdesktop.jar"),
         resources.join("runtime/bin").join(java_name),
     ))
+}
+
+fn java_compatible_path(path: &Path) -> PathBuf {
+    #[cfg(target_os = "windows")]
+    {
+        if let Some(path) = path.to_string_lossy().strip_prefix("\\\\?\\") {
+            if let Some(unc_path) = path.strip_prefix("UNC\\") {
+                return PathBuf::from(format!("\\\\{unc_path}"));
+            }
+            return PathBuf::from(path);
+        }
+    }
+    path.to_path_buf()
 }
 
 fn app_data_dir() -> io::Result<PathBuf> {

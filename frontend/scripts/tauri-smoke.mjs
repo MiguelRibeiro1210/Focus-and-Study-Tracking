@@ -1,5 +1,4 @@
-import { access, mkdtemp, readFile, rm } from 'node:fs/promises'
-import { existsSync } from 'node:fs'
+import { access, chmod, mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { delimiter, join, resolve } from 'node:path'
 import { spawn } from 'node:child_process'
@@ -17,11 +16,17 @@ function assert(condition, message) {
   if (!condition) throw new Error(message)
 }
 
-function pathWithoutJava(pathValue) {
-  const javaNames = process.platform === 'win32' ? ['java.exe', 'java.cmd', 'java.bat'] : ['java']
-  return pathValue.split(delimiter).filter((directory) =>
-    !javaNames.some((javaName) => existsSync(join(directory, javaName))),
-  ).join(delimiter)
+async function pathWithJavaBlocked(pathValue) {
+  const blockerDirectory = join(temporaryData, 'java-blocker')
+  await mkdir(blockerDirectory, { recursive: true })
+  if (process.platform === 'win32') {
+    await writeFile(join(blockerDirectory, 'java.cmd'), '@echo System Java is disabled for this smoke test 1>&2\r\n@exit /b 127\r\n')
+  } else {
+    const blocker = join(blockerDirectory, 'java')
+    await writeFile(blocker, '#!/bin/sh\necho "System Java is disabled for this smoke test" >&2\nexit 127\n')
+    await chmod(blocker, 0o755)
+  }
+  return `${blockerDirectory}${delimiter}${pathValue}`
 }
 
 async function waitForHealth(processHandle, timeoutMs = 60_000) {
@@ -44,7 +49,7 @@ async function waitForHealth(processHandle, timeoutMs = 60_000) {
   throw new Error(`Timed out waiting for the Tauri-managed backend health endpoint.${detail}`)
 }
 
-function launchApp() {
+async function launchApp() {
   const command = packagedApp || 'npm'
   const args = packagedApp
     ? (packagedApp.toLowerCase().endsWith('.appimage') ? ['--appimage-extract-and-run'] : [])
@@ -56,7 +61,7 @@ function launchApp() {
   if (packagedApp) {
     appEnvironment.FOCUSDESKTOP_JAVA = join(temporaryData, 'java-must-not-be-used')
     appEnvironment.JAVA_HOME = ''
-    appEnvironment.PATH = pathWithoutJava(process.env.PATH || '')
+    appEnvironment.PATH = await pathWithJavaBlocked(process.env.PATH || '')
   }
   const processHandle = spawn(command, args, {
     cwd: frontendDir,
@@ -134,7 +139,7 @@ async function run() {
     if (error instanceof Error && error.message.startsWith('Port 8080')) throw error
   }
 
-  let app = launchApp()
+  let app = await launchApp()
   await waitForHealth(app)
   const token = await apiToken()
   const analyticsResponse = await request(token, '/api/v1/analytics/summary')
@@ -158,7 +163,7 @@ async function run() {
   app = undefined
   await waitForHealthToStop()
 
-  app = launchApp()
+  app = await launchApp()
   await waitForHealth(app)
   const resumedToken = await apiToken()
   const activeResponse = await request(resumedToken, '/api/v1/sessions/active')
