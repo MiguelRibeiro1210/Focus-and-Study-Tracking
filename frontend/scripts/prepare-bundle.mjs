@@ -93,7 +93,7 @@ try {
     const quotedDestination = extractedDir.replaceAll("'", "''");
     run('powershell.exe', [
       '-NoProfile', '-NonInteractive', '-Command',
-      `Expand-Archive -LiteralPath '${quotedArchive}' -DestinationPath '${quotedDestination}' -Force`,
+      `Add-Type -AssemblyName System.IO.Compression.FileSystem; [System.IO.Compression.ZipFile]::ExtractToDirectory([string]'${quotedArchive}', [string]'${quotedDestination}')`,
     ]);
   } else {
     run('tar', ['-xzf', archivePath, '-C', extractedDir, '--no-same-owner']);
