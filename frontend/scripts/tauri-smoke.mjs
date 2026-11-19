@@ -29,7 +29,8 @@ async function pathWithJavaBlocked(pathValue) {
   return `${blockerDirectory}${delimiter}${pathValue}`
 }
 
-async function waitForHealth(processHandle, timeoutMs = 60_000) {
+// Allow the supervisor's 120-second startup window to finish and log its failure.
+async function waitForHealth(processHandle, timeoutMs = 150_000) {
   const startedAt = Date.now()
   while (Date.now() - startedAt < timeoutMs) {
     if (processHandle.exitCode !== null || processHandle.signalCode !== null) {

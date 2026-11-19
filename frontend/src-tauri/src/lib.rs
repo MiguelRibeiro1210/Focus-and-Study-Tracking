@@ -22,7 +22,7 @@ use tungstenite::{client::IntoClientRequest, connect, stream::MaybeTlsStream, Me
 use std::os::windows::process::CommandExt;
 
 const API_BASE: &str = "http://127.0.0.1:8080";
-const HEALTH_TIMEOUT: Duration = Duration::from_secs(30);
+const HEALTH_TIMEOUT: Duration = Duration::from_secs(120);
 
 #[derive(Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -280,7 +280,11 @@ impl BackendSupervisor {
                 break;
             }
             if started.elapsed() >= HEALTH_TIMEOUT {
-                self.set_status(&app, BackendStatus::new("failed", "The backend did not become healthy within 30 seconds. Review the diagnostics log and retry.", Some(self.log_path.to_string_lossy().into_owned())));
+                self.log_startup_diagnostic(format!(
+                    "Backend health check timed out after {} seconds; stopping the backend.",
+                    HEALTH_TIMEOUT.as_secs()
+                ));
+                self.set_status(&app, BackendStatus::new("failed", format!("The backend did not become healthy within {} seconds. Review the diagnostics log and retry.", HEALTH_TIMEOUT.as_secs()), Some(self.log_path.to_string_lossy().into_owned())));
                 self.stop_child();
                 return;
             }
