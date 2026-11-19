@@ -56,9 +56,11 @@ jobs:
             runner: windows-2025
           - platform: macos
             arch: x64
+            lipo_arch: x86_64
             runner: macos-15-intel
           - platform: macos
             arch: arm64
+            lipo_arch: arm64
             runner: macos-15
     runs-on: ${{ matrix.runner }}
     steps:
@@ -128,14 +130,15 @@ jobs:
           echo "Java executable architecture:"
           lipo -info "$java_executable"
 
-          lipo "$app_executable" -verify_arch "${{ matrix.arch }}"
-          lipo "$java_executable" -verify_arch "${{ matrix.arch }}"
+          lipo "$app_executable" -verify_arch "${{ matrix.lipo_arch }}"
+          lipo "$java_executable" -verify_arch "${{ matrix.lipo_arch }}"
           npm run smoke:tauri:packaged -- "$app_executable"
         working-directory: frontend
 
       - name: Install Windows NSIS package for smoke test
         if: matrix.platform == 'windows'
         shell: pwsh
+        working-directory: frontend
         run: |
           $installer = Get-ChildItem src-tauri/target/release/bundle/nsis -Filter '*-setup.exe' | Select-Object -First 1
           if ($null -eq $installer) { throw 'NSIS installer was not produced.' }
@@ -155,6 +158,7 @@ jobs:
       - name: Verify Debian package includes Java runtime and dependency metadata
         if: matrix.platform == 'linux'
         shell: bash
+        working-directory: frontend
         run: |
           deb_path="$(find src-tauri/target/release/bundle/deb -maxdepth 1 -name '*.deb' -print -quit)"
           test -n "$deb_path" || { echo "::error::DEB package not found"; exit 1; }

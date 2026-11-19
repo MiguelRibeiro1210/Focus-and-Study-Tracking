@@ -36,7 +36,12 @@ async function waitForHealth(processHandle, timeoutMs = 60_000) {
     } catch { /* backend is still starting */ }
     await new Promise((resolveWait) => setTimeout(resolveWait, 250))
   }
-  throw new Error('Timed out waiting for the Tauri-managed backend health endpoint.')
+  let diagnostics = ''
+  try {
+    diagnostics = (await readFile(join(temporaryData, 'backend.log'), 'utf8')).trim()
+  } catch { /* the app may have failed before creating its backend log */ }
+  const detail = diagnostics ? `\nBackend diagnostics:\n${diagnostics}` : '\nThe app did not create backend.log.'
+  throw new Error(`Timed out waiting for the Tauri-managed backend health endpoint.${detail}`)
 }
 
 function launchApp() {
