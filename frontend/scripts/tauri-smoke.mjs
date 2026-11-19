@@ -154,8 +154,20 @@ async function run() {
   })
   const startedEvent = waitForSocketEvent(socket, (event) => event.type === 'session.started')
   const startResponse = await request(token, '/api/v1/sessions', 'POST', { sessionType: 'WORK', projectName: 'Smoke test' })
-  assert(startResponse.status === 201, `Expected session start status 201, got ${startResponse.status}`)
-  const session = await startResponse.json()
+  const startResponseBody = await startResponse.text()
+  if (startResponse.status !== 201) {
+    socket.close()
+    let diagnostics = ''
+    try {
+      diagnostics = (await readFile(join(temporaryData, 'backend.log'), 'utf8')).trim()
+    } catch { /* backend log may not exist */ }
+    throw new Error([
+      `Expected session start status 201, got ${startResponse.status}.`,
+      `Response body: ${startResponseBody || '(empty)'}`,
+      diagnostics ? `Backend diagnostics:\n${diagnostics}` : 'Backend diagnostics log was empty or missing.',
+    ].join('\n'))
+  }
+  const session = JSON.parse(startResponseBody)
   const event = await startedEvent
   assert(event.payload?.sessionId === session.sessionId, 'WebSocket session.started payload did not match the REST response.')
   socket.close()
