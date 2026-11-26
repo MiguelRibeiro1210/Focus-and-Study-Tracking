@@ -1,41 +1,37 @@
 @startuml
-title Sequence Diagram - UC-15 - Review Distraction Log
-
+title FST-037 - Project and review distraction history
 autonumber
+participant "Distraction worker" as Worker
+participant "Transactional projection" as Project
+participant "Outbox + ledger + log" as DB
 actor Learner
-participant "Desktop UI" as UI
-participant "DistractionController" as Controller
-participant "QueryDistractionLogUseCase" as UseCase
-participant "DistractionLogReadRepository" as Repo
-participant "DistractionLogMapper" as Mapper
-
-Learner -> UI : open session detail or Analytics > Distractions
-UI -> Controller : GET /api/v1/distractions?sessionId=...&from=...&to=...
-Controller -> UseCase : list(query)
-UseCase -> UseCase : validate(query)
-
-alt session filter
-  UseCase -> Repo : findBySession(sessionId)
-else range filter
-  UseCase -> Repo : findByRange(from, to)
+participant "Distractions page" as UI
+participant "Authenticated log query" as Query
+Worker -> DB : read bounded pending distraction event IDs
+loop each event, independent transaction
+  Worker -> Project : project(eventId)
+  Project -> DB : lock projection; read committed source
+  Project -> Project : validate version and immutable target facts
+  Project -> DB : insert receipt/event if absent
+  Project -> DB : load correlated detection + outcomes
+  Project -> Project : validate facts and chronology; choose deterministic outcome
+  alt detection present
+    Project -> DB : update derived log
+  else outcome arrived first
+    note right of Project : Keep ledger entry; no invented detection.
+  end
+  Project -> DB : mark source delivered and commit atomically
 end
-Repo --> UseCase : List<DistractionLog>
-UseCase -> Mapper : toDtos(logs)
-Mapper --> UseCase : List<DistractionDto>
-UseCase --> Controller : List<DistractionDto>
-Controller --> UI : 200 OK\n{items}
-
-note over Repo
-  DistractionLog is a read model.
-  The query is read-only; entries are
-  append-only and retention-aware.
+Learner -> UI : review history / apply session and date filters
+UI -> Query : GET /api/v1/distractions?sessionId=&from=&to=&page=&size=
+Query -> Query : validate filters and local-date UTC bounds
+Query -> DB : count + stable paginated read
+DB --> Query : immutable snapshots and confirmed/pending/failed outcomes
+Query --> UI : 200 { items, total, page, size }
+UI --> Learner : target, time, action and truthful outcome
+note over Project, UI
+  Projection/replay never invokes OS/browser enforcement.
+  Rule edits cannot change saved detection snapshots.
+  Session cleanup cascades ledger/log rows; late writes require a live session.
 end note
-
-note over UI
-  Entries can be grouped by category and
-  filtered by action. Display app identifiers
-  or website hosts and enforcement outcomes.
-  Do not collect titles or full browsing URLs.
-end note
-
 @enduml
