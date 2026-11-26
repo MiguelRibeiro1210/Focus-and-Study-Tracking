@@ -69,10 +69,14 @@ a separate materialized history table.
 
 ### `blocking_policy` and `blocking_rule`
 
-`blocking_policy` stores the aggregate root (`id`, `name`, `active`, audit
-columns). `blocking_rule` stores the entity rows (`id`, `policy_id`, `pattern`,
-`action`, `category`, `enabled`, `created_at`). A partial/unique index enforces
-**at most one active policy** and `(policy_id, pattern)` uniqueness.
+Planned FST-048 storage, not current Flyway tables: `blocking_policy` stores
+the aggregate root and active-policy identity. `blocking_rule` stores owned
+rule IDs, display names, typed target properties, canonical duplicate keys,
+action, category, enabled state and audit data. Application targets retain OS,
+match kind and identifier; website targets retain the normalized domain and
+include subdomains. One active policy and per-policy canonical target
+uniqueness must be enforced. Concrete columns/indexes require FST-048 review;
+no schema migration is part of the FST-008 documentation stage.
 
 ### `app_settings` and `timer_profile`
 
@@ -135,10 +139,14 @@ updated by `DailyProgressProjection` from `SessionCompleted` and
 
 ### `distraction_log`
 
-Append-only entries: `id`, nullable `session_id`, `occurred_at`,
-`app_identifier`, optional `window_title`, `category`, `action`, `blocked`,
-`reason`. It is updated by `DistractionLogProjection` from
-`DistractionDetected`, `DistractionBlocked` and `DistractionBlockFailed`.
+Planned FST-037 projection of `DistractionDetected`, `DistractionBlocked` and
+`DistractionBlockFailed`, correlated by detection ID and deduplicated by event
+ID. Retain session/rule IDs, configured and observed target snapshots,
+occurrence time, category, action and enforcement outcome/failure reason.
+Source events are append-only; the derived detection view can incorporate
+later/out-of-order outcomes idempotently. Rule changes must not alter recorded
+history. Transient process/browser handles and full browsing URLs are not
+stored as target identities.
 
 `ProductivitySummary` is **not** a table. The MVP analytics endpoint assembles
 it per query from completed session and interval data. Distraction data is

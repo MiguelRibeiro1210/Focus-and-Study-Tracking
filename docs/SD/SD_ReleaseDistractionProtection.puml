@@ -1,0 +1,35 @@
+@startuml
+title Planned Protection Cleanup (FST-028 / FST-050)
+autonumber
+participant "Session / rule change\nor shutdown" as Trigger
+participant "Protection coordinator" as Coordinator
+participant "Introduced-restriction registry" as Registry
+participant "ApplicationBlockerPort" as Apps
+participant "WebsiteBlockerPort" as Sites
+participant "Local diagnostics / UI" as Feedback
+
+Trigger -> Coordinator : pause, break, waiting, stop, shutdown,\nor rule disabled/deleted
+Coordinator -> Coordinator : stop ineligible observations;\ncancel stale pending block decisions
+Coordinator -> Registry : restrictions introduced for this scope
+Registry --> Coordinator : application / website restriction handles
+loop each introduced restriction
+  alt application restriction
+    Coordinator -> Apps : release introduced restriction
+    Apps --> Coordinator : released / failed(reason)
+  else website restriction
+    Coordinator -> Sites : release introduced restriction
+    Sites --> Coordinator : released / failed(reason)
+  end
+  alt released
+    Coordinator -> Registry : remove restriction handle
+  else failed
+    Coordinator -> Registry : retain cleanup obligation
+    Coordinator -> Feedback : report cleanup failure and recovery action
+  end
+end
+note over Registry, Sites
+  Never reverse restrictions created by another program/user.
+  Concrete release/recovery behavior is adapter-specific and must
+  be approved in FST-028/FST-050 before implementation.
+end note
+@enduml

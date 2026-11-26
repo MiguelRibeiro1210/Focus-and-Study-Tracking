@@ -49,9 +49,13 @@ package DistractionControl <<Folder>> {
     class BlockingPolicyId <<VO>>
     class BlockingRuleId <<VO>>
     class BlockingDecision <<VO>>
-    class ActiveWindowInfo <<VO>>
+    class ObservedDistraction <<VO>>
+    abstract class DistractionTarget <<VO>>
+    class ApplicationTarget <<VO>>
+    class WebsiteTarget <<VO>>
     class AppIdentifier <<VO>>
-    class WindowTitle <<VO>>
+    class ApplicationMatchKind <<Enum>>
+    class TargetPlatform <<Enum>>
     class BlockingAction <<Enum>>
     class DistractionCategory <<Enum>>
 }
@@ -108,15 +112,29 @@ SessionInterval "1" -- "1" IntervalState : has >
 ' DISTRACTION CONTROL RELATIONSHIPS'
 BlockingPolicy "1" *-- "0..*" BlockingRule : contains >
 BlockingPolicy "1" -- "1" BlockingPolicyId : is identified by >
-BlockingPolicy "1" -- "1" BlockingDecision : produces >
-BlockingPolicy "1" -- "1" ActiveWindowInfo : evaluates >
+BlockingPolicy ..> BlockingDecision : produces per evaluation >
+BlockingPolicy ..> ObservedDistraction : evaluates >
 BlockingRule "1" -- "1" BlockingRuleId : is identified by >
 BlockingRule "1" -- "1" BlockingAction : has >
 BlockingRule "1" -- "1" DistractionCategory : has >
-ActiveWindowInfo "1" -- "1" AppIdentifier : has >
-ActiveWindowInfo "1" -- "1" WindowTitle : has >
+BlockingRule "1" *-- "1" DistractionTarget : configures >
+DistractionTarget <|-- ApplicationTarget
+DistractionTarget <|-- WebsiteTarget
+ApplicationTarget "1" -- "1" ApplicationMatchKind : matches by >
+ApplicationTarget "1" -- "1" TargetPlatform : targets OS >
+ObservedDistraction "1" -- "0..1" AppIdentifier : application context >
+ObservedDistraction ..> DistractionTarget : compared with >
+note right of WebsiteTarget
+  Domain includes subdomains at a dot boundary.
+  Window-title patterns are deferred.
+end note
+note right of ApplicationTarget
+  Executable path or process name.
+  OS adapters provide observations;
+  the domain performs no OS operations.
+end note
 BlockingDecision "1" -- "1" BlockingAction : has >
-BlockingDecision "1" -- "1" BlockingRuleId : refers to >
+BlockingDecision "1" -- "0..1" BlockingRuleId : matching rule >
 BlockingDecision "1" -- "1" DistractionCategory : has >
 
 ' PROGRESS AND ANALYTICS RELATIONSHIPS (READ MODELS)'
@@ -128,7 +146,7 @@ DailyProgress "1" -- "1" DailyProgressId : is identified by >
 DailyProgress "1" *-- "1" HourStreak : owns >
 DailyProgress "1" *-- "1" DistractionLog : includes >
 DistractionLog "1" -- "1" DistractionLogId : is identified by >
-DistractionLog "1" *-- "1" ActiveWindowInfo : records >
+DistractionLog "1" *-- "1" ObservedDistraction : records >
 DistractionLog "1" *-- "1" BlockingDecision : records >
 DailyProgress ..> FocusSession : aggregates
 

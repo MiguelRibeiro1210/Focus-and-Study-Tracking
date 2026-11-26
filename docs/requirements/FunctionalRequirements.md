@@ -208,25 +208,39 @@ Every requirement is traced to a use case and to the project board in
 
 | ID | Requirement | Priority | Phase | UC | Board |
 |---|---|---|---|---|---|
-| FR-DIS-01 | The learner can create, edit, enable/disable and delete blocking rules. | Should | Phase 2 | UC-12 | FST-028 |
-| FR-DIS-02 | A rule can match an executable path, a process name or a window-title pattern. | Should | Phase 2 | UC-12 | FST-027, FST-028 |
-| FR-DIS-03 | The system detects the active window/application while a session is running. | Should | Phase 2 | UC-13 | FST-027 |
-| FR-DIS-04 | The system evaluates the active window against the active blocking policy. | Should | Phase 2 | UC-13 | FST-028 |
-| FR-DIS-05 | A matched rule can log, warn or block the application. | Should | Phase 2 | UC-14 | FST-028 |
-| FR-DIS-06 | Every detection is projected into a distraction log read-model entry with app, title, category and action. | Should | Phase 2 | UC-13, UC-15 | FST-008 |
-| FR-DIS-07 | The learner can review distraction logs by session and date range. | Should | Phase 2 | UC-15 | FST-028 |
-| FR-DIS-08 | Monitoring is suspended when the session is paused, on a break, or stopped. | Should | Phase 2 | UC-13 | FST-027 |
-| FR-DIS-09 | A failed block is reported to the learner and recorded with a reason. | Should | Phase 2 | UC-14 | FST-028 |
+| FR-DIS-01 | The learner can create, edit, enable/disable and delete app and website blocking rules. | Should | Phase 2 | UC-12 | FST-048, FST-049 |
+| FR-DIS-02 | A typed rule identifies an app by executable path/process name or a website by domain including subdomains. | Should | Phase 2 | UC-12 | FST-008, FST-048 |
+| FR-DIS-03 | The system detects the active application or website through a supported local adapter during running work intervals. | Should | Phase 2 | UC-13 | FST-027, FST-050 |
+| FR-DIS-04 | The active policy evaluates observations against enabled rules. | Should | Phase 2 | UC-13 | FST-008, FST-028, FST-050 |
+| FR-DIS-05 | A matched rule can log, warn or block the app or matched website. | Should | Phase 2 | UC-14 | FST-028, FST-050 |
+| FR-DIS-06 | Every distinct detection and enforcement outcome is projected into a log with target, rule, category and action snapshots. | Should | Phase 2 | UC-13, UC-15 | FST-008, FST-037 |
+| FR-DIS-07 | The learner can review distraction logs by session and date range. | Should | Phase 2 | UC-15 | FST-037, FST-043 |
+| FR-DIS-08 | Monitoring/enforcement is suspended when paused, on a break, waiting or stopped. | Should | Phase 2 | UC-13 | FST-027, FST-028, FST-050 |
+| FR-DIS-09 | A failed block is reported to the learner and recorded with a reason. | Should | Phase 2 | UC-14 | FST-028, FST-050 |
 
 ### Acceptance criteria — distraction control
 
-- With no active policy, detection returns "ignored" and writes no log.
-- The first matching enabled rule wins; rule precedence is path → process →
-  title.
-- Blocking a process that has already exited completes without an error.
-- Monitoring stops within one tick after the session leaves `RUNNING`.
-- A log entry always references a valid session or is explicitly session-less
-  for pre-session detections.
+- With no active policy or no enabled matching rule, no detection or block is
+  generated. One policy is active in the initial version.
+- Website domains match themselves and subdomains at a dot boundary:
+  `youtube.com` matches `music.youtube.com`, but not `notyoutube.com`.
+- App identification uses executable path or process name. Window-title
+  patterns are deferred and must not substitute for website host detection.
+- Monitoring requires session `RUNNING` and interval `WORK`; eligibility and
+  the selected rule are rechecked before enforcement.
+- App-path rules precede app-process rules. For websites the most specific
+  matching domain wins. Duplicate canonical target keys are rejected.
+- Website blocks target a matched site, not the whole browser. Browser/OS
+  support and the concrete mechanism require FST-050 design approval.
+- Monitoring stops within one tick after eligibility ends. Temporary
+  restrictions introduced by adapters are released when protection ends.
+- A log entry references its session and preserves target/decision snapshots;
+  outside-session capability diagnostics are not session detections.
+- Enforcement failures never silently report success or stop the timer.
+
+Matching/normalization defaults and frontend implications are documented in
+the [FST-008 review draft](../decisions/FST-008-distraction-model.md), awaiting
+approval before backend tests/implementation.
 
 ## 7. Privacy and data control
 

@@ -1,47 +1,44 @@
 @startuml
-title Sequence Diagram - UC-14 - Block Distracting Application
-
+title UC-14 - Enforce Application Rule (planned FST-028)
 autonumber
-participant "DetectDistractionUseCase" as DetectUseCase
-participant "BlockDistractionUseCase" as UseCase
-participant "DistractionBlockerPort" as Blocker
-participant "Operating System" as OS
-participant "TransactionalOutbox" as Events
-participant "Outbox Dispatcher" as Dispatcher
-participant "DistractionLogProjection" as LogProjection
-participant "SessionWebSocketHandler" as WS
+participant "DetectDistractionUseCase" as Detect
+participant "BlockDistractionUseCase" as Block
+participant "Session / policy reader" as Current
+participant "ApplicationBlockerPort" as Port
+participant "OS adapter" as OS
+participant "Transactional outbox" as Outbox
+participant "Outbox dispatcher" as Dispatch
+participant "Log projection / WebSocket" as Consumers
 
-DetectUseCase -> UseCase : block(command{detectionId, app})
-UseCase -> Blocker : block(app)
-Blocker -> OS : request application block
-OS --> Blocker : BlockingResult
-
-Blocker --> UseCase : BlockingResult.success()
-UseCase -> Events : appendToOutbox(DistractionBlocked)
-Events -> LogProjection : onDistractionBlocked(event)
-activate LogProjection
-LogProjection -> LogProjection : markBlocked(detectionId)
-deactivate LogProjection
-Dispatcher -> WS : broadcast("distraction.blocked")
-WS --> DetectUseCase : distraction.blocked\n{detectionId, blockedAt}
-UseCase --> DetectUseCase : DistractionDto{blocked: true}
-
-note over Blocker, OS
-  Platform-specific adapters:
-  - Windows: process suspend / foreground window
-  - macOS: NSWorkspace / Accessibility APIs
-  - Linux: X11 / Wayland compositor hooks
+Detect -> Block : enforce(detectionId, decision, transient instance)
+Block -> Current : recheck RUNNING + WORK, rule enabled, target match
+Current --> Block : eligible / stale
+alt eligible
+  Block -> Port : block observed application instance
+  Port -> OS : revalidate instance; apply supported operation
+  note right of OS
+    Platform operation and permissions require FST-028 approval.
+    Do not act on a different process after PID reuse.
+  end note
+  OS --> Port : confirmed / failed / already exited
+  Port --> Block : explicit outcome
+  alt confirmed enforcement
+    Block -> Outbox : append DistractionBlocked(detectionId)
+  else failed / permission denied / unavailable
+    Block -> Outbox : append DistractionBlockFailed(detectionId, reason)
+  else already exited
+    note right of Block : No remaining target to enforce; safe no-op.
+  end
+  Block -> Outbox : commit outcome transaction, if any
+  Dispatch -> Outbox : read committed outcome events
+  Outbox --> Dispatch : outcome
+  Dispatch -> Consumers : project / notify idempotently
+else stale decision
+  note right of Block : Cancel operation; do not claim blocking success.
+end
+note over Port, Outbox
+  OS side effect and event commit are not atomic.
+  Recording failures require diagnostics and cleanup tracking.
+  Event delivery does not replay the OS operation.
 end note
-
-note over Events, Dispatcher
-  Events commit atomically with the aggregate; the dispatcher
-  delivers them only after commit and retries failed consumers.
-end note
-
-note over LogProjection
-  The DistractionLog is a read model. The block use
-  case publishes the outcome; it never updates the
-  log repository directly.
-end note
-
 @enduml

@@ -1,0 +1,73 @@
+@startuml
+title UC-13/14 - Detect, Evaluate and Block Website (FST-050 design boundary)
+autonumber
+participant "Website integration\n(mechanism not selected)" as Integration
+participant "WebsiteObservationPort" as Observation
+participant "Website detection use case" as Detect
+participant "Session / policy reader" as Current
+participant "DistractionPolicyService + BlockingPolicy" as Policy
+participant "Transactional outbox" as Outbox
+participant "WebsiteBlockerPort" as Blocker
+participant "Outbox dispatcher" as Dispatch
+participant "Log projection / WebSocket" as Consumers
+
+note over Integration, Blocker
+  Planned contract only. FST-050 must agree browser/OS support,
+  mechanism, permissions, local transport and cleanup guarantees.
+  A window title is not proof of the website host.
+end note
+Integration -> Observation : website observation trigger
+Observation -> Detect : request observation handling
+Detect -> Current : current state and active policy
+Current --> Detect : session, interval, policy
+alt RUNNING + WORK and supported observation capability
+  Detect -> Observation : read actual host and transient context
+  Observation -> Integration : obtain host for current page/request
+  Integration --> Observation : host + transient context
+  Observation --> Detect : host + transient context
+  Detect -> Policy : evaluate normalized host
+  note right of Policy
+    youtube.com matches youtube.com and music.youtube.com.
+    Does not match notyoutube.com or youtube.com.example.org.
+    Most specific matching domain wins; disabled rules ignored.
+  end note
+  Policy --> Detect : decision or no match
+  alt enabled website rule matches
+    Detect -> Outbox : append DistractionDetected\n(detectionId, rule/host snapshot, action)
+    Detect -> Outbox : commit detection transaction
+    alt BLOCK
+      Detect -> Current : recheck session, rule and host context
+      Current --> Detect : eligible / stale
+      alt still eligible
+        Detect -> Blocker : restrict matched site/context
+        Blocker -> Integration : apply site-specific protection
+        Integration --> Blocker : confirmed or failure with reason
+        Blocker --> Detect : outcome
+        Detect -> Outbox : append DistractionBlocked or\nDistractionBlockFailed (same detectionId)
+        Detect -> Outbox : commit outcome transaction
+      else stale
+        note right of Detect : Cancel; do not report successful blocking.
+      end
+    else WARN
+      Detect -> Consumers : request local warning
+    else LOG
+      note right of Detect : Record detection only.
+    end
+    Dispatch -> Outbox : read committed detection/outcome events
+    Outbox --> Dispatch : events (delivery may be out of order)
+    Dispatch -> Consumers : correlate/deduplicate, project and notify
+  else no match
+    note right of Detect : No session detection or block.
+  end
+else inactive focus / unavailable capability
+  note right of Detect
+    No website collection or enforcement.
+    Report missing capability; keep timer working.
+  end note
+end
+note over Integration, Blocker
+  A site rule must not terminate the entire browser.
+  Retain host identity, not URL credentials/query or page content.
+  Release introduced restrictions when focus eligibility ends.
+end note
+@enduml

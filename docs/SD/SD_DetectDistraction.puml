@@ -1,64 +1,64 @@
 @startuml
-title Sequence Diagram - UC-13 - Detect Distracting Application
-
+title UC-13 - Detect Application and Evaluate Rules (planned FST-027/FST-028)
 autonumber
-participant "Operating System" as OS
-participant "ActiveWindowMonitor" as Monitor
-participant "DetectDistractionUseCase" as UseCase
-participant "ActiveWindowPort" as WindowPort
-participant "BlockingPolicyRepository" as PolicyRepo
-participant "DistractionPolicyService" as PolicyService
-participant "TransactionalOutbox" as Events
-participant "Outbox Dispatcher" as Dispatcher
-participant "DistractionLogProjection" as LogProjection
-participant "DailyProgressProjection" as ProgressProjection
-participant "BlockDistractionUseCase" as BlockUseCase
-participant "SessionWebSocketHandler" as WS
+participant "Monitoring scheduler" as Monitor
+participant "DetectDistractionUseCase" as Detect
+participant "Session reader" as Sessions
+participant "ActiveApplicationPort" as Apps
+participant "OS adapter" as OS
+participant "BlockingPolicyRepository" as Repo
+participant "DistractionPolicyService + BlockingPolicy" as Policy
+participant "Transactional outbox" as Outbox
+participant "Outbox dispatcher" as Dispatch
+participant "Log / progress / WebSocket" as Consumers
+participant "BlockDistractionUseCase" as Block
 
-loop every monitoring tick while session is RUNNING
-  Monitor -> UseCase : detect(now)
-  UseCase -> WindowPort : currentWindow()
-  WindowPort --> UseCase : ActiveWindowInfo
-  UseCase -> PolicyRepo : findActive()
-  PolicyRepo --> UseCase : Optional<BlockingPolicy>
-
-  UseCase -> PolicyService : decide(window, activePolicy)
-  activate PolicyService
-  PolicyService -> PolicyService : matchRules()
-  PolicyService --> UseCase : BlockingDecision(action = BLOCK)
-  deactivate PolicyService
-  UseCase -> UseCase : detectionId = newId()
-  UseCase -> Events : appendToOutbox(DistractionDetected)
-  Dispatcher -> LogProjection : onDistractionDetected(event)
-  activate LogProjection
-  LogProjection -> LogProjection : upsert(DistractionLog read model)
-  deactivate LogProjection
-  Dispatcher -> ProgressProjection : onDistractionDetected(event)
-  activate ProgressProjection
-  ProgressProjection -> ProgressProjection : incrementDistractionCount()
-  deactivate ProgressProjection
-  Dispatcher -> WS : broadcast("distraction.detected")
-  WS --> Monitor : distraction.detected\n{detectionId, app, category, action}
-  UseCase -> BlockUseCase : block(detectionId, app)
-  BlockUseCase --> UseCase : DistractionDto{blocked: true}
-  UseCase --> Monitor : DistractionDto
+Monitor -> Detect : tick(now)
+Detect -> Sessions : current session and interval
+Sessions --> Detect : state, interval type
+alt RUNNING and WORK
+  Detect -> Apps : currentApplication()
+  Apps -> OS : read executable path / process name\nand transient instance identity
+  OS --> Apps : observation or capability failure
+  Apps --> Detect : application observation
+  Detect -> Repo : findActive()
+  Repo --> Detect : policy or none
+  Detect -> Policy : evaluate application observation
+  note right of Policy
+    Pure evaluation; enabled rules only.
+    Executable path before process name.
+    Window-title patterns are deferred.
+  end note
+  Policy --> Detect : decision or no match
+  alt enabled rule matches and detection is not debounced
+    Detect -> Outbox : append DistractionDetected\n(detectionId, rule/target snapshot, action)
+    Detect -> Outbox : commit detection transaction
+    Dispatch -> Outbox : read committed events
+    Outbox --> Dispatch : detection event
+    Dispatch -> Consumers : deliver idempotently after commit
+  else no policy / no match / duplicate log tick
+    note right of Detect : No new detection event.
+  end
+  alt action BLOCK and target needs enforcement
+    Detect -> Block : enforce detection / instance context
+    ref over Block
+      SD_BlockDistraction.puml
+      Recheck eligibility before acting.
+    end ref
+  else action WARN
+    Detect -> Consumers : request local learner warning
+  else LOG / no match
+    note right of Detect : No OS block operation.
+  end
+else paused / break / waiting / stopped
+  note right of Detect : Do not collect a target or enforce a rule.
 end
-
-note over Monitor
-  Monitoring is disabled outside an active focus
-  session and while the session is PAUSED.
+note over Apps, OS
+  Platform selection and permissions: FST-027.
+  Capability failure produces diagnostics, not a fabricated detection.
 end note
-
-note over PolicyService
-  Matching precedence: exact executable path,
-  process name, then window title pattern.
-  First matching enabled rule wins.
+note over Detect, Outbox
+  Debounce suppresses repeated logs, not protection of a new instance.
+  Enforcement never runs for an ignored/no-match observation.
 end note
-
-note over LogProjection
-  The DistractionLog is a read model.
-  It is append-only and idempotent.
-  The write side never saves it directly.
-end note
-
 @enduml

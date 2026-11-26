@@ -10,9 +10,8 @@ The source of truth is [`DM.puml`](DM.puml); the rendered view is
 relationships. Runtime responsibilities and interfaces are described in the
 architecture, use case, API, persistence and sequence documentation.
 
-> **Convention:** the conceptual model uses the PlantUML style defined in
-> [`../DocExamples/DM_Example.puml`](../DocExamples/DM_Example.puml): class name
-> plus stereotype, business concepts only. Multiplicities are deliberately
+> **Convention:** the [conceptual diagram](DM.puml) uses class names
+> plus stereotypes and business concepts only. Multiplicities are deliberately
 > provisional and will be reviewed separately from the structural model.
 
 ## 1. Bounded contexts
@@ -101,33 +100,40 @@ repeats.
 
 **Aggregate root:** `BlockingPolicy`
 **Entities:** `BlockingRule`
-**Value objects:** `BlockingPolicyId`, `BlockingRuleId`, `ActiveWindowInfo`,
-`AppIdentifier`, `WindowTitle`, `BlockingDecision`, `BlockingAction`,
-`DistractionCategory`
+**Value objects:** `BlockingPolicyId`, `BlockingRuleId`, `ApplicationTarget`,
+`WebsiteTarget`, `ObservedDistraction`, `AppIdentifier`, `BlockingDecision`,
+`BlockingAction`, `DistractionCategory`
 
-`BlockingPolicy` owns the rule set and evaluates an `ActiveWindowInfo` to
-produce a `BlockingDecision`. The decision is a value object; it is not a
-persisted entity.
+A rule owns a typed target identifying what the learner wants to restrict;
+it also contains a display name, category, enabled state and action
+(`LOG`, `WARN`, `BLOCK`). Application targets identify an executable path or
+process name for a declared OS. Website targets identify a domain and include
+its subdomains. Window-title pattern matching is deferred.
 
-**Invariants**
+`BlockingPolicy` evaluates an adapter-supplied observation and returns a
+`BlockingDecision` without OS/browser access or persistence. App matching uses
+path before process name; website matching uses the most specific matching
+domain. Duplicate canonical targets within the same policy are rejected.
+Only enabled rules participate; empty or missing policies do nothing. The
+initial implementation has one active policy.
 
-- A policy has at most one rule per pattern.
-- Only one policy is active at a time in the MVP.
-- Disabled rules are ignored during evaluation.
-- Rule precedence is exact executable path → process name → window-title
-  pattern; the first matching enabled rule wins.
-- Evaluation is read-only and never mutates the policy.
-
-**Domain service:** `DistractionPolicyService` evaluates a policy against a
-window and checks whether monitoring is allowed for the current session state.
+**Domain service:** `DistractionPolicyService` applies eligibility and policy
+matching. Monitoring is allowed only while the session is `RUNNING` and its
+interval is `WORK`; a running break does not qualify.
 
 **Events:** `DistractionDetected`, `DistractionBlocked`,
-`DistractionBlockFailed`.
+`DistractionBlockFailed`, correlated by detection ID and containing snapshots
+of the target/rule facts needed to preserve history after rule edits/deletion.
 
 **Repository:** `BlockingPolicyRepository` (write side only).
 
-`DistractionLog` is **not** part of this aggregate. It is an append-only read
-model in `Progress & Analytics`, fed by the events above.
+`DistractionLog` is a separate read model in `Progress & Analytics`. It records
+observations, decisions and outcomes; it never owns configured targets or
+makes blocking decisions. OS/browser integration is outside FST-008.
+
+The [FST-008 documentation review](../decisions/FST-008-distraction-model.md)
+distinguishes user-agreed scope from matching/validation defaults proposed for
+approval. This is a design draft; no Phase 2 implementation is implied.
 
 ### 3.3 Preferences — `AppSettings`
 
@@ -195,7 +201,7 @@ is assembled on demand from retained persisted session and interval data.
 |---|---|---|---|
 | `ProductivitySummary` | `ProductivitySummaryId` | `DateRange`, `FocusScore` | Completed `FocusSession` aggregates |
 | `DailyProgress` | `DailyProgressId` | `DistractionLog`, `HourStreak` | `SessionCompleted`, `DistractionDetected` |
-| `DistractionLog` | `DistractionLogId` | `ActiveWindowInfo`, `BlockingDecision` | `DistractionDetected`, `DistractionBlocked`, `DistractionBlockFailed` |
+| `DistractionLog` | `DistractionLogId` | `ObservedDistraction`, `BlockingDecision` | `DistractionDetected`, `DistractionBlocked`, `DistractionBlockFailed` |
 
 `ProductivitySummary` is assembled per query from completed `FocusSession`
 aggregates. Work and break values are derived from intervals owned by each
@@ -251,7 +257,7 @@ reconciles state using REST snapshots.
    through the root.
 4. **Value objects are immutable.** A change produces a new value object and,
    where relevant, a new aggregate version.
-5. **`DistractionLog` is a read model.** It records `ActiveWindowInfo` and
+5. **`DistractionLog` is a read model.** It records `ObservedDistraction` and
    `BlockingDecision`, but it is not the aggregate that produces the decision.
 
 ## 7. Related documents

@@ -242,9 +242,23 @@ does not run automatically at startup or on a schedule.
 | `PATCH` | `/blocking-rules/{id}` | Enable, disable or edit a rule. | `200 OK` + `BlockingRuleDto` |
 | `DELETE` | `/blocking-rules/{id}` | Delete a rule. | `204 No Content` |
 
-`BlockingRuleDto` contains `id`, `pattern`, `action` (`LOG`, `WARN`, `BLOCK`),
-`category`, `enabled` and timestamps. Rule precedence is exact executable path →
-process name → window-title pattern; the first matching enabled rule wins.
+These are planned FST-048 endpoints, not implemented APIs. The FST-008
+contract draft replaces the ambiguous `pattern` with a typed `target` and
+adds `displayName`. `BlockingRuleDto` contains `id`, `displayName`, `target`,
+`action` (`LOG`, `WARN`, `BLOCK`), `category`, `enabled` and timestamps.
+
+Application target: `{ "type": "APPLICATION", "platform": "WINDOWS",
+"matchKind": "PROCESS_NAME", "value": "example.exe" }`; the other application
+match kind is `EXECUTABLE_PATH`. Platform distinguishes Windows, macOS and
+Linux identifier comparison. Website target:
+`{ "type": "WEBSITE", "domain": "youtube.com" }`; subdomains are always included.
+Window-title rules and URL/path-pattern rules are deferred.
+
+Create/edit payloads use the same target variants. FST-048 will finalize HTTP
+validation and concurrency details after domain approval. See the
+[FST-008 review draft](../decisions/FST-008-distraction-model.md) for proposed
+normalization, duplicates and precedence. Saving/enabling a rule is separate
+from actual adapter capability or currently active protection.
 
 ## 6. Distraction log (Phase 2 read model)
 
@@ -252,9 +266,13 @@ process name → window-title pattern; the first matching enabled rule wins.
 |---|---|---|---|
 | `GET` | `/distractions?sessionId=...&from=...&to=...&page=0&size=20` | Query the distraction log read model. | `200 OK` + `Page<DistractionDto>` |
 
-`DistractionDto` contains `detectionId`, `sessionId`, `app`, `title`,
-`category`, `action`, `blocked`, `failureReason` and `occurredAt`. The log is
-append-only; window titles are redacted when the category policy requires it.
+The planned `DistractionDto` contains `detectionId`, `sessionId`, `ruleId`,
+configured/observed target snapshots, `category`, `action`, `blocked`,
+`failureReason` and `occurredAt`. Correlated outcome events distinguish pending,
+successful and failed enforcement; `blocked` is true only after confirmation.
+The read model derives from append-only events. Website hosts suffice for
+matching/logging; full URLs, credentials and page contents are not required.
+FST-037 owns persistence and queries, with final wire details reviewed there.
 
 ## 7. WebSocket
 
@@ -352,7 +370,7 @@ When a session is abandoned because it ended before the five-minute minimum,
 | `404` | `SESSION_NOT_FOUND` | Unknown session id. |
 | `404` | `RESOURCE_NOT_FOUND` | Unknown rule or distraction entry. |
 | `409` | `ACTIVE_SESSION_EXISTS` | Another session is already active. |
-| `409` | `DUPLICATE_RULE` | A rule with the same pattern exists. |
+| `409` | `DUPLICATE_RULE` | A rule with the same canonical typed target exists. |
 | `422` | `INVALID_SESSION_STATE` | Pause/resume/stop/start-next-interval on the wrong state. |
 | `422` | `INVALID_INTERVAL_TYPE` | Skip-break requested while the current interval is work. |
 | `422` | `VALIDATION_ERROR` | Field-level validation failure. |

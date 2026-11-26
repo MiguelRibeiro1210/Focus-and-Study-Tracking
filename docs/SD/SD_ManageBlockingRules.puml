@@ -24,16 +24,16 @@ group List rules
 end
 
 group Create rule
-  Learner -> UI : add app pattern and action
-  UI -> Controller : POST /api/v1/blocking-rules\n{pattern, action, category}
+  Learner -> UI : add app/website target and action
+  UI -> Controller : POST /api/v1/blocking-rules\n{displayName, target, action, category, enabled}
   Controller -> UseCase : create(command)
-  UseCase -> Rule : create(pattern, action, category)
+  UseCase -> Rule : create(displayName, typedTarget, action, category, enabled)
   activate Rule
-  Rule -> Rule : validatePattern()
+  Rule -> Rule : validateTarget()
   Rule --> UseCase : BlockingRule
   UseCase -> Repo : findActive()
   Repo --> UseCase : BlockingPolicy
-  UseCase -> Policy : addRule(rule)
+  UseCase -> Policy : addRule(rule) / reject canonical duplicate / reject canonical duplicate
   Policy --> UseCase : added
   UseCase -> Repo : save(policy)
   Repo --> UseCase : saved

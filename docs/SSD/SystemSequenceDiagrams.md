@@ -23,6 +23,8 @@ are internal to the running system:
 
 - [`SD_DetectDistraction.puml`](../SD/SD_DetectDistraction.puml)
 - [`SD_BlockDistraction.puml`](../SD/SD_BlockDistraction.puml)
+- [`SD_DetectAndBlockWebsite.puml`](../SD/SD_DetectAndBlockWebsite.puml)
+- [`SD_ReleaseDistractionProtection.puml`](../SD/SD_ReleaseDistractionProtection.puml)
 
 ## 2. How to read an SSD
 

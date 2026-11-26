@@ -729,148 +729,126 @@ FR-SET-04, FR-SET-09, FR-PRV-04..08.
 ## 15. UC-12 — Manage blocking rules (Phase 2)
 
 **Actor:** Learner
-**Goal:** Define which applications or windows should be logged, warned or
-blocked during focus sessions.
+**Goal:** Choose applications and websites to log, warn about or block.
 **Priority / phase:** Should / Phase 2
-**Preconditions:** The backend is running and the active blocking policy exists.
-**Trigger:** The learner opens **Settings → Focus protection**.
+**Preconditions:** The local backend is running.
+**Trigger:** The learner opens **Distractions**.
 
 ### Main success scenario
 
-1. The UI requests the active policy and its rules.
-2. The learner adds a rule: pattern, action (`LOG`, `WARN`, `BLOCK`) and category.
-3. The system validates the pattern and checks for duplicates.
-4. The system adds the rule to the active `BlockingPolicy`.
-5. The system persists the policy.
-6. The system returns the created rule.
-7. The learner can disable, enable or delete rules.
+1. The UI requests the active policy's rules through the planned blocking API.
+2. The learner adds a display name, typed application/website target, action
+   (`LOG`, `WARN`, `BLOCK`), category and enabled state.
+3. The policy validates/canonicalizes the target and rejects duplicates.
+4. The policy owns the new rule; the use case persists it atomically.
+5. The system returns the rule. The learner can edit, enable/disable or delete it.
+6. The next eligible monitoring cycle sees committed changes.
 
-### Extensions
+### Extensions and business rules
 
-- **3a. Empty or invalid pattern.** `422 VALIDATION_ERROR`.
-- **3b. Duplicate pattern.** `409 DUPLICATE_RULE`.
-- **5a. The policy is not found.** The system creates a default policy.
-- **7a. Deleting the last rule.** The policy remains active with zero rules and
-  detects nothing.
+- Invalid target: `422 VALIDATION_ERROR`; duplicate canonical target:
+  `409 DUPLICATE_RULE`. Failed updates preserve saved rules.
+- Missing policy: create an empty default. Deleting the final rule is allowed.
+- One active policy in the initial release. Rule configuration is independent
+  from whether a supported detector/blocker is available on this installation.
+- Applications use executable path or process name for a declared OS. Websites
+  use domain plus subdomains. Title patterns are deferred.
+- App paths precede process names; websites select the most specific matching
+  domain. Proposed normalization/duplicate defaults require documentation
+  approval in the [FST-008 review](../decisions/FST-008-distraction-model.md).
 
-### Postconditions
+### Ownership and diagrams
 
-- The active policy contains the new rule set.
-- The next monitoring tick uses the new rules.
-
-### Business rules
-
-- Rule precedence: exact executable path → process name → window-title pattern.
-- First matching enabled rule wins.
-- Only one policy is active in the MVP.
-- Patterns are case-insensitive for process names and titles.
-
-### Related requirements and diagrams
-
-FR-DIS-01, FR-DIS-02.
-[Sequence diagram](../SD/SD_ManageBlockingRules.puml),
+FST-008 defines the domain; FST-048 implements storage/API; FST-049 connects the
+UI. FR-DIS-01, FR-DIS-02.
+[Sequence](../SD/SD_ManageBlockingRules.puml),
 [SSD](../SSD/SSD_BlockingRules.puml).
 
-## 16. UC-13 — Detect distracting application (Phase 2)
+## 16. UC-13 — Detect distracting application or website (Phase 2)
 
-**Actor:** Operating System
-**Goal:** Detect when the active window matches a blocking rule.
-**Priority / phase:** Should / Phase 2
-**Preconditions:** A session is `RUNNING` and an active policy exists.
-**Trigger:** The monitoring scheduler tick (default every 2 seconds).
+**Actors:** Operating system / supported local website integration
+**Goal:** Identify an observed target and evaluate the active blocking policy.
+**Preconditions:** Session `RUNNING`, interval `WORK`, supported adapter.
+**Trigger:** Application monitoring tick (planned default: every 2 seconds)
+or a website observation from the selected FST-050 integration.
 
 ### Main success scenario
 
-1. The scheduler asks the active-window port for the current window.
-2. The system loads the active blocking policy.
-3. The policy service evaluates the window against enabled rules.
-4. If no rule matches, the system ignores the window.
-5. If a rule matches, the system assigns a `detectionId` and publishes
-   `DistractionDetected`.
-6. The `DistractionLogProjection` and `DailyProgressProjection` update the
-   analytics read models.
-7. The system broadcasts `distraction.detected`.
-8. If the action is `BLOCK`, the system invokes UC-14.
+1. Check session state and work interval before collecting an observation.
+2. Application adapter supplies executable path/process name and transient
+   instance context; website adapter supplies the actual host and transient
+   page/request context. A browser title is not a website identity.
+3. Load the active policy and evaluate only enabled matching rules.
+4. If a rule matches, assign a detection ID and commit `DistractionDetected`
+   with a snapshot of the configured/observed target and selected decision.
+5. After commit, the dispatcher delivers to idempotent log/progress projections
+   and WebSocket clients. It does not execute OS/browser block commands.
+6. `LOG` requires no enforcement. `WARN` requests learner feedback.
+   `BLOCK` invokes UC-14, which rechecks current eligibility.
 
-### Extensions
+### Extensions and business rules
 
-- **1a. The OS denies access.** The system logs a capability warning and
-  disables monitoring for the session; the timer keeps working.
-- **2a. No active policy.** The system ignores the window and writes no log.
-- **3a. The session is paused or on a break.** Monitoring is suspended.
-- **5a. The same window is still active on the next tick.** The system applies a
-  debounce window (default 30 seconds) to avoid log spam.
-- **8a. Blocking fails.** UC-14 publishes `DistractionBlockFailed`; the
-  projection records the failure and the learner is notified.
+- Missing policy, no match, paused/waiting/terminal session or break: do not
+  create a session detection or request enforcement.
+- Unsupported integration or permission denial: report capability diagnostics;
+  the timer continues. Do not invent a detected website from a window title.
+- Debounce repeated log detections for 30 seconds per session, rule and observed
+  application instance/website host; do not suppress protection of new instances
+  or website requests merely because logging is debounced.
+- Website host matching includes subdomains at a dot boundary. Do not collect
+  URL credentials, query strings or page contents for this matching operation.
+- Application and website policy evaluations are independent. A rule to block
+  a browser app applies to that app; a site rule does not block the whole browser.
 
-### Postconditions
+### Ownership and diagrams
 
-- A `DistractionLog` read-model entry exists for each distinct detection.
-- The learner is warned or the app is blocked according to the rule.
-- No data leaves the workstation.
-
-### Business rules
-
-- Monitoring only while the session is `RUNNING`.
-- Debounce identical `(session, app, title)` detections for 30 seconds.
-- A log entry is append-only and is a read model, not a domain aggregate.
-- The policy evaluation is read-only.
-- The write side emits events; it never updates the log projection directly.
-
-### Related requirements and diagrams
-
+FST-027 detects applications; FST-050 supplies website integration; FST-008
+provides pure domain evaluation; FST-037 persists the log projection.
 FR-DIS-03, FR-DIS-04, FR-DIS-06, FR-DIS-08.
-[Sequence diagram](../SD/SD_DetectDistraction.puml),
-[domain model](../DM/DomainModel.md),
-[persistence model](../data/Persistence.md).
+[Application sequence](../SD/SD_DetectDistraction.puml),
+[website sequence](../SD/SD_DetectAndBlockWebsite.puml).
 
-## 17. UC-14 — Block distracting application (Phase 2)
+## 17. UC-14 — Enforce a distraction rule (Phase 2)
 
-**Actor:** Operating System
-**Goal:** Enforce a `BLOCK` decision.
-**Priority / phase:** Should / Phase 2
-**Preconditions:** A detection with action `BLOCK` exists in the current
-monitoring flow.
-**Trigger:** UC-13 invokes the block use case.
+**Actors:** Operating system / supported local website integration
+**Goal:** Apply a `BLOCK` decision to the detected app instance or matched site.
+**Preconditions:** A committed detection selected `BLOCK`; adapter is available.
 
 ### Main success scenario
 
-1. The system calls the platform blocker adapter with the app identifier.
-2. The adapter requests the OS to suspend, hide or close the application.
-3. The OS confirms the operation.
-4. The system publishes `DistractionBlocked`; the log projection marks the
-   read-model entry as blocked.
-5. The system broadcasts `distraction.blocked`.
-6. The UI shows a short confirmation.
+1. Recheck session `RUNNING`, interval `WORK`, current rule and matching target.
+   Revalidate the observed app instance or website context before acting.
+2. Invoke the application blocker or website blocker with the target-specific
+   transient context. Website blocking must not terminate the whole browser.
+3. The adapter confirms success or returns an explicit failure/limitation.
+4. Commit `DistractionBlocked` or `DistractionBlockFailed` with the same
+   detection ID and a timestamp; failure includes a reason.
+5. The dispatcher updates projections and publishes WebSocket feedback after
+   commit. The use case never writes the log projection directly.
+6. When focus eligibility ends or a rule is disabled/deleted, release temporary
+   restrictions introduced by the adapter; do not reverse unrelated OS state.
 
-### Extensions
+### Extensions and business rules
 
-- **2a. The application already exited.** The adapter returns success.
-- **3a. The OS denies the operation.** The system publishes
-  `DistractionBlockFailed`; the projection marks the entry as failed with a
-  reason and the use case returns `blocked: false`.
-- **3b. The adapter is unavailable.** The system falls back to a warning and
-  records the capability limitation through the same failure event.
+- Stale decision: cancel enforcement; do not claim the target was blocked.
+- Already-exited app: no enforcement remains necessary; handle safely and do
+  not block a replacement process that reused an OS identifier.
+- Permission denial/unavailable integration: report a failure, warn the learner
+  and keep the timer working. Never silently escalate privileges.
+- OS/browser side effects and database commits are not one atomic operation.
+  Do not replay an event notification as another block command. If recording an
+  outcome fails after an adapter action, surface diagnostics and retain the
+  adapter cleanup obligation; do not fabricate a durable success.
+- Concrete app operations, website mechanism, platform permissions and cleanup
+  guarantees are reviewed in FST-028/FST-050, not selected by FST-008.
 
-### Postconditions
+### Ownership and diagrams
 
-- The `DistractionLog` read model reflects the outcome.
-- The learner is informed of success or failure.
-- A failed block never crashes the backend.
-
-### Business rules
-
-- Blocking is best-effort and platform-dependent.
-- The app never escalates privileges silently.
-- A failed block is never silent.
-- The write side publishes the outcome; it never updates the log projection
-  directly.
-
-### Related requirements and diagrams
-
+FST-028 enforces application rules; FST-050 enforces website rules.
 FR-DIS-05, FR-DIS-09.
-[Sequence diagram](../SD/SD_BlockDistraction.puml),
-[domain model](../DM/DomainModel.md).
+[Application sequence](../SD/SD_BlockDistraction.puml),
+[website sequence](../SD/SD_DetectAndBlockWebsite.puml),
+[cleanup sequence](../SD/SD_ReleaseDistractionProtection.puml).
 
 ## 18. UC-15 — Review distraction log (Phase 2)
 
@@ -886,7 +864,7 @@ FR-DIS-05, FR-DIS-09.
 2. The UI requests `GET /api/v1/distractions`.
 3. The system validates the filter.
 4. The system queries the `DistractionLog` read model and returns entries with
-   app, title, category, action, blocked status and timestamp.
+   configured/observed target, category, action, enforcement outcome and timestamp.
 5. The UI groups entries by category and shows counts.
 6. The learner can filter by category or action.
 
@@ -906,8 +884,8 @@ FR-DIS-05, FR-DIS-09.
 
 - `DistractionLog` is an append-only read model.
 - Logs are retained according to the retention policy.
-- Window titles are stored only when the rule category requires it; otherwise
-  they are redacted.
+- This version records application identifiers or website hosts, not window
+  titles, URL credentials/query strings or page contents.
 
 ### Related requirements and diagrams
 

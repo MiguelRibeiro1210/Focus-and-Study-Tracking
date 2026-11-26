@@ -2,9 +2,9 @@
 
 Each sequence diagram shows one use case from the UI or scheduler through the
 controller, application service, domain and adapters. Messages are numbered with
-PlantUML `autonumber`; each diagram shows the successful scenario. Preconditions
-are assumed to hold, so error and rejection responses are documented in the API
-contract rather than repeated in these flows.
+PlantUML `autonumber`; most diagrams show the successful scenario. The distraction diagrams also show
+eligibility, unsupported capability and enforcement failures so they do not imply
+that saving a rule guarantees protection.
 
 ## 1. Diagram index
 
@@ -25,6 +25,8 @@ contract rather than repeated in these flows.
 | 13 | UC-13 Detect distracting application | [`SD_DetectDistraction.puml`](SD_DetectDistraction.puml) | [`SD_DetectDistraction.svg`](SD_DetectDistraction.svg) | Active-window monitor, `BlockingPolicy`, policy service, event publisher, projections, WebSocket |
 | 14 | UC-14 Block distracting application | [`SD_BlockDistraction.puml`](SD_BlockDistraction.puml) | [`SD_BlockDistraction.svg`](SD_BlockDistraction.svg) | `BlockDistractionUseCase`, platform blocker, event publisher, projection |
 | 15 | UC-15 Review distraction log | [`SD_ReviewDistractionLog.puml`](SD_ReviewDistractionLog.puml) | [`SD_ReviewDistractionLog.svg`](SD_ReviewDistractionLog.svg) | UI, `DistractionController`, query use case, `DistractionLogReadRepository` |
+| 16 | UC-13/14 Detect and block website (planned FST-050) | [`SD_DetectAndBlockWebsite.puml`](SD_DetectAndBlockWebsite.puml) | [`SD_DetectAndBlockWebsite.svg`](SD_DetectAndBlockWebsite.svg) | Local website observation/blocker ports, policy, outbox, projections |
+| 17 | Release introduced protection | [`SD_ReleaseDistractionProtection.puml`](SD_ReleaseDistractionProtection.puml) | [`SD_ReleaseDistractionProtection.svg`](SD_ReleaseDistractionProtection.svg) | Session/rule changes, coordinator, app/website adapters, cleanup registry |
 
 ## 2. Conventions
 
@@ -43,7 +45,8 @@ contract rather than repeated in these flows.
 - **Errors:** error codes (`ACTIVE_SESSION_EXISTS`, `INVALID_SESSION_STATE`,
   `INVALID_DATE_RANGE`, `VALIDATION_ERROR`, etc.) and HTTP status codes are
   defined in [`../api/RESTAndWebSocket.md`](../api/RESTAndWebSocket.md); they are
-  outside the happy-path scope of these diagrams.
+  outside the happy-path scope of most diagrams. Distraction flows explicitly
+  include rejection/capability boundaries.
 - **Privacy:** no sequence sends productivity data outside the workstation.
 
 ## 3. Read-model flows
@@ -62,14 +65,21 @@ Two projections react:
 - `DistractionLogProjection` upserts the append-only log entry.
 - `DailyProgressProjection` increments the day's distraction count.
 
-The log entry records the `ActiveWindowInfo` and `BlockingDecision`. The write
+The log entry records the typed observation and `BlockingDecision`. The write
 side never writes the log repository directly.
 
 ### Block outcome
 
-`SD_BlockDistraction` shows the successful `DistractionBlocked` outcome.
-`DistractionLogProjection` marks the entry as blocked. Failure handling is
-defined by the API and blocking contracts, outside this happy-path diagram.
+`SD_BlockDistraction` shows eligibility revalidation, application enforcement,
+success/failure events and post-commit projection. `SD_DetectAndBlockWebsite`
+shows the parallel site-specific flow, with the FST-050 integration mechanism
+explicitly unselected. `SD_ReleaseDistractionProtection` shows cleanup on
+session/rule changes. OS/browser actions and event commits are not atomic;
+outbox notification delivery must not repeat enforcement.
+
+These are proposed Phase 2 contracts, not implemented adapters. The
+[FST-008 review draft](../decisions/FST-008-distraction-model.md) identifies
+agreed scope, defaults awaiting approval and workflow stage gates.
 
 ### Analytics and streaks
 

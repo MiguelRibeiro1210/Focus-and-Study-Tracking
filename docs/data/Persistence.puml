@@ -83,7 +83,12 @@ entity "blocking_rule" as blocking_rule {
   * id : UUID <<PK>>
   --
   * policy_id : UUID <<FK>>
-  * pattern : VARCHAR(255)
+  * display_name : VARCHAR
+  * target_type : APPLICATION / WEBSITE
+  platform : WINDOWS / MACOS / LINUX
+  match_kind : EXECUTABLE_PATH / PROCESS_NAME
+  * target_value : VARCHAR
+  * canonical_target_key : VARCHAR
   * action : VARCHAR(20)
   * category : VARCHAR(30)
   * enabled : BOOLEAN

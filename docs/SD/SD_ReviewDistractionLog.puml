@@ -33,8 +33,9 @@ end note
 
 note over UI
   Entries can be grouped by category and
-  filtered by action. Window titles are
-  redacted when the category policy requires it.
+  filtered by action. Display app identifiers
+  or website hosts and enforcement outcomes.
+  Do not collect titles or full browsing URLs.
 end note
 
 @enduml

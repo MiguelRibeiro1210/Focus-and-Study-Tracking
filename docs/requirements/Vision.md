@@ -110,8 +110,11 @@ Differentiators:
 
 ### Phase 2
 
-- Active-window detection while a session is running.
-- Blocking rules for applications and window-title patterns.
+- Application detection during running work intervals.
+- Application rules by executable path/process name and website rules by
+  domain including subdomains; window-title patterns are deferred.
+- Website detection/enforcement through a supported local integration, with
+  the concrete browser/OS mechanism reviewed under FST-050.
 - Block, warn or log actions.
 - Distraction log and review screen.
 - Analytics breakdown by distraction category.

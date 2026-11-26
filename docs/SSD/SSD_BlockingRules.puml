@@ -8,7 +8,7 @@ participant "FocusDesktop System" as System
 Learner -> System : requestBlockingRules()
 System --> Learner : blockingRules(items)
 
-Learner -> System : createBlockingRule(pattern, action, category)
+Learner -> System : createBlockingRule(displayName, typedTarget, action, category, enabled)
 System --> Learner : blockingRuleCreated(rule)
 
 Learner -> System : deleteBlockingRule(ruleId)
@@ -16,7 +16,9 @@ System --> Learner : blockingRuleDeleted(ruleId)
 
 note right of System
   Rules are evaluated only while a focus session is
-  RUNNING. Monitoring is suspended during breaks.
+  RUNNING and its interval is WORK.
+  App targets: executable path / process name.
+  Website targets: domain including subdomains.
 end note
 
 @enduml

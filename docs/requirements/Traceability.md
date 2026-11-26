@@ -44,15 +44,15 @@ case, diagram and task should be visible in one place.
 | FR-SET-08 | UC-01, UC-10 | [SD_StartSession](../SD/SD_StartSession.puml) | FST-017, FST-020 |
 | FR-SET-09 | UC-09, UC-11 | [SD_ViewAnalytics](../SD/SD_ViewAnalytics.puml), [SD_ConfigureApplicationSettings](../SD/SD_ConfigureApplicationSettings.puml) | FST-020 |
 | FR-SET-10 | UC-09 | [SD_ViewAnalytics](../SD/SD_ViewAnalytics.puml) | FST-020 |
-| FR-DIS-01 | UC-12 | [SD_ManageBlockingRules](../SD/SD_ManageBlockingRules.puml) | FST-028 |
-| FR-DIS-02 | UC-12 | [SD_ManageBlockingRules](../SD/SD_ManageBlockingRules.puml) | FST-028 |
-| FR-DIS-03 | UC-13 | [SD_DetectDistraction](../SD/SD_DetectDistraction.puml) | FST-027 |
-| FR-DIS-04 | UC-13 | [SD_DetectDistraction](../SD/SD_DetectDistraction.puml) | FST-028 |
-| FR-DIS-05 | UC-14 | [SD_BlockDistraction](../SD/SD_BlockDistraction.puml) | FST-028 |
-| FR-DIS-06 | UC-13, UC-15 | [SD_DetectDistraction](../SD/SD_DetectDistraction.puml), [SD_ReviewDistractionLog](../SD/SD_ReviewDistractionLog.puml) | FST-008, FST-028 |
-| FR-DIS-07 | UC-15 | [SD_ReviewDistractionLog](../SD/SD_ReviewDistractionLog.puml) | FST-028 |
-| FR-DIS-08 | UC-13 | [SD_DetectDistraction](../SD/SD_DetectDistraction.puml) | FST-027 |
-| FR-DIS-09 | UC-14 | [SD_BlockDistraction](../SD/SD_BlockDistraction.puml) | FST-028 |
+| FR-DIS-01 | UC-12 | [SD_ManageBlockingRules](../SD/SD_ManageBlockingRules.puml) | FST-048, FST-049 |
+| FR-DIS-02 | UC-12 | [SD_ManageBlockingRules](../SD/SD_ManageBlockingRules.puml) | FST-008, FST-048 |
+| FR-DIS-03 | UC-13 | [SD_DetectDistraction](../SD/SD_DetectDistraction.puml) | FST-027, FST-050 |
+| FR-DIS-04 | UC-13 | [SD_DetectDistraction](../SD/SD_DetectDistraction.puml) | FST-008, FST-028, FST-050 |
+| FR-DIS-05 | UC-14 | [SD_BlockDistraction](../SD/SD_BlockDistraction.puml) | FST-028, FST-050 |
+| FR-DIS-06 | UC-13, UC-15 | [SD_DetectDistraction](../SD/SD_DetectDistraction.puml), [SD_ReviewDistractionLog](../SD/SD_ReviewDistractionLog.puml) | FST-008, FST-037 |
+| FR-DIS-07 | UC-15 | [SD_ReviewDistractionLog](../SD/SD_ReviewDistractionLog.puml) | FST-037, FST-043 |
+| FR-DIS-08 | UC-13 | [SD_DetectDistraction](../SD/SD_DetectDistraction.puml) | FST-027, FST-028, FST-050 |
+| FR-DIS-09 | UC-14 | [SD_BlockDistraction](../SD/SD_BlockDistraction.puml) | FST-028, FST-050 |
 | FR-PRV-01 | all | [System architecture](../SystemArchitecture/SystemArchitecture.puml) | FST-004, FST-013 |
 | FR-PRV-02 | all | [Architecture](../SystemArchitecture/Architecture.md) | FST-026 |
 | FR-PRV-03 | all | [REST API](../api/RESTAndWebSocket.md) | FST-014 |
@@ -111,7 +111,7 @@ case, diagram and task should be visible in one place.
 | FST-004 H2 datasource | [Persistence](../data/Persistence.md), [ADR-005](../decisions/ADR-005-H2VsSQLite.md) |
 | FST-005 FocusSession aggregate | [Domain model](../DM/DomainModel.md) |
 | FST-006 Timer domain service | [Domain model](../DM/DomainModel.md), [SD_CompleteInterval](../SD/SD_CompleteInterval.puml) |
-| FST-008 DistractionLog read model | [Domain model](../DM/DomainModel.md), [Persistence](../data/Persistence.md) |
+| FST-008 Distraction targets, policies, rules and log model | [Domain model](../DM/DomainModel.md), [Persistence](../data/Persistence.md) |
 | FST-009 StartSessionUseCase | [SD_StartSession](../SD/SD_StartSession.puml) |
 | FST-010 Pause/resume/stop use cases | [SD_PauseSession](../SD/SD_PauseSession.puml), [SD_ResumeSession](../SD/SD_ResumeSession.puml), [SD_StopSession](../SD/SD_StopSession.puml) |
 | FST-011 CalculateDailyStreakUseCase | [SD_CalculateDailyStreak](../SD/SD_CalculateDailyStreak.puml) |
@@ -136,7 +136,7 @@ case, diagram and task should be visible in one place.
 | FST-045 desktop interval notifications | [Functional requirements](FunctionalRequirements.md), [Use cases UC-05 and UC-11](../UseCases/UseCases.md), [API event delivery](../api/RESTAndWebSocket.md), [Test strategy](../testing/TestStrategy.md) |
 | FST-026 Privacy audit | [ADR-001](../decisions/ADR-001-LocalFirst.md), [Privacy audit procedure](../testing/FST-026-privacy-audit.md), [Test strategy](../testing/TestStrategy.md) |
 | FST-027 OS active-window detection | [SD_DetectDistraction](../SD/SD_DetectDistraction.puml) |
-| FST-028 Distraction blocking | [SD_BlockDistraction](../SD/SD_BlockDistraction.puml), [SD_ManageBlockingRules](../SD/SD_ManageBlockingRules.puml) |
+| FST-028 Application rule evaluation and enforcement | [SD_BlockDistraction](../SD/SD_BlockDistraction.puml), [SD_ManageBlockingRules](../SD/SD_ManageBlockingRules.puml) |
 | FST-029 Content recognition | [Domain model](../DM/DomainModel.md) (future context) |
 | FST-030 Screen recording | [Domain model](../DM/DomainModel.md) (future context) |
 | FST-031 Documentation | This directory |
@@ -144,6 +144,9 @@ case, diagram and task should be visible in one place.
 | FST-034 Maven wrapper | [Architecture](../SystemArchitecture/Architecture.md) |
 | FST-035 Docs structure | This directory |
 | FST-036 JSON/CSV data export | [Functional requirements](FunctionalRequirements.md) |
+| FST-048 Saved app/website rule management | [Domain review](../decisions/FST-008-distraction-model.md), [planned API](../api/RESTAndWebSocket.md) |
+| FST-049 Distractions UI integration | [Frontend review](../decisions/FST-008-distraction-model.md#frontend-design-review) |
+| FST-050 Website detection/enforcement | [Website flow](../SD/SD_DetectAndBlockWebsite.puml), [cleanup](../SD/SD_ReleaseDistractionProtection.puml) |
 
 ## 5. Maintenance rule
 
