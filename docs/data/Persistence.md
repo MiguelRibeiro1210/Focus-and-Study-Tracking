@@ -166,14 +166,29 @@ updated by `DailyProgressProjection` from `SessionCompleted` and
 
 ### `distraction_log`
 
-Planned FST-037 projection of `DistractionDetected`, `DistractionBlocked` and
-`DistractionBlockFailed`, correlated by detection ID and deduplicated by event
-ID. Retain session/rule IDs, configured and observed target snapshots,
-occurrence time, category, action and enforcement outcome/failure reason.
-Source events are append-only; the derived detection view can incorporate
-later/out-of-order outcomes idempotently. Rule changes must not alter recorded
-history. Transient process/browser handles and full browsing URLs are not
-stored as target identities.
+FST-037 migration V8 creates the `distraction_projection_event` ledger, a
+singleton projection lock and the derived `distraction_log`. Ledger event UUIDs
+are the projection's deduplication receipts. The log uses detection UUID as PK,
+session FK, nanosecond UTC detection time, immutable detection payload and nullable
+outcome payload. Session/time indexes support filtered stable pagination. Both
+ledger and log reference sessions with `ON DELETE CASCADE`.
+
+Consume only `DistractionDetected`, `DistractionBlocked` and
+`DistractionBlockFailed`. Insert the ledger entry, rebuild its detection view and
+mark source delivery in one transaction under the projection lock. Outcomes may
+arrive first; no log is fabricated until detection exists. Validate correlated
+facts and chronology against the domain log contract; incompatible outcomes are
+retained as evidence but never reported as confirmed enforcement. Select the
+earliest valid outcome by timestamp/event UUID deterministically. A malformed
+source transaction rolls back and gets safe bounded retry diagnostics, allowing
+other events to proceed without starving session WebSocket delivery.
+
+History/retention/delete-all acquire the projection lock and lock owning session
+rows before deleting source events and sessions. Distraction append locks and
+checks its session, discarding delayed observations once it has been deleted.
+This prevents an in-flight write from resurrecting deleted personal history.
+JSON and CSV exports include projected logs. Rule changes cannot alter recorded
+snapshots. Native handles, titles, full browsing URLs and traffic are excluded.
 
 `ProductivitySummary` is **not** a table. The MVP analytics endpoint assembles
 it per query from completed session and interval data. Distraction data is

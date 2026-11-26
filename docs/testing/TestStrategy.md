@@ -261,7 +261,27 @@ combinations remain unverified. The ordinary packaged network guard still runs
 with website consent off. The source audit allows only the locally intercepted
 reserved challenge authority; it does not claim dynamic proxy sockets are local.
 
-## 10. Related documents
+## 10. Distraction log projection (FST-037)
+
+Full Java 17 verification passes 296 backend tests with the optional controlled
+Firefox check enabled. Projection integration covers application/website targets,
+outcome-first and duplicate delivery, pending/success/failure, incompatible facts
+and chronology, deterministic outcome selection, malformed-event retry isolation,
+transaction rollback, authenticated filtered pagination, JSON/CSV export and
+history/retention/delete-all cleanup. A concurrent test holds an observation
+transaction open while deletion starts, then proves the source event and history
+are removed after the write commits; a delayed post-delete append is discarded.
+Final log/outbox checks pass 12 tests after adding immutable duplicate-append
+validation: retries cannot overwrite a snapshot or reset its delivery marker.
+
+Frontend history checks cover truthful outcome labels, session filtering,
+pagination, preserving date inputs on read failure, retry and strict wire outcome
+validation (107 frontend tests pass in total). No projection/replay test invokes
+native enforcement. Logs cannot
+claim successful blocking without a matching confirmed outcome. Native browser
+coverage remains tracked separately under FST-050.
+
+## 11. Related documents
 
 - [Functional requirements](../requirements/FunctionalRequirements.md)
 - [Non-functional requirements](../requirements/NonFunctionalRequirements.md)

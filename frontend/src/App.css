@@ -146,6 +146,21 @@
 .rule-controls button, .rule-editor button:not(.button) { padding: 6px; border: 1px solid #b7c7bb; border-radius: 5px; background: transparent; color: inherit; cursor: pointer; }
 .distractions-page button:disabled { opacity: .55; cursor: wait; }
 .distractions-page { display: grid; gap: 24px; }
+.distraction-history { min-width: 0; padding: 20px; }
+.distraction-history-heading, .distraction-history-filters, .distraction-history-pagination { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.distraction-history-heading { justify-content: space-between; }
+.distraction-history p, .distraction-history label, .distraction-history-pagination { font-size: 12px; }
+.distraction-history-filters { margin: 18px 0; }
+.distraction-history-filters label { display: grid; gap: 6px; }
+.distraction-history input, .distraction-history button { min-height: 34px; padding: 6px 10px; border: 1px solid var(--theme-border, #b7c7bb); border-radius: 6px; background: inherit; color: inherit; font: inherit; }
+.distraction-history button { cursor: pointer; }
+.distraction-history button:disabled { opacity: .55; cursor: default; }
+.distraction-history-scroll { overflow-x: auto; }
+.distraction-history table { width: 100%; min-width: 620px; border-collapse: collapse; text-align: left; font-size: 12px; }
+.distraction-history th, .distraction-history td { padding: 12px 8px; border-bottom: 1px solid var(--theme-border, #e3e8df); vertical-align: top; }
+.distraction-history td small { display: block; max-width: 280px; margin-top: 5px; overflow-wrap: anywhere; }
+.distraction-history-pagination { justify-content: flex-end; margin-top: 16px; }
+.distraction-history-pagination span { margin-right: auto; }
 .boundaries-banner { display: flex; min-height: 85px; align-items: center; justify-content: space-between; gap: 20px; padding: 16px 24px; border-radius: 12px; background: #eaf0df; }
 .boundaries-banner h2 { font-size: 17px; }
 .boundaries-banner p { margin: 8px 0 0; color: #69766c; font-size: 11px; }

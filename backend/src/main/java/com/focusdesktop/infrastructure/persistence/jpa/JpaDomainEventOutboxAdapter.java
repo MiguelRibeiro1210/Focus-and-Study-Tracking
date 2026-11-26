@@ -18,9 +18,13 @@ import org.springframework.transaction.annotation.Transactional;
 @Repository
 public class JpaDomainEventOutboxAdapter implements DomainEventOutbox {
     private final SpringDataOutboxEventRepository outbox;
+    private final org.springframework.jdbc.core.JdbcTemplate jdbc;
+    private final jakarta.persistence.EntityManager entityManager;
 
-    public JpaDomainEventOutboxAdapter(SpringDataOutboxEventRepository outbox) {
+    public JpaDomainEventOutboxAdapter(SpringDataOutboxEventRepository outbox, org.springframework.jdbc.core.JdbcTemplate jdbc,
+                                      jakarta.persistence.EntityManager entityManager) {
         this.outbox = outbox;
+        this.jdbc = jdbc; this.entityManager = entityManager;
     }
 
     @Override
@@ -29,6 +33,16 @@ public class JpaDomainEventOutboxAdapter implements DomainEventOutbox {
         if (event instanceof com.focusdesktop.domain.event.DistractionDetected
                 || event instanceof com.focusdesktop.domain.event.DistractionBlockOutcome) {
             var payload = com.focusdesktop.application.dto.DistractionEventPayload.from(event);
+            entityManager.flush();
+            if (jdbc.query("SELECT id FROM focus_session WHERE id=? FOR UPDATE", (row, index) -> row.getObject(1, UUID.class), payload.sessionId()).isEmpty())
+                return; // A delayed observation must not recreate deleted session history.
+            var previous = outbox.findById(payload.eventId());
+            if (previous.isPresent()) {
+                if (!previous.get().eventType().equals(event.getClass().getSimpleName())
+                        || !PersistenceJson.read(previous.get().payload(), com.focusdesktop.application.dto.DistractionEventPayload.class).equals(payload))
+                    throw new IllegalArgumentException("Distraction event identity cannot be reused with different facts");
+                return; // A duplicate append must not overwrite snapshots or reset delivery.
+            }
             outbox.save(new OutboxEventJpaEntity(payload.eventId(), event.getClass().getSimpleName(), payload.sessionId(),
                     event.occurredAt().value(), PersistenceJson.write(payload)));
             return;

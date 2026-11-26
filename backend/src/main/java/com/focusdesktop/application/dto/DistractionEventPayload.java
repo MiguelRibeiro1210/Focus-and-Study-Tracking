@@ -9,6 +9,30 @@ import java.util.UUID;
 public record DistractionEventPayload(int version, UUID eventId, UUID detectionId, UUID sessionId,
         UUID ruleId, BlockingRuleDto.Target target, DistractionCategory category, BlockingAction action,
         String observationType, AppIdentifier application, String host, String outcome, String failureReason, Instant occurredAt) {
+    public DomainEvent toDomainEvent() {
+        if (version != 1) throw new IllegalArgumentException("Unsupported distraction snapshot version");
+        var decision = new BlockingDecision(new BlockingRuleId(ruleId), target.toDomain(), category, action);
+        ObservedDistraction observation;
+        if ("APPLICATION".equals(observationType) && application != null && host == null)
+            observation = ObservedDistraction.application(application);
+        else if ("WEBSITE".equals(observationType) && host != null && application == null)
+            observation = ObservedDistraction.website(host);
+        else throw new IllegalArgumentException("Invalid distraction observation snapshot");
+        var session = new SessionId(sessionId);
+        var at = new TimeStamp(occurredAt);
+        return switch (outcome) {
+            case "PENDING" -> {
+                if (failureReason != null) throw new IllegalArgumentException("Detection cannot have a failure reason");
+                yield new DistractionDetected(eventId, detectionId, session, decision, observation, at);
+            }
+            case "BLOCKED" -> {
+                if (failureReason != null) throw new IllegalArgumentException("Success cannot have a failure reason");
+                yield new DistractionBlocked(eventId, detectionId, session, decision, observation, at);
+            }
+            case "FAILED" -> new DistractionBlockFailed(eventId, detectionId, session, decision, observation, failureReason, at);
+            default -> throw new IllegalArgumentException("Unsupported distraction outcome");
+        };
+    }
     public static DistractionEventPayload from(DomainEvent event) {
         if (event instanceof DistractionDetected detection) return snapshot(detection.eventId(), detection.detectionId(),
                 detection.sessionId(), detection.decision(), detection.observation(), "PENDING", null, detection.occurredAt());

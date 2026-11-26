@@ -24,12 +24,14 @@ public class ExportAllDataUseCase {
     private final ManageBlockingRulesUseCase blockingRules;
     private final com.focusdesktop.application.port.ProtectionPreferences protectionPreferences;
     private final com.focusdesktop.application.port.WebsiteProtectionPreferences websitePreferences;
+    private final com.focusdesktop.application.port.DistractionLogReader distractions;
 
     public ExportAllDataUseCase(SettingsUseCase settings, DataExportReader sessions,
                                 GetAnalyticsSummaryUseCase analytics, ObjectMapper objectMapper,
                                 ManageBlockingRulesUseCase blockingRules,
                                 com.focusdesktop.application.port.ProtectionPreferences protectionPreferences,
-                                com.focusdesktop.application.port.WebsiteProtectionPreferences websitePreferences) {
+                                com.focusdesktop.application.port.WebsiteProtectionPreferences websitePreferences,
+                                com.focusdesktop.application.port.DistractionLogReader distractions) {
         this.settings = settings;
         this.sessions = sessions;
         this.analytics = analytics;
@@ -37,12 +39,13 @@ public class ExportAllDataUseCase {
         this.blockingRules = blockingRules;
         this.protectionPreferences = protectionPreferences;
         this.websitePreferences = websitePreferences;
+        this.distractions = distractions;
     }
 
     @Transactional
     public ExportFile execute(String format) {
         DataExportBundle bundle = new DataExportBundle(settings.get(), sessions.loadAllSessions(),
-                analytics.execute(null, null), blockingRules.list(), protectionPreferences.get(), websitePreferences.get());
+                analytics.execute(null, null), blockingRules.list(), protectionPreferences.get(), websitePreferences.get(), distractions.exportAll());
         return switch (format == null ? "" : format.toLowerCase(java.util.Locale.ROOT)) {
             case "json" -> json(bundle);
             case "csv-zip" -> csvZip(bundle);
@@ -72,6 +75,7 @@ public class ExportAllDataUseCase {
                         + csv(bundle.protectionPreferences().applicationsEnabled(), bundle.protectionPreferences().applicationConsentAt()));
                 add(zip, "website-protection-preferences.csv", csv("enabled", "consentAt")
                         + csv(bundle.websiteProtectionPreferences().enabled(), bundle.websiteProtectionPreferences().consentAt()));
+                add(zip, "distractions.csv", distractionsCsv(bundle));
             }
             return new ExportFile("focusdesktop-export.zip", "application/zip", bytes.toByteArray());
         } catch (IOException exception) {
@@ -83,6 +87,16 @@ public class ExportAllDataUseCase {
         return csv("defaultProfileId", "dailyGoalHours", "theme", "notificationsEnabled", "retentionDays")
                 + csv(settings.defaultProfileId(), settings.dailyGoalHours(), settings.theme(),
                 settings.notificationsEnabled(), settings.retentionDays());
+    }
+
+    private String distractionsCsv(DataExportBundle bundle) throws JsonProcessingException {
+        StringBuilder result = new StringBuilder(csv("detectionId", "sessionId", "ruleId", "target", "observationType", "application",
+                "host", "category", "action", "occurredAt", "outcome", "outcomeAt", "blocked", "failureReason"));
+        for (var entry : bundle.distractions()) result.append(csv(entry.detectionId(), entry.sessionId(), entry.ruleId(),
+                objectMapper.writeValueAsString(entry.target()), entry.observationType(),
+                entry.application() == null ? null : objectMapper.writeValueAsString(entry.application()), entry.host(),
+                entry.category(), entry.action(), entry.occurredAt(), entry.outcome(), entry.outcomeAt(), entry.blocked(), entry.failureReason()));
+        return result.toString();
     }
 
     private String blockingRulesCsv(DataExportBundle bundle) {

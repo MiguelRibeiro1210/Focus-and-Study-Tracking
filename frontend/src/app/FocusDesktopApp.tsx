@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import type { TimerController } from '../timer/useTimerSession'
 import { TimerScreen } from '../timer/TimerScreen'
 import { DistractionsPage } from '../pages/DistractionsPage'
+import { DistractionHistory } from '../pages/DistractionHistory'
 import { HistoryPage } from '../pages/HistoryPage'
 import { SettingsPage } from '../pages/SettingsPage'
 import type { AppSettingsController } from '../pages/useAppSettings'
@@ -87,7 +88,7 @@ export function FocusDesktopApp({ timer, settings }: FocusDesktopAppProps) {
         <main className={`workspace-content page-${page}`}>
           <ProtectionFeedback />
           {page === 'overview' && <TimerScreen timer={timer} settings={settings.settings} onViewHistory={() => setPage('history')} />}
-          {page === 'distractions' && <DistractionsPage />}
+          {page === 'distractions' && <><DistractionsPage /><DistractionHistory /></>}
           {page === 'history' && <HistoryPage />}
           {page === 'settings' && <SettingsPage controller={settings} />}
         </main>

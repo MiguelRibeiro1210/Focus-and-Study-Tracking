@@ -58,16 +58,25 @@ entity "projection_event_receipt" as projection_event_receipt {
 }
 
 entity "distraction_log" as distraction_log {
-  * id : UUID <<PK>>
+  * detection_id : UUID <<PK>>
   --
-  session_id : UUID <<FK>>
+  * session_id : UUID <<FK, CASCADE DELETE>>
   * occurred_at : TIMESTAMP
-  * app_identifier : VARCHAR(255)
-  window_title : VARCHAR(512)
-  * category : VARCHAR(30)
-  * action : VARCHAR(20)
-  * blocked : BOOLEAN
-  reason : VARCHAR(512)
+  * detection_payload : CLOB
+  outcome_payload : CLOB
+}
+
+entity "distraction_projection_event" as distraction_projection_event {
+  * event_id : UUID <<PK, receipt>>
+  * detection_id : UUID
+  * session_id : UUID <<FK, CASCADE DELETE>>
+  * event_type : VARCHAR(100)
+  * occurred_at : TIMESTAMP
+  * payload : CLOB
+}
+
+entity "distraction_projection_lock" as distraction_projection_lock {
+  * singleton_slot : SMALLINT <<PK, CHECK = 1>>
 }
 
 entity "blocking_policy" as blocking_policy {
@@ -151,6 +160,7 @@ focus_session ||--o{ domain_event_outbox : "emits"
 blocking_policy ||--o{ domain_event_outbox : "emits"
 domain_event_outbox ||--o{ projection_event_receipt : "processed by"
 focus_session ||--o{ distraction_log : "correlates"
+focus_session ||--o{ distraction_projection_event : "owns immutable events"
 blocking_policy ||--o{ blocking_rule : "contains"
 study_material ||--o{ detected_content : "contains"
 focus_session }o--o| study_material : "studies"

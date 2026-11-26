@@ -8,10 +8,12 @@ import java.util.UUID;
 public record DataExportBundle(SettingsDto settings, List<SessionExport> sessions, AnalyticsSummary analytics,
                                List<BlockingRuleDto> blockingRules,
                                com.focusdesktop.application.port.ProtectionPreferences.State protectionPreferences,
-                               com.focusdesktop.application.port.WebsiteProtectionPreferences.State websiteProtectionPreferences) {
+                               com.focusdesktop.application.port.WebsiteProtectionPreferences.State websiteProtectionPreferences,
+                               List<DistractionLogDto> distractions) {
     public DataExportBundle {
         sessions = List.copyOf(sessions);
         blockingRules = List.copyOf(blockingRules);
+        distractions = List.copyOf(distractions);
     }
 
     public record SessionExport(UUID sessionId, String projectName, String sessionType, String status,

@@ -29,6 +29,12 @@ public class ApplicationMonitoringScheduler {
     }
 
     @Bean
+    public ThreadPoolTaskScheduler distractionTaskScheduler() {
+        var scheduler = new ThreadPoolTaskScheduler();
+        scheduler.setPoolSize(1); scheduler.setThreadNamePrefix("distraction-projection-"); return scheduler;
+    }
+
+    @Bean
     public ThreadPoolTaskScheduler websiteTaskScheduler() {
         var scheduler = new ThreadPoolTaskScheduler();
         scheduler.setPoolSize(1); scheduler.setThreadNamePrefix("website-protection-"); return scheduler;

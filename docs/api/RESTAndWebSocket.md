@@ -339,13 +339,28 @@ exist only for browser requests under the approved FST-026 exception.
 |---|---|---|---|
 | `GET` | `/distractions?sessionId=...&from=...&to=...&page=0&size=20` | Query the distraction log read model. | `200 OK` + `Page<DistractionDto>` |
 
-The planned `DistractionDto` contains `detectionId`, `sessionId`, `ruleId`,
-configured/observed target snapshots, `category`, `action`, `blocked`,
-`failureReason` and `occurredAt`. Correlated outcome events distinguish pending,
-successful and failed enforcement; `blocked` is true only after confirmation.
-The read model derives from append-only events. Website hosts suffice for
-matching/logging; full URLs, credentials and page contents are not required.
-FST-037 owns persistence and queries, with final wire details reviewed there.
+FST-037 returns `{items,total,page,size}`. Each `DistractionLogDto` contains
+`detectionId`, `sessionId`, `ruleId`, configured `target`, `observationType`,
+nullable observed `application` or `host`, `category`, `action`, detection
+`occurredAt`, `outcome` (`PENDING`, `BLOCKED`, `FAILED`), nullable `outcomeAt`,
+`blocked` and nullable `failureReason`. Only a correlated confirmed success
+yields `blocked=true`; a detection alone cannot claim enforcement. The UI labels
+LOG/WARN as logged/warning rather than implying a pending block.
+
+Session and date filters combine. Dates use the installation's local timezone
+and include both boundary days; either bound may be omitted. Reject inverted
+ranges, invalid UUIDs, negative pages and sizes outside 1–100 with `400`.
+Order by detection time descending, then detection UUID ascending. Defaults are
+page 0 and size 20. Missing sessions yield an empty filtered result; the query
+never performs enforcement. Rules can be removed without changing snapshots.
+
+The append-only ledger deduplicates event UUIDs and retains outcome-first
+delivery without inventing a detection. Invalid fact/chronology correlations
+cannot produce confirmed blocks. Projection and source delivery commit together;
+the worker handles only distraction event types. JSON export adds `distractions`,
+and the ZIP adds `distractions.csv`. History deletion, retention and delete-all
+remove associated logs and ledger rows. Website hosts suffice for matching and
+review; full URLs, credentials, native handles and page contents are excluded.
 
 ## 7. WebSocket
 
@@ -418,8 +433,8 @@ notification purposes. Because event delivery is best-effort, a missed event
 discovered only through a later REST reconciliation does not produce a delayed
 notification.
 
-Distraction event types are reserved for a later feature and are not currently
-published by FST-015.
+Distraction event types are projected independently by FST-037 and are not
+published on the session WebSocket. The distraction-history UI queries REST.
 
 When a session is abandoned because it ended before the five-minute minimum,
 `reason` is `BELOW_MINIMUM_FOCUS_TIME`.
