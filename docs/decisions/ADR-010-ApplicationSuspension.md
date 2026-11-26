@@ -101,9 +101,11 @@ release, EOF, lease expiry, forced guardian exit, recovery, stale identity,
 external-stop refusal and exclusive journal ownership. A separate packaged JAR
 check with the bundled Java 17 confirms suspension, release and EOF restoration.
 
-CI now runs native adapter tests on Windows, Linux and both macOS architectures,
-and checks the staged runtime's PropertiesLauncher classpath. Windows/macOS
-native results are pending CI, not claimed from Linux tests. An interrupted
+CI runs native adapter tests on Windows, Linux and both macOS architectures,
+and checks the staged runtime's PropertiesLauncher classpath. All four native
+packaging jobs and packaged smoke checks passed for `a9c8d9c` on 2026-11-26:
+[verified CI matrix](https://github.com/MiguelRibeiro1210/Focus-and-Study-Tracking/actions/runs/45767001748).
+An interrupted
 Windows thread operation whose increment was not durably confirmed cannot be
 safely guessed: preserve its journal and report manual recovery through Windows
 Resource Monitor. Do not decrement a possibly external suspension to hide this

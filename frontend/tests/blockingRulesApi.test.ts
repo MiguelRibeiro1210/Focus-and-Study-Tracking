@@ -44,3 +44,15 @@ describe('blocking rules API', () => {
     await expect(api.patch('one', { enabled: true })).rejects.toThrow('target: already exists')
   })
 })
+
+it('sends separate website consent and rejects arbitrary verification links', async () => {
+  const status = { enabled: true, state: 'READY', routingVerified: false,
+    verificationUrl: 'http://focusdesktop.invalid/verify/00000000-0000-0000-0000-000000000001', reason: 'Verify routing.' }
+  const fetcher = vi.fn().mockResolvedValueOnce(Response.json(status))
+    .mockResolvedValueOnce(Response.json({ ...status, verificationUrl: 'https://untrusted.example/' }))
+  const api = createBlockingRulesApi(fetcher)
+  await api.setWebsiteProtection!(true)
+  expect(fetcher.mock.calls[0][0]).toBe('/api/v1/website-protection')
+  expect(JSON.parse(fetcher.mock.calls[0][1].body)).toEqual({ enabled: true, consent: 'FORWARD_BROWSER_TRAFFIC' })
+  await expect(api.websiteStatus!()).rejects.toThrow('invalid website protection status')
+})

@@ -68,6 +68,36 @@ class SettingsControllerIntegrationTest {
     }
 
     @Test
+    void websiteConsentIsSeparateAuthenticatedExportedAndResetWithAllData() throws Exception {
+        String path = "/api/v1/website-protection";
+        mvc.perform(get(path)).andExpect(status().isUnauthorized());
+        mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch(path)
+                        .header("Authorization", "Bearer test-token").header("Origin", "https://untrusted.example")
+                        .contentType("application/json").content("{\"enabled\":true,\"consent\":\"FORWARD_BROWSER_TRAFFIC\"}"))
+                .andExpect(status().isForbidden());
+        for (String body : java.util.List.of("{\"enabled\":true}", "{\"enabled\":true,\"consent\":\"SUSPEND_MATCHED_APPS\"}",
+                "{\"enabled\":true,\"consent\":\"FORWARD_BROWSER_TRAFFIC\",\"extra\":1}")) {
+            mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch(path)
+                            .header("Authorization", "Bearer test-token").contentType("application/json").content(body))
+                    .andExpect(status().isBadRequest());
+        }
+        mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch(path)
+                        .header("Authorization", "Bearer test-token").contentType("application/json")
+                        .content("{\"enabled\":true,\"consent\":\"FORWARD_BROWSER_TRAFFIC\"}"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.enabled").value(true))
+                .andExpect(jsonPath("$.state").value("UNAVAILABLE"))
+                .andExpect(jsonPath("$.routingVerified").value(false));
+        mvc.perform(get("/api/v1/settings/export?format=json").header("Authorization", "Bearer test-token"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.websiteProtectionPreferences.enabled").value(true))
+                .andExpect(jsonPath("$.websiteProtectionPreferences.consentAt").isString());
+        mvc.perform(delete("/api/v1/settings/data").header("Authorization", "Bearer test-token")
+                        .contentType("application/json").content("{\"confirmation\":\"DELETE_ALL_DATA\"}"))
+                .andExpect(status().isNoContent());
+        mvc.perform(get(path).header("Authorization", "Bearer test-token"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.enabled").value(false));
+    }
+
+    @Test
     void servesSeededSettingsAndSupportsProfileCrudAndDefaultSelection() throws Exception {
         String response = mvc.perform(get("/api/v1/settings").header("Authorization", "Bearer test-token"))
                 .andExpect(status().isOk())

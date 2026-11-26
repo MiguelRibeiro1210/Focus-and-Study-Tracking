@@ -295,7 +295,8 @@ no executable, title or process identifier. FST-028 adds
 (`DISABLED`, `READY`, `ACTIVE`, `RESTORING`, `UNAVAILABLE`) and an optional
 correlated `notice` (`id`, `kind`, `message`, `occurredAt`). Application enforcement
 is true only while confirmed owned restrictions exist; website enforcement is
-false until FST-050. `READY` means configured to evaluate, not successfully blocked.
+retained as false for compatibility; use the separate website-protection status
+for browser routing. `READY` means configured to evaluate, not successfully blocked.
 Desktop launch enables the monitoring runtime; standalone launches require the explicit
 `--focusdesktop.blocking.monitor-enabled=true` option. See
 [ADR-009](../decisions/ADR-009-ApplicationMonitoring.md) for platform requirements.
@@ -308,6 +309,29 @@ consent when enabling, wrong field types and unknown fields return `400`.
 The setting defaults to false, is exported with personal data and is reset by
 delete-all. Rules alone never activate protection. See
 [ADR-010](../decisions/ADR-010-ApplicationSuspension.md).
+
+### Website protection (FST-050)
+
+Authenticated `GET /api/v1/website-protection` returns `enabled`, `state`
+(`DISABLED`, `STARTING`, `READY`, `VERIFIED`, `RESTORING`, `UNAVAILABLE`),
+`routingVerified`, nullable `verificationUrl`, safe `reason` and optional local
+`notice`. `VERIFIED` proves a browser requested the local challenge through the
+proxy; it does not prove every browser honors system settings or that a site
+was blocked. Verify each browser separately.
+
+Authenticated `PATCH /api/v1/website-protection` accepts
+`{"enabled":true,"consent":"FORWARD_BROWSER_TRAFFIC"}` or `{"enabled":false}`.
+Application consent cannot enable website forwarding. Missing consent, wrong
+types and unknown fields return `400`. Setup/permission failures return the
+actual unavailable/restoring status rather than a successful-protection claim.
+Standalone backend mode does not apply native settings. Export includes
+`websiteProtectionPreferences` and `website-protection-preferences.csv`;
+delete-all resets website consent. See [ADR-011](../decisions/ADR-011-WebsiteProtection.md).
+
+The proxy has its own ephemeral loopback port and serves a random PAC path and
+local browser verification challenge. It does not expose the authenticated API,
+accept origin-form API requests or store traffic payloads. Its outbound sockets
+exist only for browser requests under the approved FST-026 exception.
 
 ## 6. Distraction log (Phase 2 read model)
 

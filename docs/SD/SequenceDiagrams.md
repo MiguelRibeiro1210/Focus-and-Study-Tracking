@@ -25,7 +25,7 @@ that saving a rule guarantees protection.
 | 13 | UC-13 Detect distracting application | [`SD_DetectDistraction.puml`](SD_DetectDistraction.puml) | [`SD_DetectDistraction.svg`](SD_DetectDistraction.svg) | Active-window monitor, `BlockingPolicy`, policy service, event publisher, projections, WebSocket |
 | 14 | UC-14 Block distracting application | [`SD_BlockDistraction.puml`](SD_BlockDistraction.puml) | [`SD_BlockDistraction.svg`](SD_BlockDistraction.svg) | `BlockDistractionUseCase`, platform blocker, event publisher, projection |
 | 15 | UC-15 Review distraction log | [`SD_ReviewDistractionLog.puml`](SD_ReviewDistractionLog.puml) | [`SD_ReviewDistractionLog.svg`](SD_ReviewDistractionLog.svg) | UI, `DistractionController`, query use case, `DistractionLogReadRepository` |
-| 16 | UC-13/14 Detect and block website (planned FST-050) | [`SD_DetectAndBlockWebsite.puml`](SD_DetectAndBlockWebsite.puml) | [`SD_DetectAndBlockWebsite.svg`](SD_DetectAndBlockWebsite.svg) | Local website observation/blocker ports, policy, outbox, projections |
+| 16 | UC-13/14 Detect and block website (FST-050) | [`SD_DetectAndBlockWebsite.puml`](SD_DetectAndBlockWebsite.puml) | [`SD_DetectAndBlockWebsite.svg`](SD_DetectAndBlockWebsite.svg) | Consented loopback PAC/proxy, policy, outcomes and owned settings recovery |
 | 17 | Release introduced protection | [`SD_ReleaseDistractionProtection.puml`](SD_ReleaseDistractionProtection.puml) | [`SD_ReleaseDistractionProtection.svg`](SD_ReleaseDistractionProtection.svg) | Session/rule changes, coordinator, app/website adapters, cleanup registry |
 
 ## 2. Conventions
@@ -72,12 +72,12 @@ side never writes the log repository directly.
 
 `SD_BlockDistraction` shows eligibility revalidation, application enforcement,
 success/failure events and post-commit projection. `SD_DetectAndBlockWebsite`
-shows the parallel site-specific flow, with the FST-050 integration mechanism
-explicitly unselected. `SD_ReleaseDistractionProtection` shows cleanup on
+shows the selected loopback proxy flow with separate consent and network-setting
+recovery (ADR-011). `SD_ReleaseDistractionProtection` shows cleanup on
 session/rule changes. OS/browser actions and event commits are not atomic;
 outbox notification delivery must not repeat enforcement.
 
-These are proposed Phase 2 contracts, not implemented adapters. The
+Website native browser/OS coverage must be verified separately. The
 [approved FST-008 design](../decisions/ADR-006-distraction-model.md) identifies
 agreed scope, matching defaults and workflow stage gates.
 

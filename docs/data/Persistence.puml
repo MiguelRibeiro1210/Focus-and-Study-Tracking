@@ -76,6 +76,8 @@ entity "blocking_policy" as blocking_policy {
   * singleton_slot : SMALLINT <<UK, CHECK = 1>>
   * applications_enabled : BOOLEAN
   application_consent_at : TIMESTAMP
+  * websites_enabled : BOOLEAN
+  website_consent_at : TIMESTAMP
   * version : BIGINT
   * created_at : TIMESTAMP
   * updated_at : TIMESTAMP

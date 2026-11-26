@@ -113,6 +113,7 @@ jobs:
           guardian_java="src-tauri/resources/runtime/bin/java"
           if [ "$RUNNER_OS" = "Windows" ]; then guardian_java="$guardian_java.exe"; fi
           "$guardian_java" -Dloader.main=com.focusdesktop.infrastructure.desktop.ApplicationSuspensionGuardian -cp src-tauri/resources/backend/focusdesktop.jar org.springframework.boot.loader.launch.PropertiesLauncher --self-check
+          "$guardian_java" -Dloader.main=com.focusdesktop.infrastructure.proxy.ProxySettingsGuardian -cp src-tauri/resources/backend/focusdesktop.jar org.springframework.boot.loader.launch.PropertiesLauncher --self-check
         working-directory: frontend
 
       - name: Build native installer

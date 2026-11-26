@@ -22,3 +22,10 @@ it('does not repeat old warnings and reports confirmed active restrictions', asy
   expect(await screen.findByText('2 applications suspended during focus.')).toBeTruthy()
   expect(screen.queryByText('Old warning')).toBeNull()
 })
+
+it('shows pending website restoration across pages even without an application warning', async () => {
+  const api = { websiteStatus: vi.fn().mockResolvedValue({ enabled: false, state: 'RESTORING', routingVerified: false,
+    verificationUrl: null, reason: 'Restoration pending.' }) } as unknown as BlockingRulesApi
+  render(<ProtectionFeedback api={api} />)
+  expect(await screen.findByText('Network settings restoration is pending. Keep FocusDesktop open.')).toBeTruthy()
+})

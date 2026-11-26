@@ -43,7 +43,11 @@ for (const root of sourceRoots) {
       const host = authority.startsWith('[')
         ? authority.slice(0, authority.indexOf(']') + 1)
         : authority.split(':')[0]
-      if (!allowedHosts.has(host)) {
+      // ADR-011: this reserved .invalid authority is intercepted locally by the
+      // consented proxy to verify browser routing. It is never an upstream host.
+      const localProxyChallenge = relative(repoDir, path) === 'backend/src/main/java/com/focusdesktop/infrastructure/proxy/WebsiteProxy.java'
+        && match[0] === 'http://focusdesktop.invalid'
+      if (!allowedHosts.has(host) && !localProxyChallenge) {
         violations.push(`${relative(repoDir, path)}: non-local endpoint ${match[0]}`)
       }
     }
@@ -78,5 +82,5 @@ if (violations.length > 0) {
   for (const violation of violations) console.error(`- ${violation}`)
   process.exitCode = 1
 } else {
-  console.log('Privacy audit passed: runtime endpoints are local and no telemetry SDK dependency was found.')
+  console.log('Privacy audit passed: fixed runtime endpoints are local (including the intercepted proxy challenge) and no telemetry SDK dependency was found. Consented request-driven forwarding is tested separately.')
 }

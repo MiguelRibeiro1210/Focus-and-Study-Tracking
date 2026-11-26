@@ -96,6 +96,36 @@ unrequested traffic is absent. Native Windows/macOS/Linux and browser checks
 must exercise setup, HTTPS denial, allowed browsing and automatic restoration;
 the story remains open wherever acceptance evidence is missing.
 
+## Implemented boundaries and outstanding native verification
+
+The current adapters use Windows per-user PAC settings, macOS network-service
+PAC settings and Linux GNOME/GSettings. Existing manual, automatic-discovery or
+PAC configurations that would be replaced are refused. KDE and desktops without
+the required GSettings integration remain unsupported. Native commands run with
+the user's permissions; macOS configurations requiring elevated authorization
+remain unavailable until a reviewed authorization adapter exists. There is no
+silent elevation or privileged installation in this implementation.
+
+A separate Java guardian journals settings, verifies application, checks ownership
+on heartbeats and restores on EOF or a 15-second lease expiry. A user replacement
+configuration disables website protection and is preserved. Forced termination
+of both backend and guardian requires startup recovery; immediate restoration
+after that event is not claimed. The PAC intentionally has no DIRECT fallback
+until intentional-denial behavior has been verified across the target browsers.
+
+The transport bounds connections to 64, headers to 32 KiB and idle reads to 60
+seconds. HTTPS is an opaque tunnel. Plain HTTP accepts one request per connection,
+with a declared body of at most 10 MiB; chunked uploads, protocol upgrades,
+Expect handshakes and IP-literal destinations are rejected explicitly. Local
+destinations must bypass the proxy. These limits require compatibility testing;
+do not call the all-browser acceptance criteria complete from transport tests.
+
+Controlled Linux Firefox testing verifies PAC retrieval, local routing proof,
+allowed HTTP, blocked HTTP and HTTPS CONNECT denial without destination traffic.
+Native Windows/macOS browser configuration and
+restoration, Chrome/Edge/Safari routing, Linux desktop integration and real HTTPS
+compatibility remain separate acceptance checks. The story stays open for gaps.
+
 ## Primary references
 
 - [Chromium proxy semantics, CONNECT, fallback and PAC caching](https://github.com/chromium/chromium/blob/main/net/docs/proxy.md).

@@ -236,9 +236,30 @@ and global warning/failure feedback. Build, privacy audit, Rust compilation and
 formatting pass; lint has only existing SettingsPage warnings. The bundled Java
 17 successfully launches the packaged PropertiesLauncher guardian and suspends,
 resumes and restores an owned fixture on EOF. CI checks native adapter behavior
-on Windows/macOS/Linux and staged runtime classpaths. These native CI results
-remain pending until the implementation commit runs; Linux checks do not prove
-Windows suspend-count semantics or macOS behavior.
+on Windows/macOS/Linux and staged runtime classpaths. The complete native matrix
+passed for `a9c8d9c` on 2026-11-26, including packaged smoke checks:
+[CI evidence](https://github.com/MiguelRibeiro1210/Focus-and-Study-Tracking/actions/runs/45767001748).
+
+### Website proxy and recovery (FST-050)
+
+Java 17 verification passes 290 backend tests when the optional owned Firefox
+fixture is enabled. Policy tests cover subdomains, precedence, separate consent,
+pause/read failures, outcomes and debounce. Transport tests prove CONNECT byte
+transparency, denial before upstream connection, existing tunnel closure,
+validated HTTP authority and proxy credential stripping. Ownership tests cover
+exclusive journals, startup recovery, EOF/lease restoration, failed restoration
+and preserving replacement proxy settings. Runtime tests use a fake settings
+store in a separate guardian process; they never change live user settings.
+API integration checks bearer/origin security, strict consent, export and reset.
+
+Run the optional browser check with `FOCUSDESKTOP_FIREFOX=/path/to/firefox`
+and `./mvnw -Dtest=BrowserProxyIntegrationTest test`. It creates a temporary
+profile and controlled origin, verifies PAC routing and allowed/blocked HTTP,
+and confirms real Firefox HTTPS CONNECT denial without reaching the destination.
+No test certificate or live browser profile is modified. Other browser/OS
+combinations remain unverified. The ordinary packaged network guard still runs
+with website consent off. The source audit allows only the locally intercepted
+reserved challenge authority; it does not claim dynamic proxy sockets are local.
 
 ## 10. Related documents
 

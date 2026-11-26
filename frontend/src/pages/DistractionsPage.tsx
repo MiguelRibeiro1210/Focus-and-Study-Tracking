@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
 import { createBlockingRulesApi, targetLabel } from '../api/blockingRulesApi'
+import { WebsiteProtection } from './WebsiteProtection'
 import type { ApplicationMatchKind, BlockingAction, BlockingRule, BlockingRuleInput, BlockingRulesApi, BlockingStatus, TargetPlatform } from '../api/blockingRulesApi'
 
 export function DistractionsPage({ api: suppliedApi }: { api?: BlockingRulesApi }) {
@@ -87,6 +88,7 @@ export function DistractionsPage({ api: suppliedApi }: { api?: BlockingRulesApi 
       </section>
       <aside className="distraction-side-column">
         <ProtectionAvailability api={api} />
+        <WebsiteProtection api={api} />
         <section className="profile-panel card-panel"><h2>Focus profiles</h2><p className="muted-copy">One rule set applies to this installation. Multiple rule profiles are not available yet.</p></section>
         <section className="boundaries-info card-panel"><h2>You set the boundaries.</h2><div><strong>During focus time</strong><p>Protection will apply during running work intervals. Pauses and breaks release restrictions.</p></div><div><strong>Control stays local</strong><p>Your rules stay on your computer.</p></div></section>
       </aside>
@@ -134,7 +136,7 @@ function ProtectionAvailability({ api }: { api: BlockingRulesApi }) {
       : error ? <p role="status">Protection status unavailable: {error}</p>
         : !status ? <p role="status">Checking protection status…</p>
           : <><p role="status">{status.applicationReason}</p>
-            <p>Applications currently suspended: {status.ownedRestrictions ?? 0}. Website blocking: {status.websiteEnforcement ? 'active' : 'not connected yet'}.</p>
+            <p>Applications currently suspended: {status.ownedRestrictions ?? 0}. Configure website protection below.</p>
             {status.applicationProtectionState === 'UNAVAILABLE' && <p role="status">Application protection is unavailable. Check permissions and native helper support.</p>}
             {status.applicationProtectionState === 'RESTORING' && <p role="status">{status.notice?.message ?? 'Restoring applications. Keep FocusDesktop open.'}</p>}
             {api.setApplicationProtection && <div className="protection-consent">

@@ -23,23 +23,26 @@ public class ExportAllDataUseCase {
     private final ObjectMapper objectMapper;
     private final ManageBlockingRulesUseCase blockingRules;
     private final com.focusdesktop.application.port.ProtectionPreferences protectionPreferences;
+    private final com.focusdesktop.application.port.WebsiteProtectionPreferences websitePreferences;
 
     public ExportAllDataUseCase(SettingsUseCase settings, DataExportReader sessions,
                                 GetAnalyticsSummaryUseCase analytics, ObjectMapper objectMapper,
                                 ManageBlockingRulesUseCase blockingRules,
-                                com.focusdesktop.application.port.ProtectionPreferences protectionPreferences) {
+                                com.focusdesktop.application.port.ProtectionPreferences protectionPreferences,
+                                com.focusdesktop.application.port.WebsiteProtectionPreferences websitePreferences) {
         this.settings = settings;
         this.sessions = sessions;
         this.analytics = analytics;
         this.objectMapper = objectMapper;
         this.blockingRules = blockingRules;
         this.protectionPreferences = protectionPreferences;
+        this.websitePreferences = websitePreferences;
     }
 
     @Transactional
     public ExportFile execute(String format) {
         DataExportBundle bundle = new DataExportBundle(settings.get(), sessions.loadAllSessions(),
-                analytics.execute(null, null), blockingRules.list(), protectionPreferences.get());
+                analytics.execute(null, null), blockingRules.list(), protectionPreferences.get(), websitePreferences.get());
         return switch (format == null ? "" : format.toLowerCase(java.util.Locale.ROOT)) {
             case "json" -> json(bundle);
             case "csv-zip" -> csvZip(bundle);
@@ -67,6 +70,8 @@ public class ExportAllDataUseCase {
                 add(zip, "blocking-rules.csv", blockingRulesCsv(bundle));
                 add(zip, "protection-preferences.csv", csv("applicationsEnabled", "applicationConsentAt")
                         + csv(bundle.protectionPreferences().applicationsEnabled(), bundle.protectionPreferences().applicationConsentAt()));
+                add(zip, "website-protection-preferences.csv", csv("enabled", "consentAt")
+                        + csv(bundle.websiteProtectionPreferences().enabled(), bundle.websiteProtectionPreferences().consentAt()));
             }
             return new ExportFile("focusdesktop-export.zip", "application/zip", bytes.toByteArray());
         } catch (IOException exception) {

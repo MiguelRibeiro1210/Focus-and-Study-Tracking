@@ -29,6 +29,12 @@ public class ApplicationMonitoringScheduler {
     }
 
     @Bean
+    public ThreadPoolTaskScheduler websiteTaskScheduler() {
+        var scheduler = new ThreadPoolTaskScheduler();
+        scheduler.setPoolSize(1); scheduler.setThreadNamePrefix("website-protection-"); return scheduler;
+    }
+
+    @Bean
     public ThreadPoolTaskScheduler protectionTaskScheduler() {
         var scheduler = new ThreadPoolTaskScheduler();
         scheduler.setPoolSize(1); scheduler.setThreadNamePrefix("protection-reconcile-"); return scheduler;

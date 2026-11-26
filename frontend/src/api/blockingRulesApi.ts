@@ -27,6 +27,14 @@ export interface BlockingStatus {
 }
 export interface ProtectionNotice { id: string; kind: 'WARN' | 'ERROR'; message: string; occurredAt: string }
 export interface ProtectionPreferences { applicationsEnabled: boolean; applicationConsentAt: string | null }
+export interface WebsiteProtectionStatus {
+  enabled: boolean
+  state: 'DISABLED' | 'STARTING' | 'READY' | 'VERIFIED' | 'RESTORING' | 'UNAVAILABLE'
+  routingVerified: boolean
+  verificationUrl: string | null
+  reason: string
+  notice?: ProtectionNotice | null
+}
 export interface BlockingRulesApi {
   list(): Promise<BlockingRule[]>
   create(input: BlockingRuleInput): Promise<BlockingRule>
@@ -34,6 +42,8 @@ export interface BlockingRulesApi {
   delete(id: string): Promise<void>
   status?(): Promise<BlockingStatus>
   setApplicationProtection?(enabled: boolean): Promise<ProtectionPreferences>
+  websiteStatus?(): Promise<WebsiteProtectionStatus>
+  setWebsiteProtection?(enabled: boolean): Promise<WebsiteProtectionStatus>
 }
 
 function isRule(value: unknown): value is BlockingRule {
@@ -54,7 +64,7 @@ export function targetLabel(target: RuleTarget): string { return target.type ===
 
 export function createBlockingRulesApi(fetcher?: typeof fetch): BlockingRulesApi {
   const requestFetch = fetcher ?? (isDesktopShell() ? nativeFetch : fetch)
-  async function request(path = '', method = 'GET', input?: Partial<BlockingRuleInput> | { applicationsEnabled: boolean; consent?: string }, base = '/api/v1/blocking-rules'): Promise<unknown> {
+  async function request(path = '', method = 'GET', input?: Partial<BlockingRuleInput> | { applicationsEnabled: boolean; consent?: string } | { enabled: boolean; consent?: string }, base = '/api/v1/blocking-rules'): Promise<unknown> {
     const response = await requestFetch(`${base}${path}`, {
       method, headers: { Accept: 'application/json', ...(input ? { 'Content-Type': 'application/json' } : {}) },
       body: input ? JSON.stringify(input) : undefined,
@@ -75,6 +85,9 @@ export function createBlockingRulesApi(fetcher?: typeof fetch): BlockingRulesApi
     return body
   }
   return {
+    websiteStatus: async () => validateWebsiteStatus(await request('', 'GET', undefined, '/api/v1/website-protection')),
+    setWebsiteProtection: async (enabled) => validateWebsiteStatus(await request('', 'PATCH', { enabled,
+      ...(enabled ? { consent: 'FORWARD_BROWSER_TRAFFIC' } : {}) }, '/api/v1/website-protection')),
     status: async () => {
       const body = await request('', 'GET', undefined, '/api/v1/blocking-status') as Partial<BlockingStatus> | null
       if (!body || typeof body.monitorEnabled !== 'boolean' || typeof body.applicationReason !== 'string'
@@ -106,4 +119,23 @@ export function createBlockingRulesApi(fetcher?: typeof fetch): BlockingRulesApi
     patch: (id, input) => stored(`/${encodeURIComponent(id)}`, 'PATCH', input),
     delete: async (id) => { await request(`/${encodeURIComponent(id)}`, 'DELETE') },
   }
+}
+
+function validateWebsiteStatus(value: unknown): WebsiteProtectionStatus {
+  const body = value as Partial<WebsiteProtectionStatus> | null
+  let validUrl = body?.verificationUrl === null
+  if (typeof body?.verificationUrl === 'string') {
+    try {
+      const url = new URL(body.verificationUrl)
+      validUrl = url.protocol === 'http:' && url.hostname === 'focusdesktop.invalid' && !url.port && !url.username && !url.password
+        && /^\/verify\/[0-9a-f-]{36}$/.test(url.pathname) && !url.search && !url.hash
+    } catch { validUrl = false }
+  }
+  if (!body || typeof body.enabled !== 'boolean' || typeof body.routingVerified !== 'boolean'
+    || !['DISABLED', 'STARTING', 'READY', 'VERIFIED', 'RESTORING', 'UNAVAILABLE'].includes(String(body.state))
+    || (body.routingVerified && body.state !== 'VERIFIED') || !validUrl || typeof body.reason !== 'string'
+    || (body.notice != null && (typeof body.notice.id !== 'string' || !['WARN', 'ERROR'].includes(body.notice.kind)
+      || typeof body.notice.message !== 'string' || !Number.isFinite(Date.parse(body.notice.occurredAt)))))
+    throw new Error('The local API returned invalid website protection status.')
+  return body as WebsiteProtectionStatus
 }
