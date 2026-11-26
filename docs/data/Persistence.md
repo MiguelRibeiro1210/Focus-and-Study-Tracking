@@ -69,14 +69,30 @@ a separate materialized history table.
 
 ### `blocking_policy` and `blocking_rule`
 
-Planned FST-048 storage, not current Flyway tables: `blocking_policy` stores
-the aggregate root and active-policy identity. `blocking_rule` stores owned
-rule IDs, display names, typed target properties, canonical duplicate keys,
-action, category, enabled state and audit data. Application targets retain OS,
-match kind and identifier; website targets retain the normalized domain and
-include subdomains. One active policy and per-policy canonical target
-uniqueness must be enforced. Concrete columns/indexes require FST-048 review;
-no schema migration is part of the FST-008 documentation stage.
+Planned FST-048 migration V5 creates the following; implementation is pending.
+See [ADR-007](../decisions/ADR-007-BlockingRuleManagement.md).
+
+- `blocking_policy`: UUID PK, non-null singleton slot constrained to `1` and
+  unique, version and UTC created/updated timestamps. Seed UUID
+  `00000000-0000-0000-0000-000000000001` with no rules through Flyway; do not
+  lazily create the policy from concurrent API requests.
+- `blocking_rule`: UUID PK, policy FK, display name, target type, nullable
+  application platform/match kind, entered target value, non-null canonical
+  `target_key`, category, action, enabled flag and UTC created/updated timestamps.
+  Use variable-length text for names/values/keys and enforce target variant
+  shape. Category is initially `OTHER`.
+- `UNIQUE(policy_id, target_key)` enforces typed canonical equality even for
+  website targets whose app-only fields are null. Keys encode components
+  unambiguously; reuse domain normalization. Do not rely on concatenation with
+  ambiguous delimiters or nullable-column uniqueness.
+- Lock the policy row before loading rules for a mutation and hold it through
+  commit. This serializes creates, edits, deletes and rule reset without stale
+  aggregate writes. Domain validation and the database constraint both protect
+  duplicates. A failed edit rolls back all changes.
+- Deleting the last rule or all personal data retains the singleton policy
+  with zero rules. Export includes configured rules, not internal lock/key data.
+  Listing order is creation timestamp then rule UUID; precedence remains a
+  domain decision independent of display order.
 
 ### `app_settings` and `timer_profile`
 
@@ -194,7 +210,8 @@ events, that data can no longer be reconstructed.
 - "Delete all data" requires explicit confirmation, stops the active session,
   removes sessions, intervals, distraction logs, daily progress, outbox events,
   projection receipts, profiles and settings, then recreates default settings
-  and starter profiles.
+  and starter profiles. FST-048 also clears configured blocking rules while
+  retaining one empty policy, under the same transaction/lock discipline.
 - "Clear session history" requires explicit confirmation and removes completed
   and abandoned sessions, their intervals and related outbox events. It
   preserves settings and any active session.

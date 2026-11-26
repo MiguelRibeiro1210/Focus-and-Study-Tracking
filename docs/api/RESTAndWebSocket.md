@@ -242,23 +242,47 @@ does not run automatically at startup or on a schedule.
 | `PATCH` | `/blocking-rules/{id}` | Enable, disable or edit a rule. | `200 OK` + `BlockingRuleDto` |
 | `DELETE` | `/blocking-rules/{id}` | Delete a rule. | `204 No Content` |
 
-These are planned FST-048 endpoints, not implemented APIs. The FST-008
-contract draft replaces the ambiguous `pattern` with a typed `target` and
-adds `displayName`. `BlockingRuleDto` contains `id`, `displayName`, `target`,
-`action` (`LOG`, `WARN`, `BLOCK`), `category`, `enabled` and timestamps.
+These remain planned until the FST-048 implementation commit. The
+[management contract](../decisions/ADR-007-BlockingRuleManagement.md) defines
+persistence, mutation locking, exact request shapes and verification.
+
+`BlockingRuleDto` contains `id`, `displayName`, `target`, `category`, `action`,
+`enabled`, `createdAt` and `updatedAt`. GET returns a JSON array (initially `[]`)
+ordered by creation time then UUID. POST requires all five editable fields:
+`displayName`, `target`, `category`, `action`, `enabled`. The supported category
+is currently `OTHER`; actions are `LOG`, `WARN`, `BLOCK`.
 
 Application target: `{ "type": "APPLICATION", "platform": "WINDOWS",
-"matchKind": "PROCESS_NAME", "value": "example.exe" }`; the other application
-match kind is `EXECUTABLE_PATH`. Platform distinguishes Windows, macOS and
-Linux identifier comparison. Website target:
-`{ "type": "WEBSITE", "domain": "youtube.com" }`; subdomains are always included.
-Window-title rules and URL/path-pattern rules are deferred.
+"matchKind": "PROCESS_NAME", "value": "example.exe" }`. Platforms are
+`WINDOWS`, `MACOS`, `LINUX`; match kinds are `EXECUTABLE_PATH`, `PROCESS_NAME`.
+Website target: `{ "type": "WEBSITE", "domain": "youtube.com" }`, always
+including subdomains. Application values retain the entered spelling; website
+domains are normalized. Read-only IDs/timestamps are assigned by the server.
 
-Create/edit payloads use the same target variants. FST-048 will finalize HTTP
-validation and concurrency details after domain approval. See the
-[approved FST-008 design](../decisions/ADR-006-distraction-model.md) for
-normalization, duplicates and precedence. Saving/enabling a rule is separate
-from actual adapter capability or currently active protection.
+PATCH preserves omitted fields. A supplied `target` is one complete typed
+replacement; `{ "enabled": false }` changes only the enabled flag. Reject null
+values, unknown/read-only fields, mismatched target-variant fields, unsupported
+values and empty PATCH objects. Existing domain normalization, duplicate checks
+and precedence remain authoritative.
+
+Rule endpoints return `400 VALIDATION_ERROR` for malformed JSON, malformed UUIDs
+or non-object bodies; `422 VALIDATION_ERROR` with field names in `details` for
+invalid/missing editable fields; `409 DUPLICATE_RULE` for canonical duplicates;
+and `404 RESOURCE_NOT_FOUND` for unknown rule IDs, including repeated DELETE.
+Existing token/origin responses remain unchanged. These rule-specific handlers
+must not change validation statuses for existing session/settings endpoints.
+
+POST returns `201` plus the persisted rule and `Location`; PATCH returns `200`
+plus the persisted rule; DELETE returns empty `204`. Acquire the singleton policy
+lock before loading a mutable aggregate and hold it through commit. GET does
+not lazily create a policy: Flyway seeds one empty policy. Failed changes roll
+back; concurrent valid changes must not lose one another.
+
+PATCH must be supported by both CORS and Tauri's native HTTP bridge. Data export
+adds `blockingRules` in JSON and `blocking-rules.csv` in the ZIP; confirmed
+delete-all clears the rules while preserving an empty policy. History-only
+cleanup preserves configuration. Saving/enabling a rule does not claim runtime
+protection or emit a block-success event. The Distractions UI is FST-049.
 
 ## 6. Distraction log (Phase 2 read model)
 

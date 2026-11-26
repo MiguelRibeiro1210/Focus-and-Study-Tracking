@@ -1,24 +1,25 @@
 @startuml
-title SSD - UC-12 - Manage Blocking Rules (Phase 2)
-
+title SSD - UC-12 - Manage Saved Blocking Rules (FST-048)
 autonumber
 actor Learner
 participant "FocusDesktop System" as System
 
 Learner -> System : requestBlockingRules()
-System --> Learner : blockingRules(items)
-
+System --> Learner : blockingRules(items, initially empty)
 Learner -> System : createBlockingRule(displayName, typedTarget, action, category, enabled)
-System --> Learner : blockingRuleCreated(rule)
-
+System --> Learner : blockingRuleCreated(id, fields, createdAt, updatedAt)
+Learner -> System : updateBlockingRule(ruleId, providedFields)
+System --> Learner : blockingRuleUpdated(persisted fields)
+Learner -> System : setRuleEnabled(ruleId, false)
+System --> Learner : blockingRuleUpdated(enabled = false)
 Learner -> System : deleteBlockingRule(ruleId)
 System --> Learner : blockingRuleDeleted(ruleId)
 
 note right of System
-  Rules are evaluated only while a focus session is
-  RUNNING and its interval is WORK.
-  App targets: executable path / process name.
-  Website targets: domain including subdomains.
+  Application target: declared OS + executable path or process name.
+  Website target: normalized domain including subdomains.
+  Edits are atomic; duplicates are rejected without data loss.
+  One empty policy remains after the last rule is deleted.
+  Saved/enabled configuration is not proof of active protection.
 end note
-
 @enduml

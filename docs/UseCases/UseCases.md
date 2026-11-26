@@ -736,11 +736,14 @@ FR-SET-04, FR-SET-09, FR-PRV-04..08.
 
 ### Main success scenario
 
-1. The UI requests the active policy's rules through the planned blocking API.
+1. The UI requests the active policy's rules through the planned blocking API;
+   a migration-seeded empty policy returns an empty JSON array.
 2. The learner adds a display name, typed application/website target, action
    (`LOG`, `WARN`, `BLOCK`), category and enabled state.
-3. The policy validates/canonicalizes the target and rejects duplicates.
-4. The policy owns the new rule; the use case persists it atomically.
+3. The use case locks the singleton policy before loading its current rules;
+   the policy validates/canonicalizes the target and rejects duplicates.
+4. The policy owns the new rule; the use case persists and commits it atomically,
+   preserving concurrent changes and assigning server timestamps.
 5. The system returns the rule. The learner can edit, enable/disable or delete it.
 6. The next eligible monitoring cycle sees committed changes.
 
@@ -748,7 +751,12 @@ FR-SET-04, FR-SET-09, FR-PRV-04..08.
 
 - Invalid target: `422 VALIDATION_ERROR`; duplicate canonical target:
   `409 DUPLICATE_RULE`. Failed updates preserve saved rules.
-- Missing policy: create an empty default. Deleting the final rule is allowed.
+- Flyway seeds one empty policy; request-time lazy insertion is not used.
+  Deleting the final rule is allowed and keeps the policy row.
+- PATCH preserves omitted fields, rejects null/unknown fields and replaces a
+  provided target atomically. Unknown rule IDs return `404 RESOURCE_NOT_FOUND`.
+- Export includes saved rules; confirmed delete-all clears them; history-only
+  cleanup preserves them. Rule writes do not imply successful enforcement.
 - One active policy in the initial release. Rule configuration is independent
   from whether a supported detector/blocker is available on this installation.
 - Applications use executable path or process name for a declared OS. Websites
@@ -759,8 +767,9 @@ FR-SET-04, FR-SET-09, FR-PRV-04..08.
 
 ### Ownership and diagrams
 
-FST-008 defines the domain; FST-048 implements storage/API; FST-049 connects the
-UI. FR-DIS-01, FR-DIS-02.
+FST-008 defines the domain; FST-048 implements storage/API and PATCH transport
+support; FST-049 connects the UI. FR-DIS-01, FR-DIS-02.
+[Management contract](../decisions/ADR-007-BlockingRuleManagement.md).
 [Sequence](../SD/SD_ManageBlockingRules.puml),
 [SSD](../SSD/SSD_BlockingRules.puml).
 

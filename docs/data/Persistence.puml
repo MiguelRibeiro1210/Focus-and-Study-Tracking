@@ -73,8 +73,8 @@ entity "distraction_log" as distraction_log {
 entity "blocking_policy" as blocking_policy {
   * id : UUID <<PK>>
   --
-  * name : VARCHAR(120)
-  * active : BOOLEAN
+  * singleton_slot : SMALLINT <<UK, CHECK = 1>>
+  * version : BIGINT
   * created_at : TIMESTAMP
   * updated_at : TIMESTAMP
 }
@@ -88,11 +88,12 @@ entity "blocking_rule" as blocking_rule {
   platform : WINDOWS / MACOS / LINUX
   match_kind : EXECUTABLE_PATH / PROCESS_NAME
   * target_value : VARCHAR
-  * canonical_target_key : VARCHAR
+  * target_key : VARCHAR <<UK with policy_id>>
   * action : VARCHAR(20)
   * category : VARCHAR(30)
   * enabled : BOOLEAN
   * created_at : TIMESTAMP
+  * updated_at : TIMESTAMP
 }
 
 entity "daily_progress" as daily_progress {

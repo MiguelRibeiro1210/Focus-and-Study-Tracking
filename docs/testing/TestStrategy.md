@@ -145,7 +145,7 @@ relevant design documentation and traceability row.
 ## Distraction domain verification (FST-008)
 
 Documentation, backend tests and then domain implementation were approved in
-separate steps on 2026-11-26; the completed implementation awaits user review.
+separate steps on 2026-11-26; the final implementation review was also approved.
 The design source is [ADR-006](../decisions/ADR-006-distraction-model.md).
 
 | Test class | Meaningful behavior |
@@ -179,6 +179,28 @@ in policy evaluation.
 These tests verify domain contracts, not actual monitoring, blocking, browser
 support, debounce, restriction cleanup, outbox delivery, storage or UI behavior.
 Those remain in the assigned follow-on stories and require their own approvals.
+
+## Blocking rule management verification (FST-048)
+
+This is a documentation-stage test plan, not a claim of implemented behavior.
+[ADR-007](../decisions/ADR-007-BlockingRuleManagement.md) defines the contract.
+
+- Verify V5 on empty and existing databases, one seeded empty policy, FK/target
+  shape checks and canonical uniqueness for both application and website rules.
+- Exercise CRUD, typed-target replacement, toggles, stable IDs/timestamps,
+  reload in a fresh persistence context and reconstructed matching semantics.
+- Reject invalid, duplicate, unknown-ID and malformed requests with the agreed
+  status/envelope; prove failed edits preserve all previous values.
+- Coordinate concurrent requests with latches/barriers: first reads/writes,
+  distinct creates, duplicate creates and edits must preserve data without
+  duplicate policies, lost updates or unexpected HTTP 500 responses.
+- Check token/origin restrictions, PATCH CORS preflight and native method
+  dispatch. Do not weaken the token or local-origin boundary.
+- Verify JSON and CSV ZIP rule exports, confirmation-protected delete-all,
+  preservation during history cleanup and transaction rollback on failure.
+- Run full backend verification, relevant frontend transport tests, frontend
+  build/lint and native Rust checks. Runtime OS/browser enforcement is tested
+  in its own stories and must not be inferred from rule CRUD succeeding.
 
 ## 10. Related documents
 

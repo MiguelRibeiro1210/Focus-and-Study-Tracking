@@ -1,64 +1,90 @@
 @startuml
-title Sequence Diagram - UC-12 - Manage Blocking Rules
-
+title UC-12 - Persist and Manage Blocking Rules (planned FST-048)
 autonumber
 actor Learner
-participant "Desktop UI" as UI
+participant "Desktop UI / native HTTP bridge" as UI
 participant "BlockingRuleController" as Controller
 participant "ManageBlockingRulesUseCase" as UseCase
+participant "BlockingPolicyLock\n(application port)" as Lock
 participant "BlockingPolicyRepository" as Repo
 participant "BlockingPolicy" as Policy
-participant "BlockingRule" as Rule
-participant "BlockingRuleMapper" as Mapper
+participant "BlockingRuleReader\n(audit DTO projection)" as Reader
+database "Local H2 database" as DB
 
-group List rules
-  Learner -> UI : open Blocking settings
-  UI -> Controller : GET /api/v1/blocking-rules
-  Controller -> UseCase : list()
-  UseCase -> Repo : findActive()
-  Repo --> UseCase : BlockingPolicy
-  UseCase -> Mapper : toDtos(policy.rules())
-  Mapper --> UseCase : List<BlockingRuleDto>
-  UseCase --> Controller : List<BlockingRuleDto>
-  Controller --> UI : 200 OK
+group Migration, before requests
+  DB -> DB : V5 creates policy/rule tables and constraints
+  DB -> DB : seed one empty singleton policy
 end
 
-group Create rule
-  Learner -> UI : add app/website target and action
-  UI -> Controller : POST /api/v1/blocking-rules\n{displayName, target, action, category, enabled}
-  Controller -> UseCase : create(command)
-  UseCase -> Rule : create(displayName, typedTarget, action, category, enabled)
-  activate Rule
-  Rule -> Rule : validateTarget()
-  Rule --> UseCase : BlockingRule
-  UseCase -> Repo : findActive()
+group List rules
+  Learner -> UI : open Distractions
+  UI -> Controller : GET /api/v1/blocking-rules
+  Controller -> UseCase : list()
+  UseCase -> Reader : list stored rule DTOs
+  Reader -> DB : query rules with target and audit fields
+  DB --> Reader : rows ordered by createdAt, UUID
+  Reader --> UseCase : list (initially empty)
+  UseCase --> Controller : List<BlockingRuleDto>
+  Controller --> UI : 200 OK / []
+end
+
+group Create / edit / enable / disable rule
+  Learner -> UI : save a rule or toggle enabled
+  UI -> Controller : POST /blocking-rules or PATCH /blocking-rules/{id}
+  Controller -> Controller : validate JSON object, fields and target shape
+  Controller -> UseCase : create(command) or patch(id, providedFields)
+  UseCase -> UseCase : begin transaction
+  UseCase -> Lock : lockActivePolicy()
+  Lock -> DB : SELECT singleton FOR UPDATE
+  DB --> Lock : write lock acquired
+  UseCase -> Repo : findActive() after acquiring lock
+  Repo -> DB : load current policy and rules
+  DB --> Repo : committed aggregate snapshot
   Repo --> UseCase : BlockingPolicy
-  UseCase -> Policy : addRule(rule) / reject canonical duplicate / reject canonical duplicate
-  Policy --> UseCase : added
-  UseCase -> Repo : save(policy)
-  Repo --> UseCase : saved
-  UseCase -> Mapper : toDto(rule)
-  Mapper --> UseCase : BlockingRuleDto
-  UseCase --> Controller : BlockingRuleDto
-  Controller --> UI : 201 Created
-  deactivate Rule
+  UseCase -> Policy : addRule / updateRule / setRuleEnabled
+  Policy -> Policy : validate canonical target and uniqueness
+  alt valid change
+    UseCase -> Repo : save(policy) and flush
+    Repo -> DB : persist changed rows, keys and audit fields
+    UseCase -> Reader : find stored response DTO
+    Reader -> DB : read persisted rule metadata
+    DB --> Reader : stored rule
+    Reader --> UseCase : BlockingRuleDto
+    UseCase -> DB : commit; release policy lock
+    UseCase --> Controller : stored rule
+    Controller --> UI : POST 201 + Location / PATCH 200
+  else invalid / duplicate / unknown rule
+    UseCase -> DB : rollback; release lock
+    UseCase --> Controller : validation / conflict / missing rule
+    Controller --> UI : 422 / 409 / 404 with error envelope
+  end
 end
 
 group Delete rule
-  Learner -> UI : remove rule
   UI -> Controller : DELETE /api/v1/blocking-rules/{id}
-  Controller -> UseCase : delete(ruleId)
-  UseCase -> Repo : findActive()
-  Repo --> UseCase : BlockingPolicy
-  UseCase -> Policy : removeRule(ruleId)
-  UseCase -> Repo : save(policy)
+  Controller -> UseCase : delete(id)
+  UseCase -> Lock : lock policy in transaction
+  UseCase -> Repo : load policy after lock
+  Repo --> UseCase : current policy
+  UseCase -> Policy : removeRule(id)
+  UseCase -> Repo : save and flush
+  Repo -> DB : remove rule; retain singleton policy
+  UseCase -> DB : commit; release lock
   Controller --> UI : 204 No Content
 end
 
-note over Policy
-  Only one policy is active at a time. The UI edits
-  the active policy; future versions may support
-  multiple named profiles.
+note over UI, Controller
+  CORS and Tauri must permit PATCH while preserving
+  local-origin and bearer-token restrictions.
+  PATCH keeps omitted fields and replaces a provided target whole.
 end note
-
+note over Lock, DB
+  Every writer locks before loading, including delete-all.
+  UNIQUE(policy_id, target_key) backs domain duplicate validation.
+  No request-time lazy policy insertion; no lost aggregate updates.
+end note
+note over UseCase, Policy
+  Rule CRUD saves configuration, not enforcement success.
+  Detection, browser support and OS blocking are follow-on stories.
+end note
 @enduml
