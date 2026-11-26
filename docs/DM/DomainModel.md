@@ -133,7 +133,7 @@ makes blocking decisions. OS/browser integration is outside FST-008.
 
 The [FST-008 documentation review](../decisions/ADR-006-distraction-model.md)
 records the scope and matching/validation defaults approved on 2026-11-26.
-The pure domain implementation is now under review. Its repository port and
+The pure domain implementation was reviewed and approved on 2026-11-26. Its repository port and
 immutable `domain.readmodel.DistractionLog` contract have no persistence or OS
 dependencies; runtime monitoring and enforcement are still follow-on work.
 

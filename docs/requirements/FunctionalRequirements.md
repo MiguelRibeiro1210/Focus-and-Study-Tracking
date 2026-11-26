@@ -240,7 +240,7 @@ Every requirement is traced to a use case and to the project board in
 
 Matching/normalization defaults and frontend implications are documented in
 the [approved FST-008 design](../decisions/ADR-006-distraction-model.md).
-The pure domain implementation is under review; runtime adapters, storage/API
+The pure domain implementation is approved; runtime adapters, storage/API
 and UI integration remain in their assigned follow-on stories.
 
 ## 7. Privacy and data control

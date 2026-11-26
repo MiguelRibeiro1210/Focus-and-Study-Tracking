@@ -1,8 +1,8 @@
 # ADR-006 — Distraction model documentation review
 
-Status: documentation and backend tests approved by the user on 2026-11-26.
-The domain implementation is complete and awaiting user review, with all 224
-backend tests passing. No later stage or follow-on story is authorized automatically.
+Status: documentation, backend tests and the completed domain implementation
+reviewed and approved by the user on 2026-11-26. FST-008 is complete, with all
+224 backend tests passing. Follow-on stories require separate authorization.
 
 ## Agreed scope
 
@@ -135,9 +135,8 @@ multiple policies. No frontend source changes are part of this stage.
 - [Rule management](../SD/SD_ManageBlockingRules.puml) and
   [protection cleanup](../SD/SD_ReleaseDistractionProtection.puml).
 
-The user approved documentation, backend tests and then backend implementation
-in separate steps. Await review of the completed implementation; do not infer
-approval of later stages or follow-on stories.
+The user approved documentation, backend tests, backend implementation and its
+final review in separate steps. Do not infer approval of follow-on stories.
 Meaningful cases include target validation/normalization, domain boundaries,
 duplicate rejection on add/edit, path/process precedence, domain specificity,
 disabled/empty policies, pure evaluation, session-state eligibility and event
