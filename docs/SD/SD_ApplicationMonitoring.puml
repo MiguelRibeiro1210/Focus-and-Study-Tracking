@@ -1,0 +1,33 @@
+@startuml
+title FST-027 - Foreground monitoring lifecycle
+autonumber
+participant "Dedicated scheduler" as Scheduler
+participant "DetectActiveApplicationUseCase" as Detect
+participant "Session repository" as Sessions
+participant "ActiveApplicationPort" as Apps
+participant "Platform command / ProcessHandle" as OS
+participant "Capability status" as Status
+Scheduler -> Detect : execute()
+Detect -> Sessions : findActive()
+alt running unexpired work interval
+  Detect -> Apps : currentApplication()
+  Apps -> OS : foreground PID, executable, start instant
+  OS --> Apps : identity / no foreground / unavailable
+  Apps --> Detect : transient observation / safe failure
+  Detect -> Sessions : recheck same session and interval
+  alt still eligible
+    Detect -> Status : OBSERVING or UNAVAILABLE
+    Detect --> Scheduler : optional observation for FST-028
+  else eligibility changed
+    Detect -> Status : IDLE
+    Detect --> Scheduler : empty
+  end
+else disabled / paused / break / stopped / expired
+  Detect -> Status : DISABLED or IDLE
+  note right of Detect : No OS query and no retained observation.
+end
+note over Detect, OS
+  No titles, arguments or screenshots stored.
+  No blocking or successful outcome is claimed by FST-027.
+end note
+@enduml
