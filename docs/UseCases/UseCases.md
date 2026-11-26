@@ -754,8 +754,8 @@ FR-SET-04, FR-SET-09, FR-PRV-04..08.
 - Applications use executable path or process name for a declared OS. Websites
   use domain plus subdomains. Title patterns are deferred.
 - App paths precede process names; websites select the most specific matching
-  domain. Proposed normalization/duplicate defaults require documentation
-  approval in the [FST-008 review](../decisions/FST-008-distraction-model.md).
+  domain. Normalization/duplicate defaults are recorded in the
+  [approved FST-008 design](../decisions/ADR-006-distraction-model.md).
 
 ### Ownership and diagrams
 

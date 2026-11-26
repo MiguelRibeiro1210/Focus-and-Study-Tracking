@@ -131,9 +131,11 @@ of the target/rule facts needed to preserve history after rule edits/deletion.
 observations, decisions and outcomes; it never owns configured targets or
 makes blocking decisions. OS/browser integration is outside FST-008.
 
-The [FST-008 documentation review](../decisions/FST-008-distraction-model.md)
-distinguishes user-agreed scope from matching/validation defaults proposed for
-approval. This is a design draft; no Phase 2 implementation is implied.
+The [FST-008 documentation review](../decisions/ADR-006-distraction-model.md)
+records the scope and matching/validation defaults approved on 2026-11-26.
+The pure domain implementation is now under review. Its repository port and
+immutable `domain.readmodel.DistractionLog` contract have no persistence or OS
+dependencies; runtime monitoring and enforcement are still follow-on work.
 
 ### 3.3 Preferences — `AppSettings`
 

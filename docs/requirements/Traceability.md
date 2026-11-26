@@ -144,8 +144,8 @@ case, diagram and task should be visible in one place.
 | FST-034 Maven wrapper | [Architecture](../SystemArchitecture/Architecture.md) |
 | FST-035 Docs structure | This directory |
 | FST-036 JSON/CSV data export | [Functional requirements](FunctionalRequirements.md) |
-| FST-048 Saved app/website rule management | [Domain review](../decisions/FST-008-distraction-model.md), [planned API](../api/RESTAndWebSocket.md) |
-| FST-049 Distractions UI integration | [Frontend review](../decisions/FST-008-distraction-model.md#frontend-design-review) |
+| FST-048 Saved app/website rule management | [Domain review](../decisions/ADR-006-distraction-model.md), [planned API](../api/RESTAndWebSocket.md) |
+| FST-049 Distractions UI integration | [Frontend review](../decisions/ADR-006-distraction-model.md#frontend-design-review) |
 | FST-050 Website detection/enforcement | [Website flow](../SD/SD_DetectAndBlockWebsite.puml), [cleanup](../SD/SD_ReleaseDistractionProtection.puml) |
 
 ## 5. Maintenance rule

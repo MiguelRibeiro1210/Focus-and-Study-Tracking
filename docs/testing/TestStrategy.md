@@ -142,6 +142,44 @@ relevant design documentation and traceability row.
 - Seed history/analytics data with deterministic generators.
 - Never use real personal data in tests or screenshots.
 
+## Distraction domain verification (FST-008)
+
+Documentation, backend tests and then domain implementation were approved in
+separate steps on 2026-11-26; the completed implementation awaits user review.
+The design source is [ADR-006](../decisions/ADR-006-distraction-model.md).
+
+| Test class | Meaningful behavior |
+|---|---|
+| `WebsiteTargetTest` | Domain/subdomain boundaries, case, DNS-dot and internationalized-name normalization; invalid configuration and malformed observations. |
+| `ApplicationTargetTest` | Host-independent Windows drive/network and POSIX path normalization, platform-specific case rules, exact process names, missing paths, invalid identifiers and root traversal. |
+| `BlockingPolicyTest` | Enabled-rule matching, path/process and website specificity precedence, canonical duplicates, atomic edits, empty policies, immutable rule membership and separate app/site observations. |
+| `DistractionPolicyServiceTest` | Running work only; every other session/interval combination is ineligible; absent/empty/disabled policies and reevaluation after pause, break, stop, disable or deletion. |
+| `DistractionEventSnapshotTest` | Snapshots survive rule edits/deletion; outcomes preserve detection/session correlation, chronology and explicit failure reasons; unrelated observations/outcomes cannot be attached or reported as successful blocks. |
+
+Rules, targets, decisions and observation facts are immutable. The policy
+validates a complete replacement before changing a rule. The domain repository
+port has no adapter yet; FST-048 supplies storage and its single-active-policy
+constraint. `domain.readmodel.DistractionLog` pairs a detection with an optional
+sealed `DistractionBlockOutcome`, checking their facts and chronology. Log
+projection/delivery and persistence belong to FST-037. Category fixtures use
+`OTHER`; a complete learner-facing category catalogue is not defined here.
+
+Before implementation, 132 existing tests passed and the new contracts failed
+compilation on missing production types. The original 88 FST-008 cases passed
+after implementation. Four additional cases cover invalid path normalization
+and event/log invariants; the IDN case also checks a Unicode DNS separator.
+
+Final local verification: `cd backend && ./mvnw verify -o` passed **224 tests**
+(132 existing + 92 FST-008), with zero failures, errors or skips, and produced
+the repackaged Spring Boot JAR. The local JDK is 27; Maven compiles with Java
+release 17. `git diff --check` passed. No new framework or external library is
+required by the domain, and no OS/browser/filesystem/network operations occur
+in policy evaluation.
+
+These tests verify domain contracts, not actual monitoring, blocking, browser
+support, debounce, restriction cleanup, outbox delivery, storage or UI behavior.
+Those remain in the assigned follow-on stories and require their own approvals.
+
 ## 10. Related documents
 
 - [Functional requirements](../requirements/FunctionalRequirements.md)

@@ -78,8 +78,8 @@ session/rule changes. OS/browser actions and event commits are not atomic;
 outbox notification delivery must not repeat enforcement.
 
 These are proposed Phase 2 contracts, not implemented adapters. The
-[FST-008 review draft](../decisions/FST-008-distraction-model.md) identifies
-agreed scope, defaults awaiting approval and workflow stage gates.
+[approved FST-008 design](../decisions/ADR-006-distraction-model.md) identifies
+agreed scope, matching defaults and workflow stage gates.
 
 ### Analytics and streaks
 

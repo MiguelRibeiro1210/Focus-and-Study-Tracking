@@ -1,8 +1,8 @@
 # ADR-006 — Distraction model documentation review
 
-Status: documentation draft awaiting user approval. No backend tests or
-implementation are authorized by this document. Each subsequent workflow
-stage requires explicit approval before starting.
+Status: documentation and backend tests approved by the user on 2026-11-26.
+The domain implementation is complete and awaiting user review, with all 224
+backend tests passing. No later stage or follow-on story is authorized automatically.
 
 ## Agreed scope
 
@@ -16,7 +16,7 @@ stage requires explicit approval before starting.
   FST-028 application enforcement, FST-050 website integration and FST-037
   log persistence/projection.
 
-## Proposed model for approval
+## Approved model
 
 | Concept | Responsibility |
 |---|---|
@@ -34,7 +34,7 @@ Disabled rules cannot match. An empty/missing policy produces no detection or
 block. Policy evaluation is pure and must not read files, inspect processes,
 resolve DNS, call browsers or write logs. Platform adapters supply observations.
 
-### Matching and validation defaults proposed for approval
+### Approved matching and validation defaults
 
 - A display name is trimmed and required. Target values are required and typed;
   executable paths must be absolute for the declared OS, and process names must
@@ -123,6 +123,11 @@ multiple policies. No frontend source changes are part of this stage.
 
 ## Review artifacts and future verification
 
+- [Backend verification](../testing/TestStrategy.md#distraction-domain-verification-fst-008):
+  five test classes now execute 92 FST-008 cases. Full Maven verification passes
+  all 224 backend tests and packages the application. The implementation includes
+  immutable rules/decisions, a repository port and a separate immutable log view;
+  actual storage, detection and enforcement remain follow-on work.
 - [Domain model](../DM/DomainModel.md) and [domain diagram](../DM/DM.puml).
 - [Application detection](../SD/SD_DetectDistraction.puml),
   [application enforcement](../SD/SD_BlockDistraction.puml),
@@ -130,9 +135,9 @@ multiple policies. No frontend source changes are part of this stage.
 - [Rule management](../SD/SD_ManageBlockingRules.puml) and
   [protection cleanup](../SD/SD_ReleaseDistractionProtection.puml).
 
-After documentation approval, begin the backend test stage only when that
-stage is explicitly authorized. Approval of test results is required before
-backend implementation; do not infer approval of later stages.
+The user approved documentation, backend tests and then backend implementation
+in separate steps. Await review of the completed implementation; do not infer
+approval of later stages or follow-on stories.
 Meaningful cases include target validation/normalization, domain boundaries,
 duplicate rejection on add/edit, path/process precedence, domain specificity,
 disabled/empty policies, pure evaluation, session-state eligibility and event

@@ -256,7 +256,7 @@ Window-title rules and URL/path-pattern rules are deferred.
 
 Create/edit payloads use the same target variants. FST-048 will finalize HTTP
 validation and concurrency details after domain approval. See the
-[FST-008 review draft](../decisions/FST-008-distraction-model.md) for proposed
+[approved FST-008 design](../decisions/ADR-006-distraction-model.md) for
 normalization, duplicates and precedence. Saving/enabling a rule is separate
 from actual adapter capability or currently active protection.
 
