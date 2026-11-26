@@ -10,8 +10,16 @@ participant "Transactional event outbox" as Events
 participant "Requested origin" as Origin
 participant "Local feedback" as UI
 Learner -> Settings : explicit forwarding / temporary settings consent
-Settings -> Settings : snapshot originals + persist ownership journal
-Settings -> Browser : configure supported routing; verify local challenge
+alt system proxy routing
+  Settings -> Settings : snapshot originals + persist ownership journal
+  Settings -> Browser : configure supported routing
+else explicit Linux Brave routing
+  Learner -> Settings : request existing-profile Brave setup
+  Settings --> Learner : close Brave within 60 seconds (no forced exit)
+  Learner -> Browser : close all Brave windows, including dev UI
+  Settings -> Browser : launch native Brave with PAC + verification address
+end
+Browser -> Proxy : verify local routing challenge
 note over Browser, Proxy
   Report unverified browsers / permissions explicitly.
   PAC routes traffic; policy stays in the proxy to avoid PAC cache delays.

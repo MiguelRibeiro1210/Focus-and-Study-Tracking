@@ -149,3 +149,42 @@ compatibility remain separate acceptance checks. The story stays open for gaps.
 
 Modern Chromium limits fallback for intentional CONNECT denials, but this must
 also be verified for each supported browser before enabling a DIRECT fallback.
+
+## Linux Brave / Hyprland routing (approved follow-up)
+
+Offer explicit `BRAVE` routing alongside the existing `SYSTEM_PROXY` method.
+Persist the selection with website preferences (default `SYSTEM_PROXY` for
+existing installations). Brave routing never changes GNOME, Hyprland or browser
+profile files. Initially support native Linux Brave at known installation paths;
+unsupported packaging is reported rather than silently configured.
+
+Enabling protection still requires forwarding consent and an explicitly enabled
+native backend. Browser development uses `npm run dev` with Spring Boot argument
+`--focusdesktop.blocking.monitor-enabled=true`; ordinary backend runs remain
+passive. Tauri development already enables the runtime. The setup UI exposes
+runtime availability separately from saved consent and verified browser routing.
+
+Authenticated `POST /api/v1/website-protection/brave` accepts only
+`{"confirmation":"OPEN_EXISTING_BRAVE_PROFILE"}` and returns current status with
+HTTP 202. It schedules a 60-second wait for this user's Brave processes to exit,
+then launches a known native executable using fixed arguments for the current
+PAC and verification address. No shell, supplied executable, profile override,
+forced termination or automatic launch on startup is allowed. This also works
+when the development UI itself is in Brave: the learner closes all windows,
+including the UI, and the backend performs the explicitly requested launch.
+Timeout/cancellation/launch failure is visible on the next status read. Disabling
+protection or changing routing cancels any pending launch.
+
+Status adds `runtimeEnabled`, `routingMethod`, `braveAvailable` and
+`braveLaunchPending`. PATCH optionally accepts `routingMethod`; old clients keep
+the saved method. A routing change restores owned system settings before opening
+a different proxy. Export/reset include/reset the selected method. Verify the
+local challenge before reporting connected routing; a saved flag or process
+launch is not proof that all browser profiles are protected.
+
+The Brave-only PAC may include `DIRECT` fallback only after isolated native
+Brave tests prove intentional HTTP/HTTPS denials cannot fall through to a direct
+origin, while shutdown/crash allows normal browsing. Other platform PAC behavior
+is unchanged. Protection is not tamper-proof and does not cover clients bypassing
+the configured proxy. Existing Windows/macOS/GNOME behavior and outstanding
+native authorization acceptance gaps remain tracked separately.
