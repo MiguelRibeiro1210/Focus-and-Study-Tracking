@@ -1,0 +1,48 @@
+@startuml
+title FST-028 - Owned application suspension and restoration
+autonumber
+participant "Foreground monitor" as Monitor
+participant "Protection coordinator" as Protect
+participant "Committed session / policy / consent" as State
+participant "Transactional event recorder" as Events
+participant "Independent native guardian" as Guardian
+participant "Selected process instance" as App
+participant "Reconciliation worker" as Reconcile
+Monitor -> Protect : observed PID, start time, executable
+Protect -> State : eligible work + consent + matching decision
+alt LOG or WARN
+  Protect -> Events : commit detection snapshot
+  Protect -> Protect : publish local warning for WARN
+else BLOCK
+  Protect -> Events : commit detection snapshot
+  Protect -> State : recheck current eligibility and rule
+  Protect -> Guardian : suspend exact instance
+  Guardian -> Guardian : record recovery ownership
+  Guardian -> App : STOP / owned thread increments
+  Guardian --> Protect : confirmed / failed
+  Protect -> State : recheck after native operation
+  alt confirmed and still eligible
+    Protect -> Events : commit successful outcome
+  else failed or no longer eligible
+    Protect -> Guardian : release any owned restriction
+    Protect -> Events : commit failed outcome with reason
+  end
+end
+loop every 500 ms while active
+  Reconcile -> State : current eligibility and decisions
+  alt still eligible
+    Reconcile -> Guardian : renew lease
+  else pause / break / stop / rule change / failure
+    Reconcile -> Guardian : release owned restrictions
+    Guardian -> App : resume owned instance only
+  end
+end
+alt backend EOF / heartbeat expires
+  Guardian -> App : restore owned restrictions
+end
+note over Guardian, App
+  Never suspend pre-stopped Unix processes.
+  Check PID/start identity; preserve Windows suspend counts.
+  Tests operate only on their own child processes.
+end note
+@enduml
