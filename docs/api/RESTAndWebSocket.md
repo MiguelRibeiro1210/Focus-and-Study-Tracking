@@ -331,7 +331,8 @@ delete-all resets website consent. See [ADR-011](../decisions/ADR-011-WebsitePro
 The proxy has its own ephemeral loopback port and serves a random PAC path and
 local browser verification challenge. It does not expose the authenticated API,
 accept origin-form API requests or store traffic payloads. Its outbound sockets
-exist only for browser requests under the approved FST-026 exception.
+exist only for requests from browsers and other apps using temporary system
+proxy settings under the approved FST-026 exception.
 
 ## 6. Distraction log (Phase 2 read model)
 

@@ -24,8 +24,8 @@ public class JdbcWebsiteProtectionPreferences implements WebsiteProtectionPrefer
     }
     @Override @Transactional
     public State setEnabled(boolean enabled, String consent) {
-        if (enabled && !"FORWARD_BROWSER_TRAFFIC".equals(consent))
-            throw new IllegalArgumentException("Explicit browser forwarding consent is required");
+        if (enabled && !"FORWARD_SYSTEM_PROXY_TRAFFIC".equals(consent))
+            throw new IllegalArgumentException("Explicit consent for browsers and apps using temporary system proxy settings is required");
         rules.lockActivePolicy();
         var now = OffsetDateTime.ofInstant(clock.instant(), ZoneOffset.UTC);
         jdbc.update("UPDATE blocking_policy SET websites_enabled=?,website_consent_at=?,version=version+1,updated_at=? WHERE singleton_slot=1",

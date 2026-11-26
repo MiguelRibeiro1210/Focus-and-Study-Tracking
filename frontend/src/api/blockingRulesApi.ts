@@ -87,7 +87,7 @@ export function createBlockingRulesApi(fetcher?: typeof fetch): BlockingRulesApi
   return {
     websiteStatus: async () => validateWebsiteStatus(await request('', 'GET', undefined, '/api/v1/website-protection')),
     setWebsiteProtection: async (enabled) => validateWebsiteStatus(await request('', 'PATCH', { enabled,
-      ...(enabled ? { consent: 'FORWARD_BROWSER_TRAFFIC' } : {}) }, '/api/v1/website-protection')),
+      ...(enabled ? { consent: 'FORWARD_SYSTEM_PROXY_TRAFFIC' } : {}) }, '/api/v1/website-protection')),
     status: async () => {
       const body = await request('', 'GET', undefined, '/api/v1/blocking-status') as Partial<BlockingStatus> | null
       if (!body || typeof body.monitorEnabled !== 'boolean' || typeof body.applicationReason !== 'string'

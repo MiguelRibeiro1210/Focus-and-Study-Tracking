@@ -46,10 +46,10 @@ export function WebsiteProtection({ api }: { api: BlockingRulesApi }) {
           {status.routingVerified ? <p>A browser has verified routing through FocusDesktop. Verify each other browser you use.</p>
             : status.enabled && <p>Browser routing is not verified. Saved website rules alone do not establish protection.</p>}
           <p>Matching websites and subdomains are blocked during running focus intervals. Pauses and breaks allow browsing.</p>
-          <p>Allowed browser traffic passes through a local proxy. HTTPS stays encrypted; no certificates, telemetry or cloud service are used. Blocked HTTPS pages show a browser connection error.</p>
+          <p>Requests from browsers and other apps using temporary system proxy settings pass through a local proxy. HTTPS stays encrypted; no certificates, telemetry, cloud service or autonomous outbound requests are used. Blocked HTTPS pages show a browser connection error.</p>
           {status.state === 'RESTORING' && <p role="alert">Restoring network settings. Keep FocusDesktop open.</p>}
           {!status.enabled && <label className="protection-consent"><input type="checkbox" checked={acknowledged} disabled={pending}
-            onChange={(event) => setAcknowledged(event.target.checked)} />Allow browser-requested forwarding and temporary proxy settings with automatic restoration.</label>}
+            onChange={(event) => setAcknowledged(event.target.checked)} />Allow forwarding requests from browsers and other apps using temporary system proxy settings, with automatic restoration.</label>}
           {api.setWebsiteProtection && <button type="button" className="button button-primary"
             disabled={pending || (!status.enabled && !acknowledged)} onClick={() => void configure(!status.enabled)}>
             {pending ? 'Updating website protection…' : status.enabled ? 'Disable website protection' : 'Enable website protection'}</button>}

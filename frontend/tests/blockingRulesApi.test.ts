@@ -53,6 +53,6 @@ it('sends separate website consent and rejects arbitrary verification links', as
   const api = createBlockingRulesApi(fetcher)
   await api.setWebsiteProtection!(true)
   expect(fetcher.mock.calls[0][0]).toBe('/api/v1/website-protection')
-  expect(JSON.parse(fetcher.mock.calls[0][1].body)).toEqual({ enabled: true, consent: 'FORWARD_BROWSER_TRAFFIC' })
+  expect(JSON.parse(fetcher.mock.calls[0][1].body)).toEqual({ enabled: true, consent: 'FORWARD_SYSTEM_PROXY_TRAFFIC' })
   await expect(api.websiteStatus!()).rejects.toThrow('invalid website protection status')
 })

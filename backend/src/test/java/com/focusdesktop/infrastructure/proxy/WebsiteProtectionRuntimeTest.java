@@ -19,7 +19,7 @@ class WebsiteProtectionRuntimeTest {
         var gate = mock(EvaluateWebsiteRequestUseCase.class);
         Path value = directory.resolve("value"); Files.writeString(value, "original");
         try (var runtime = fixture(preferences, gate, value)) {
-            var ready = runtime.configure(true, "FORWARD_BROWSER_TRAFFIC");
+            var ready = runtime.configure(true, "FORWARD_SYSTEM_PROXY_TRAFFIC");
             assertEquals("READY", ready.state()); assertFalse(ready.routingVerified());
             String pac = Files.readString(value);
             assertTrue(pac.startsWith("http://127.0.0.1:"));
@@ -41,7 +41,7 @@ class WebsiteProtectionRuntimeTest {
         var preferences = new MemoryPreferences();
         Path value = directory.resolve("value"); Files.writeString(value, "original");
         try (var runtime = fixture(preferences, mock(EvaluateWebsiteRequestUseCase.class), value)) {
-            assertEquals("READY", runtime.configure(true, "FORWARD_BROWSER_TRAFFIC").state());
+            assertEquals("READY", runtime.configure(true, "FORWARD_SYSTEM_PROXY_TRAFFIC").state());
             Files.writeString(value, "user-replacement");
             runtime.reconcile();
             assertFalse(runtime.status().enabled());
@@ -63,7 +63,7 @@ class WebsiteProtectionRuntimeTest {
         private State state = new State(false, null);
         public State get() { return state; }
         public State setEnabled(boolean enabled, String consent) {
-            if (enabled && !"FORWARD_BROWSER_TRAFFIC".equals(consent)) throw new IllegalArgumentException();
+            if (enabled && !"FORWARD_SYSTEM_PROXY_TRAFFIC".equals(consent)) throw new IllegalArgumentException();
             return state = new State(enabled, enabled ? Instant.now() : null);
         }
     }

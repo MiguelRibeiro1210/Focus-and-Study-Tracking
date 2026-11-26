@@ -288,3 +288,14 @@ coverage remains tracked separately under FST-050.
 - [Traceability](../requirements/Traceability.md)
 - [Persistence](../data/Persistence.md)
 - [API](../api/RESTAndWebSocket.md)
+
+### FST-050 system-proxy consent refinement
+
+The expanded client-traffic scope uses `FORWARD_SYSTEM_PROXY_TRAFFIC`; the
+browser-only token is rejected by the authenticated API. A V8-to-V9 migration
+regression verifies that old website consent is cleared while rules and
+application consent remain intact. Java 17 verification passes 296 tests with
+one optional browser test skipped in the default run; frontend verification
+passes 107 tests, build, lint (two existing warnings) and the privacy audit.
+The isolated Firefox test also passes separately with `FOCUSDESKTOP_FIREFOX`.
+Native OS/browser and macOS authorization gaps in ADR-011 remain open.
