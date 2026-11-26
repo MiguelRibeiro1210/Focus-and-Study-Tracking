@@ -8,7 +8,7 @@ for the MVP unless a phase is stated.
 
 | ID | Category | Requirement | Target | Verification |
 |---|---|---|---|---|
-| NFR-PRV-01 | Privacy | The core runtime makes no outbound network connections. | 0 non-loopback sockets in the MVP test suite | Network-blocking integration test, manual audit |
+| NFR-PRV-01 | Privacy | No outbound runtime connections except explicitly consented browser-requested forwarding through the FST-050 loopback proxy; no HTTPS decryption or telemetry (ADR-011, user approved 2026-11-26). | 0 non-loopback sockets with website protection off; only requested destinations when enabled | Network-blocking integration test, controlled proxy tests, manual audit |
 | NFR-PRV-02 | Privacy | The local API binds to `127.0.0.1` and requires a per-installation token. | All endpoints except `/health` require the token | MockMvc security tests |
 | NFR-PRV-03 | Privacy | Only data needed for the product is stored. | No keystrokes, clipboard, browsing history or file contents | Schema review, privacy audit |
 | NFR-PRV-04 | Privacy | The learner can delete all personal data. | Full deletion in ≤ 2 seconds for 10k sessions | Integration test |
