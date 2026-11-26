@@ -203,6 +203,10 @@ impl BackendSupervisor {
         };
         let mut command = Command::new(&java);
         command
+            .arg(format!(
+                "-Dfocusdesktop.backend-jar={}",
+                java_compatible_path(&jar).display()
+            ))
             .arg("-jar")
             .arg(java_compatible_path(&jar))
             .arg("--server.address=127.0.0.1")

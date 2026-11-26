@@ -46,6 +46,7 @@ public class DetectActiveApplicationUseCase {
     }
 
     public Status status() { return status; }
+    public void idleForProtection() { if (enabled) update("IDLE", "Application monitoring is idle while protection is disabled or recovering."); }
 
     private boolean eligible(FocusSession session) {
         return session.state() == SessionState.RUNNING && session.currentInterval().type() == SessionType.WORK

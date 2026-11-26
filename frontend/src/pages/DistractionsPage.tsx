@@ -97,26 +97,54 @@ export function DistractionsPage({ api: suppliedApi }: { api?: BlockingRulesApi 
 function ProtectionAvailability({ api }: { api: BlockingRulesApi }) {
   const [status, setStatus] = useState<BlockingStatus | null>(null)
   const [error, setError] = useState('')
+  const [acknowledged, setAcknowledged] = useState(false)
+  const [pending, setPending] = useState(false)
+  const [saveError, setSaveError] = useState('')
+  const configuring = useRef(false)
+  const revision = useRef(0)
   useEffect(() => {
     if (!api.status) return
     let active = true
     let timer: ReturnType<typeof setTimeout> | undefined
     async function refresh() {
+      const ticket = ++revision.current
       try {
+        if (configuring.current) return
         const result = await api.status!()
-        if (active) { setStatus(result); setError('') }
-      } catch (cause) { if (active) { setStatus(null); setError(message(cause)) } }
+        if (active && ticket === revision.current && !configuring.current) { setStatus(result); setError('') }
+      } catch (cause) { if (active && ticket === revision.current && !configuring.current) { setStatus(null); setError(message(cause)) } }
       finally { if (active) timer = setTimeout(() => void refresh(), 2000) }
     }
     void refresh()
     return () => { active = false; clearTimeout(timer) }
   }, [api])
+  async function configure(enabled: boolean) {
+    if (!api.setApplicationProtection) return
+    configuring.current = true; revision.current += 1; setPending(true); setSaveError('')
+    try {
+      const saved = await api.setApplicationProtection(enabled)
+      setStatus((previous) => previous ? { ...previous, applicationProtectionEnabled: saved.applicationsEnabled } : previous)
+      setAcknowledged(false)
+    } catch (cause) { setSaveError(message(cause)) }
+    finally { configuring.current = false; revision.current += 1; setPending(false) }
+  }
   return <section className="profile-panel card-panel" aria-label="Protection availability">
     <h2>Protection availability</h2>
     {!api.status ? <p>Rules are saved locally. Runtime protection is not connected yet.</p>
       : error ? <p role="status">Protection status unavailable: {error}</p>
         : !status ? <p role="status">Checking protection status…</p>
-          : <><p role="status">{status.applicationReason}</p><p>Application blocking: {status.applicationEnforcement ? 'available' : 'not connected yet'}. Website blocking: {status.websiteEnforcement ? 'available' : 'not connected yet'}.</p></>}
+          : <><p role="status">{status.applicationReason}</p>
+            <p>Applications currently suspended: {status.ownedRestrictions ?? 0}. Website blocking: {status.websiteEnforcement ? 'active' : 'not connected yet'}.</p>
+            {status.applicationProtectionState === 'UNAVAILABLE' && <p role="status">Application protection is unavailable. Check permissions and native helper support.</p>}
+            {status.applicationProtectionState === 'RESTORING' && <p role="status">{status.notice?.message ?? 'Restoring applications. Keep FocusDesktop open.'}</p>}
+            {api.setApplicationProtection && <div className="protection-consent">
+              <p>Matched applications are temporarily suspended during running work intervals and restored when protection ends.</p>
+              {!status.applicationProtectionEnabled && <label><input type="checkbox" checked={acknowledged} disabled={pending} onChange={(event) => setAcknowledged(event.target.checked)} />Allow temporary suspension of matched applications and automatic restoration.</label>}
+              <button type="button" className="button button-primary" disabled={pending || (!status.applicationProtectionEnabled && !acknowledged)}
+                onClick={() => void configure(!status.applicationProtectionEnabled)}>{pending ? 'Saving…' : status.applicationProtectionEnabled ? 'Disable application protection' : 'Enable application protection'}</button>
+            </div>}
+          </>}
+    {saveError && <p role="alert">{saveError}</p>}
   </section>
 }
 

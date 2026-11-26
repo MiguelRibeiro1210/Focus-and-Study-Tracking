@@ -74,6 +74,8 @@ entity "blocking_policy" as blocking_policy {
   * id : UUID <<PK>>
   --
   * singleton_slot : SMALLINT <<UK, CHECK = 1>>
+  * applications_enabled : BOOLEAN
+  application_consent_at : TIMESTAMP
   * version : BIGINT
   * created_at : TIMESTAMP
   * updated_at : TIMESTAMP

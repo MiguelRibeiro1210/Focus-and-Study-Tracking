@@ -208,6 +208,27 @@ enforcement is not implemented or verified by this story.
   build/lint and native Rust checks. Runtime OS/browser enforcement is tested
   in its own stories and must not be inferred from rule CRUD succeeding.
 
+## Application suspension verification (FST-028)
+
+The [suspension design](../decisions/ADR-010-ApplicationSuspension.md) records
+consent, policy evaluation, guardian leases and restoration limits. Full offline
+backend verification passes 269 tests; a subsequent cross-platform adapter test
+also verifies recovery after a confirmed guardian restriction is forcibly killed.
+Native tests operate only on child processes they create, covering suspend/resume,
+EOF, lease expiry, journal recovery/locking, stale identities and external stops.
+Coordinator tests cover LOG/WARN/BLOCK, debounce, new instances, pause/rule changes,
+changes during native operations, failures and pending restoration. Persistence/API
+tests verify consent, export/reset, snapshots and independent session dispatch.
+
+Frontend Vitest passes 98 tests, including opt-in consent, failed preference saves
+and global warning/failure feedback. Build, privacy audit, Rust compilation and
+formatting pass; lint has only existing SettingsPage warnings. The bundled Java
+17 successfully launches the packaged PropertiesLauncher guardian and suspends,
+resumes and restores an owned fixture on EOF. CI checks native adapter behavior
+on Windows/macOS/Linux and staged runtime classpaths. These native CI results
+remain pending until the implementation commit runs; Linux checks do not prove
+Windows suspend-count semantics or macOS behavior.
+
 ## 10. Related documents
 
 - [Functional requirements](../requirements/FunctionalRequirements.md)

@@ -26,6 +26,13 @@ public class JpaDomainEventOutboxAdapter implements DomainEventOutbox {
     @Override
     @Transactional(propagation = Propagation.MANDATORY)
     public void append(DomainEvent event) {
+        if (event instanceof com.focusdesktop.domain.event.DistractionDetected
+                || event instanceof com.focusdesktop.domain.event.DistractionBlockOutcome) {
+            var payload = com.focusdesktop.application.dto.DistractionEventPayload.from(event);
+            outbox.save(new OutboxEventJpaEntity(payload.eventId(), event.getClass().getSimpleName(), payload.sessionId(),
+                    event.occurredAt().value(), PersistenceJson.write(payload)));
+            return;
+        }
         EventDescriptor descriptor = describe(event);
         outbox.save(new OutboxEventJpaEntity(UUID.randomUUID(), descriptor.type(), descriptor.aggregateId(),
                 event.occurredAt().value(), PersistenceJson.write(event)));

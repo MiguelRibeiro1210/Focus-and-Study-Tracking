@@ -62,6 +62,30 @@ class JpaDomainEventOutboxAdapterTest {
     private PlatformTransactionManager transactionManager;
 
     @Test
+    void storesCorrelatedTypedDistractionSnapshotsWithoutBlockingSessionDelivery() throws Exception {
+        var session = startedSession(); sessions.save(session);
+        var target = new com.focusdesktop.domain.model.ApplicationTarget(com.focusdesktop.domain.model.TargetPlatform.WINDOWS,
+                com.focusdesktop.domain.model.ApplicationMatchKind.PROCESS_NAME, "CHAT.EXE");
+        var decision = new com.focusdesktop.domain.model.BlockingDecision(com.focusdesktop.domain.model.BlockingRuleId.create(),
+                target, com.focusdesktop.domain.model.DistractionCategory.OTHER, com.focusdesktop.domain.model.BlockingAction.BLOCK);
+        var detected = com.focusdesktop.domain.event.DistractionDetected.capture(session.id(), decision,
+                com.focusdesktop.domain.model.ObservedDistraction.application(new com.focusdesktop.domain.model.AppIdentifier(
+                        com.focusdesktop.domain.model.TargetPlatform.WINDOWS, null, "chat.exe")), START);
+        outbox.append(detected);
+        outbox.append(com.focusdesktop.domain.event.DistractionBlockFailed.from(detected, "Permission denied", at(1)));
+        outbox.append(new SessionStarted(session.id(), SessionType.WORK, START)); entityManager.flush();
+        var payload = new com.fasterxml.jackson.databind.ObjectMapper().readTree(jdbc.queryForObject(
+                "SELECT payload FROM domain_event_outbox WHERE event_type='DistractionDetected'", String.class));
+        assertEquals("APPLICATION", payload.at("/target/type").asText());
+        assertEquals("CHAT.EXE", payload.at("/target/value").asText());
+        assertEquals(detected.detectionId().toString(), payload.path("detectionId").asText());
+        assertEquals(1, payload.path("version").asInt());
+        var due = deliveryStore.findDue(START.value().plusSeconds(5), 100);
+        assertEquals(1, due.size()); assertEquals("SessionStarted", due.get(0).eventType());
+        assertEquals(2, jdbc.queryForObject("SELECT COUNT(*) FROM domain_event_outbox WHERE event_type LIKE 'Distraction%' AND delivered_at IS NULL", Integer.class));
+    }
+
+    @Test
     void storesEventsPendingWithStableTypesAndPayloads() {
         FocusSession session = startedSession();
         sessions.save(session);

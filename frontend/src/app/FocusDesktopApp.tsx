@@ -5,6 +5,7 @@ import { DistractionsPage } from '../pages/DistractionsPage'
 import { HistoryPage } from '../pages/HistoryPage'
 import { SettingsPage } from '../pages/SettingsPage'
 import type { AppSettingsController } from '../pages/useAppSettings'
+import { ProtectionFeedback } from './ProtectionFeedback'
 
 type Page = 'overview' | 'distractions' | 'history' | 'settings'
 
@@ -84,6 +85,7 @@ export function FocusDesktopApp({ timer, settings }: FocusDesktopAppProps) {
           <div className="local-status"><img src="/figma/connected.svg" width="6" height="6" alt="" />Running locally</div>
         </header>
         <main className={`workspace-content page-${page}`}>
+          <ProtectionFeedback />
           {page === 'overview' && <TimerScreen timer={timer} settings={settings.settings} onViewHistory={() => setPage('history')} />}
           {page === 'distractions' && <DistractionsPage />}
           {page === 'history' && <HistoryPage />}

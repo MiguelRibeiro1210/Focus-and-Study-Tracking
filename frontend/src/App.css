@@ -126,6 +126,10 @@
 .dialog-actions { display: flex; justify-content: flex-end; gap: .6rem; margin-top: 1.6rem; }
 
 /* Distraction rules */
+.protection-consent { display: grid; gap: 12px; margin-top: 16px; }
+.protection-consent label { display: flex; align-items: flex-start; gap: 8px; font-size: 12px; line-height: 1.5; }
+.protection-feedback { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin-bottom: 16px; padding: 12px 16px; border: 1px solid #b7c7bb; border-radius: 8px; }
+.protection-feedback button { margin-left: auto; padding: 5px; border: 1px solid #b7c7bb; border-radius: 5px; background: transparent; color: inherit; }
 .rule-editor { padding: 20px; }
 .rule-editor fieldset { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 16px; margin-top: 16px; padding: 0; border: 0; }
 .rule-editor label { display: grid; gap: 7px; font-size: 12px; }

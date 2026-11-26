@@ -1,6 +1,7 @@
 package com.focusdesktop.infrastructure.scheduling;
 
 import com.focusdesktop.application.usecase.DetectActiveApplicationUseCase;
+import com.focusdesktop.application.usecase.ApplicationProtectionCoordinator;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -9,7 +10,10 @@ import org.springframework.scheduling.concurrent.ThreadPoolTaskScheduler;
 @Configuration
 public class ApplicationMonitoringScheduler {
     private final DetectActiveApplicationUseCase detect;
-    public ApplicationMonitoringScheduler(DetectActiveApplicationUseCase detect) { this.detect = detect; }
+    private final ApplicationProtectionCoordinator protection;
+    public ApplicationMonitoringScheduler(DetectActiveApplicationUseCase detect, ApplicationProtectionCoordinator protection) {
+        this.detect = detect; this.protection = protection;
+    }
 
     @Bean
     public ThreadPoolTaskScheduler blockingTaskScheduler() {
@@ -24,6 +28,20 @@ public class ApplicationMonitoringScheduler {
         scheduler.setPoolSize(1); scheduler.setThreadNamePrefix("application-scheduler-"); return scheduler;
     }
 
+    @Bean
+    public ThreadPoolTaskScheduler protectionTaskScheduler() {
+        var scheduler = new ThreadPoolTaskScheduler();
+        scheduler.setPoolSize(1); scheduler.setThreadNamePrefix("protection-reconcile-"); return scheduler;
+    }
+
     @Scheduled(fixedDelayString = "${focusdesktop.blocking.monitor-delay-ms:2000}", scheduler = "blockingTaskScheduler")
-    public void monitor() { detect.execute(); }
+    public void monitor() {
+        try {
+            if (protection.allowsObservation()) detect.execute().ifPresent(protection::observe);
+            else detect.idleForProtection();
+        } catch (RuntimeException exception) { protection.reconcile(); }
+    }
+
+    @Scheduled(fixedDelay = 500, scheduler = "protectionTaskScheduler")
+    public void reconcile() { protection.reconcile(); }
 }

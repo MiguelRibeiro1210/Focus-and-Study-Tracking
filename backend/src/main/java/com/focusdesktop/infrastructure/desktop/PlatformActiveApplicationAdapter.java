@@ -43,7 +43,7 @@ public class PlatformActiveApplicationAdapter implements ActiveApplicationPort {
     public Optional<Observation> currentApplication() {
         long pid;
         if (os.contains("win")) {
-            pid = numeric(commands.run(List.of("powershell.exe", "-NoLogo", "-NoProfile", "-NonInteractive", "-Command", WINDOWS_SCRIPT)));
+            pid = numeric(commands.run(List.of("powershell.exe", "-NoLogo", "-NoProfile", "-NonInteractive", "-WindowStyle", "Hidden", "-Command", WINDOWS_SCRIPT)));
         } else if (os.contains("mac")) {
             pid = numeric(commands.run(List.of("/usr/bin/osascript", "-l", "JavaScript", "-e",
                     "ObjC.import('AppKit'); var app = $.NSWorkspace.sharedWorkspace.frontmostApplication; app.isNil() ? 0 : app.processIdentifier;")));

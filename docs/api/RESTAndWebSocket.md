@@ -290,11 +290,24 @@ Authenticated `GET /api/v1/blocking-status` returns `monitorEnabled`,
 `applicationDetection` (`DISABLED`, `IDLE`, `OBSERVING`, `UNAVAILABLE`), a safe
 `applicationReason`, `applicationEnforcement`, `websiteEnforcement` and UTC
 `checkedAt`. This endpoint reads diagnostics without querying the OS and returns
-no executable, title or process identifier. Both enforcement fields are false
-until the enforcement stories integrate real runtime behavior. Desktop launch
-enables monitoring; standalone backend launches require the explicit
+no executable, title or process identifier. FST-028 adds
+`applicationProtectionEnabled`, `ownedRestrictions`, `applicationProtectionState`
+(`DISABLED`, `READY`, `ACTIVE`, `RESTORING`, `UNAVAILABLE`) and an optional
+correlated `notice` (`id`, `kind`, `message`, `occurredAt`). Application enforcement
+is true only while confirmed owned restrictions exist; website enforcement is
+false until FST-050. `READY` means configured to evaluate, not successfully blocked.
+Desktop launch enables the monitoring runtime; standalone launches require the explicit
 `--focusdesktop.blocking.monitor-enabled=true` option. See
 [ADR-009](../decisions/ADR-009-ApplicationMonitoring.md) for platform requirements.
+
+Authenticated `PATCH /api/v1/blocking-protection` accepts
+`{"applicationsEnabled":true,"consent":"SUSPEND_MATCHED_APPS"}` to opt in, or
+`{"applicationsEnabled":false}` to disable and trigger restoration. It returns
+`200` with `applicationsEnabled` and nullable UTC `applicationConsentAt`. Missing
+consent when enabling, wrong field types and unknown fields return `400`.
+The setting defaults to false, is exported with personal data and is reset by
+delete-all. Rules alone never activate protection. See
+[ADR-010](../decisions/ADR-010-ApplicationSuspension.md).
 
 ## 6. Distraction log (Phase 2 read model)
 

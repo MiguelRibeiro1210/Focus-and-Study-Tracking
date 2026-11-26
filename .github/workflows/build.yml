@@ -94,12 +94,25 @@ jobs:
       - name: Set up Rust stable
         uses: dtolnay/rust-toolchain@stable
 
+      - name: Verify native application suspension and restoration
+        shell: bash
+        run: ./mvnw -Dtest=GuardianApplicationSuspensionAdapterTest,ApplicationSuspensionGuardianTest test
+        working-directory: backend
+
       - name: Install frontend dependencies
         run: npm ci
         working-directory: frontend
 
       - name: Stage backend and pinned Java runtime
         run: npm run bundle:prepare
+        working-directory: frontend
+
+      - name: Verify packaged guardian classpath
+        shell: bash
+        run: |
+          guardian_java="src-tauri/resources/runtime/bin/java"
+          if [ "$RUNNER_OS" = "Windows" ]; then guardian_java="$guardian_java.exe"; fi
+          "$guardian_java" -Dloader.main=com.focusdesktop.infrastructure.desktop.ApplicationSuspensionGuardian -cp src-tauri/resources/backend/focusdesktop.jar org.springframework.boot.loader.launch.PropertiesLauncher --self-check
         working-directory: frontend
 
       - name: Build native installer

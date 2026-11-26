@@ -104,7 +104,7 @@ public class JdbcBlockingPolicyAdapter implements BlockingPolicyRepository, Bloc
     @Transactional(propagation = Propagation.MANDATORY)
     public void clear() {
         jdbc.update("DELETE FROM blocking_rule WHERE policy_id=?", POLICY_ID);
-        jdbc.update("UPDATE blocking_policy SET version=version+1,updated_at=? WHERE id=?",
+        jdbc.update("UPDATE blocking_policy SET applications_enabled=FALSE,application_consent_at=NULL,version=version+1,updated_at=? WHERE id=?",
                 OffsetDateTime.ofInstant(clock.instant(), ZoneOffset.UTC), POLICY_ID);
     }
 

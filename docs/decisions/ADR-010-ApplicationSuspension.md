@@ -34,7 +34,8 @@ Use one independent guardian per backend, communicating over inherited stdin
 and stdout with fixed numeric instance commands. No listening network socket or
 user-supplied shell expression is introduced. The guardian restores its own
 restrictions on EOF, explicit release/quit, shutdown and missing heartbeats.
-A short lease (15 seconds maximum) bounds restrictions if the backend freezes.
+Missing heartbeats trigger restoration after 15 seconds if the backend freezes;
+OS calls may extend the time needed to finish restoration.
 A guardian crash/forced kill cannot promise immediate restoration on every OS;
 record recovery information before suspension and use it for safe startup
 recovery. Do not claim stronger guarantees than tested.
@@ -91,6 +92,24 @@ Windows/macOS native verification separately from Linux checks; mark unsupported
 or denied configurations unavailable.
 
 ## Primary references
+
+Implementation verification on 2026-11-26: full offline Maven verification
+passes 269 tests; frontend Vitest passes 98 tests. Frontend build, privacy audit,
+Rust compilation and formatting pass. Lint reports only existing SettingsPage
+warnings. Linux native tests suspend only owned child processes and cover normal
+release, EOF, lease expiry, forced guardian exit, recovery, stale identity,
+external-stop refusal and exclusive journal ownership. A separate packaged JAR
+check with the bundled Java 17 confirms suspension, release and EOF restoration.
+
+CI now runs native adapter tests on Windows, Linux and both macOS architectures,
+and checks the staged runtime's PropertiesLauncher classpath. Windows/macOS
+native results are pending CI, not claimed from Linux tests. An interrupted
+Windows thread operation whose increment was not durably confirmed cannot be
+safely guessed: preserve its journal and report manual recovery through Windows
+Resource Monitor. Do not decrement a possibly external suspension to hide this
+failure. Ordinary backend disconnect/lease restoration uses known owned handles.
+Distraction outbox events intentionally await FST-037 while session delivery
+continues independently. Website enforcement remains FST-050.
 
 - [SuspendThread counts](https://learn.microsoft.com/en-us/windows/win32/api/processthreadsapi/nf-processthreadsapi-suspendthread)
 - [ResumeThread counts](https://learn.microsoft.com/en-us/windows/win32/api/processthreadsapi/nf-processthreadsapi-resumethread)

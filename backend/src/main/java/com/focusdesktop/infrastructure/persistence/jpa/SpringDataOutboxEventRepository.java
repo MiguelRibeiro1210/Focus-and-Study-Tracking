@@ -11,6 +11,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 interface SpringDataOutboxEventRepository extends JpaRepository<OutboxEventJpaEntity, UUID> {
     long deleteAllByAggregateIdIn(List<UUID> aggregateIds);
     @Query("select e from OutboxEventJpaEntity e where e.deliveredAt is null "
+            + "and e.eventType not in ('DistractionDetected','DistractionBlocked','DistractionBlockFailed') "
             + "and (e.nextAttemptAt is null or e.nextAttemptAt <= :now) "
             + "order by e.occurredAt asc, "
             + "case e.eventType when 'IntervalCompleted' then 0 when 'IntervalStarted' then 1 else 2 end asc, "

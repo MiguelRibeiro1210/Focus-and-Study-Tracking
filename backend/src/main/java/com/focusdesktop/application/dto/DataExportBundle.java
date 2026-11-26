@@ -6,7 +6,8 @@ import java.util.List;
 import java.util.UUID;
 
 public record DataExportBundle(SettingsDto settings, List<SessionExport> sessions, AnalyticsSummary analytics,
-                               List<BlockingRuleDto> blockingRules) {
+                               List<BlockingRuleDto> blockingRules,
+                               com.focusdesktop.application.port.ProtectionPreferences.State protectionPreferences) {
     public DataExportBundle {
         sessions = List.copyOf(sessions);
         blockingRules = List.copyOf(blockingRules);

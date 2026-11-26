@@ -69,13 +69,18 @@ a separate materialized history table.
 
 ### `blocking_policy` and `blocking_rule`
 
-Planned FST-048 migration V5 creates the following; implementation is pending.
+FST-048 migration V5 creates the persisted policy and rule tables.
 See [ADR-007](../decisions/ADR-007-BlockingRuleManagement.md).
 
 - `blocking_policy`: UUID PK, non-null singleton slot constrained to `1` and
   unique, version and UTC created/updated timestamps. Seed UUID
   `00000000-0000-0000-0000-000000000001` with no rules through Flyway; do not
   lazily create the policy from concurrent API requests.
+- FST-028 migration V6 adds `applications_enabled` (initially false) and nullable
+  `application_consent_at`. Enabling requires a recorded explicit consent;
+  delete-all resets both fields. Preference writes share the policy lock.
+  JSON exports include `protectionPreferences`; ZIP exports include
+  `protection-preferences.csv`. These preferences do not claim current blocking.
 - `blocking_rule`: UUID PK, policy FK, display name, target type, nullable
   application platform/match kind, entered target value, non-null canonical
   `target_key`, category, action, enabled flag and UTC created/updated timestamps.

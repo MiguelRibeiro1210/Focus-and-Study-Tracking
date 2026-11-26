@@ -135,8 +135,8 @@ case, diagram and task should be visible in one place.
 | FST-044 installer runtime and platform dependency verification | [Non-functional requirements](NonFunctionalRequirements.md), [Packaging verification](../testing/FST-044-packaging.md) |
 | FST-045 desktop interval notifications | [Functional requirements](FunctionalRequirements.md), [Use cases UC-05 and UC-11](../UseCases/UseCases.md), [API event delivery](../api/RESTAndWebSocket.md), [Test strategy](../testing/TestStrategy.md) |
 | FST-026 Privacy audit | [ADR-001](../decisions/ADR-001-LocalFirst.md), [Privacy audit procedure](../testing/FST-026-privacy-audit.md), [Test strategy](../testing/TestStrategy.md) |
-| FST-027 OS active-window detection | [SD_DetectDistraction](../SD/SD_DetectDistraction.puml) |
-| FST-028 Application rule evaluation and enforcement | [SD_BlockDistraction](../SD/SD_BlockDistraction.puml), [SD_ManageBlockingRules](../SD/SD_ManageBlockingRules.puml) |
+| FST-027 OS active-window detection | [Monitoring design](../decisions/ADR-009-ApplicationMonitoring.md), [Monitoring sequence](../SD/SD_ApplicationMonitoring.puml) |
+| FST-028 Application rule evaluation and enforcement | [Suspension design](../decisions/ADR-010-ApplicationSuspension.md), [Suspension and restoration sequence](../SD/SD_ApplicationSuspension.puml) |
 | FST-029 Content recognition | [Domain model](../DM/DomainModel.md) (future context) |
 | FST-030 Screen recording | [Domain model](../DM/DomainModel.md) (future context) |
 | FST-031 Documentation | This directory |

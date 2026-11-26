@@ -20,13 +20,20 @@ export interface BlockingStatus {
   applicationEnforcement: boolean
   websiteEnforcement: boolean
   checkedAt: string
+  applicationProtectionEnabled?: boolean
+  applicationProtectionState?: string
+  ownedRestrictions?: number
+  notice?: ProtectionNotice | null
 }
+export interface ProtectionNotice { id: string; kind: 'WARN' | 'ERROR'; message: string; occurredAt: string }
+export interface ProtectionPreferences { applicationsEnabled: boolean; applicationConsentAt: string | null }
 export interface BlockingRulesApi {
   list(): Promise<BlockingRule[]>
   create(input: BlockingRuleInput): Promise<BlockingRule>
   patch(id: string, input: Partial<BlockingRuleInput>): Promise<BlockingRule>
   delete(id: string): Promise<void>
   status?(): Promise<BlockingStatus>
+  setApplicationProtection?(enabled: boolean): Promise<ProtectionPreferences>
 }
 
 function isRule(value: unknown): value is BlockingRule {
@@ -47,7 +54,7 @@ export function targetLabel(target: RuleTarget): string { return target.type ===
 
 export function createBlockingRulesApi(fetcher?: typeof fetch): BlockingRulesApi {
   const requestFetch = fetcher ?? (isDesktopShell() ? nativeFetch : fetch)
-  async function request(path = '', method = 'GET', input?: Partial<BlockingRuleInput>, base = '/api/v1/blocking-rules'): Promise<unknown> {
+  async function request(path = '', method = 'GET', input?: Partial<BlockingRuleInput> | { applicationsEnabled: boolean; consent?: string }, base = '/api/v1/blocking-rules'): Promise<unknown> {
     const response = await requestFetch(`${base}${path}`, {
       method, headers: { Accept: 'application/json', ...(input ? { 'Content-Type': 'application/json' } : {}) },
       body: input ? JSON.stringify(input) : undefined,
@@ -73,8 +80,22 @@ export function createBlockingRulesApi(fetcher?: typeof fetch): BlockingRulesApi
       if (!body || typeof body.monitorEnabled !== 'boolean' || typeof body.applicationReason !== 'string'
         || !['DISABLED', 'IDLE', 'OBSERVING', 'UNAVAILABLE'].includes(String(body.applicationDetection))
         || typeof body.applicationEnforcement !== 'boolean' || typeof body.websiteEnforcement !== 'boolean'
+        || (body.applicationProtectionEnabled !== undefined && typeof body.applicationProtectionEnabled !== 'boolean')
+        || (body.applicationProtectionState !== undefined && !['DISABLED', 'READY', 'ACTIVE', 'RESTORING', 'UNAVAILABLE'].includes(body.applicationProtectionState))
+        || (body.ownedRestrictions !== undefined && (!Number.isInteger(body.ownedRestrictions) || body.ownedRestrictions < 0))
+        || (body.notice != null && (typeof body.notice.id !== 'string' || !['WARN', 'ERROR'].includes(body.notice.kind)
+          || typeof body.notice.message !== 'string' || typeof body.notice.occurredAt !== 'string' || !Number.isFinite(Date.parse(body.notice.occurredAt))))
         || typeof body.checkedAt !== 'string' || !Number.isFinite(Date.parse(body.checkedAt))) throw new Error('The local API returned invalid protection status.')
       return body as BlockingStatus
+    },
+    setApplicationProtection: async (enabled) => {
+      const body = await request('', 'PATCH', { applicationsEnabled: enabled,
+        ...(enabled ? { consent: 'SUSPEND_MATCHED_APPS' } : {}) }, '/api/v1/blocking-protection') as Partial<ProtectionPreferences> | null
+      if (!body || typeof body.applicationsEnabled !== 'boolean'
+        || (body.applicationsEnabled && body.applicationConsentAt === null)
+        || (body.applicationConsentAt !== null && (typeof body.applicationConsentAt !== 'string' || !Number.isFinite(Date.parse(body.applicationConsentAt)))))
+        throw new Error('The local API returned invalid protection preferences.')
+      return body as ProtectionPreferences
     },
     list: async () => {
       const body = await request()

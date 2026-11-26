@@ -15,12 +15,29 @@ function api(overrides: Partial<BlockingRulesApi> = {}): BlockingRulesApi {
 }
 
 describe('saved distraction rules', () => {
+  it('requires acknowledgement before enabling temporary suspension and preserves consent on failure', async () => {
+    const user = userEvent.setup()
+    const setProtection = vi.fn().mockRejectedValueOnce(new Error('Consent save failed'))
+      .mockResolvedValueOnce({ applicationsEnabled: true, applicationConsentAt: '2026-11-26T00:00:00Z' })
+    render(<DistractionsPage api={api({ status: vi.fn().mockResolvedValue({ monitorEnabled: true, applicationDetection: 'IDLE',
+      applicationReason: 'Waiting for focus.', applicationEnforcement: false, websiteEnforcement: false,
+      applicationProtectionEnabled: false, ownedRestrictions: 0, checkedAt: '2026-11-26T00:00:00Z' }), setApplicationProtection: setProtection })} />)
+    const enable = await screen.findByRole('button', { name: 'Enable application protection' })
+    expect((enable as HTMLButtonElement).disabled).toBe(true)
+    await user.click(screen.getByRole('checkbox', { name: /Allow temporary suspension/ }))
+    await user.click(enable)
+    expect(await screen.findByText('Consent save failed')).toBeTruthy()
+    expect(screen.queryByRole('button', { name: 'Disable application protection' })).toBeNull()
+    await user.click(enable)
+    expect(setProtection).toHaveBeenCalledWith(true)
+    expect(await screen.findByRole('button', { name: 'Disable application protection' })).toBeTruthy()
+  })
   it('reports unavailable detection separately from rule configuration and enforcement', async () => {
     render(<DistractionsPage api={api({ status: vi.fn().mockResolvedValue({ monitorEnabled: true,
       applicationDetection: 'UNAVAILABLE', applicationReason: 'This Wayland desktop has no supported foreground adapter.',
       applicationEnforcement: false, websiteEnforcement: false, checkedAt: '2026-11-26T00:00:00Z' }) })} />)
     expect(await screen.findByText(/This Wayland desktop/)).toBeTruthy()
-    expect(screen.getByText(/Application blocking: not connected yet/)).toBeTruthy()
+    expect(screen.getByText(/Applications currently suspended: 0/)).toBeTruthy()
     expect(await screen.findByText('Video')).toBeTruthy()
   })
 

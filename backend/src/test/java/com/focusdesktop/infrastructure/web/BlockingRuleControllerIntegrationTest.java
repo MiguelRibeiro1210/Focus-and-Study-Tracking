@@ -40,7 +40,34 @@ class BlockingRuleControllerIntegrationTest {
     @Autowired com.focusdesktop.application.usecase.ManageBlockingRulesUseCase rules;
 
     @BeforeEach
-    void clearRules() { jdbc.update("DELETE FROM blocking_rule"); }
+    void clearRules() {
+        jdbc.update("DELETE FROM blocking_rule");
+        jdbc.update("UPDATE blocking_policy SET applications_enabled=FALSE,application_consent_at=NULL");
+    }
+
+    @Test
+    void applicationProtectionRequiresExplicitConsentAndIsExportedAndResetWithPersonalData() throws Exception {
+        mvc.perform(patch("/api/v1/blocking-protection").contentType("application/json")
+                .content("{\"applicationsEnabled\":true,\"consent\":\"SUSPEND_MATCHED_APPS\"}"))
+                .andExpect(status().isUnauthorized());
+        mvc.perform(patch("/api/v1/blocking-protection").header("Authorization", "Bearer test-token")
+                .contentType("application/json").content("{\"applicationsEnabled\":true}"))
+                .andExpect(status().isBadRequest());
+        mvc.perform(patch("/api/v1/blocking-protection").header("Authorization", "Bearer test-token")
+                .contentType("application/json").content("{\"applicationsEnabled\":true,\"consent\":\"SUSPEND_MATCHED_APPS\"}"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.applicationsEnabled").value(true))
+                .andExpect(jsonPath("$.applicationConsentAt").isString());
+        mvc.perform(get("/api/v1/settings/export?format=json").header("Authorization", "Bearer test-token"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.protectionPreferences.applicationsEnabled").value(true));
+        mvc.perform(get("/api/v1/blocking-status").header("Authorization", "Bearer test-token"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.applicationProtectionEnabled").value(true))
+                .andExpect(jsonPath("$.applicationEnforcement").value(false));
+        mvc.perform(delete("/api/v1/settings/data").header("Authorization", "Bearer test-token")
+                .contentType("application/json").content("{\"confirmation\":\"DELETE_ALL_DATA\"}"))
+                .andExpect(status().isNoContent());
+        assertFalse(jdbc.queryForObject("SELECT applications_enabled FROM blocking_policy", Boolean.class));
+        assertNull(jdbc.queryForObject("SELECT application_consent_at FROM blocking_policy", java.time.OffsetDateTime.class));
+    }
 
     @Test
     void diagnosticStatusIsAuthenticatedReadOnlyAndDoesNotClaimEnforcement() throws Exception {
