@@ -30,6 +30,17 @@ class EvaluateWebsiteRequestUseCaseTest {
         return new EvaluateWebsiteRequestUseCase(sessions, policies, preferences,
                 new RecordDistractionEventUseCase(outbox), Clock.fixed(now, ZoneOffset.UTC));
     }
+    @Test void youtubeAndSubdomainsBlockOnlyDuringEligibleFocusAndRespectRuleChanges() {
+        var useCase = useCase(BlockingAction.BLOCK);
+        var youtube = BlockingRule.create("YouTube", new WebsiteTarget("youtube.com"), DistractionCategory.OTHER, BlockingAction.BLOCK, true);
+        policy.addRule(youtube);
+        assertTrue(useCase.execute("youtube.com").block()); assertTrue(useCase.execute("www.youtube.com").block());
+        assertTrue(useCase.execute("music.youtube.com").block()); assertFalse(useCase.execute("notyoutube.com").block());
+        session.pause(new TimeStamp(now)); assertFalse(useCase.execute("www.youtube.com").block());
+        session.resume(new TimeStamp(now));
+        policy.updateRule(youtube.id(), youtube.displayName(), youtube.target(), youtube.category(), youtube.action(), false);
+        assertFalse(useCase.execute("www.youtube.com").block());
+    }
     @Test void recordsHostDetectionAndOnlyConfirmsAfterTransportDenial() {
         var useCase = useCase(BlockingAction.BLOCK);
         var result = useCase.execute("music.example.com");

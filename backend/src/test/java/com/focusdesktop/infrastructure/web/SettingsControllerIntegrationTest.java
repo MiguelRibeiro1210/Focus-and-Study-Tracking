@@ -87,14 +87,25 @@ class SettingsControllerIntegrationTest {
                 .andExpect(status().isOk()).andExpect(jsonPath("$.enabled").value(true))
                 .andExpect(jsonPath("$.state").value("UNAVAILABLE"))
                 .andExpect(jsonPath("$.routingVerified").value(false));
+        mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch(path)
+                        .header("Authorization", "Bearer test-token").contentType("application/json")
+                        .content("{\"enabled\":true,\"consent\":\"FORWARD_SYSTEM_PROXY_TRAFFIC\",\"routingMethod\":\"BRAVE\"}"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.routingMethod").value("BRAVE"))
+                .andExpect(jsonPath("$.runtimeEnabled").value(false));
+        mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch(path)
+                        .header("Authorization", "Bearer test-token").contentType("application/json")
+                        .content("{\"enabled\":true,\"consent\":\"FORWARD_SYSTEM_PROXY_TRAFFIC\",\"routingMethod\":\"ARBITRARY\"}"))
+                .andExpect(status().isBadRequest());
         mvc.perform(get("/api/v1/settings/export?format=json").header("Authorization", "Bearer test-token"))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.websiteProtectionPreferences.enabled").value(true))
-                .andExpect(jsonPath("$.websiteProtectionPreferences.consentAt").isString());
+                .andExpect(jsonPath("$.websiteProtectionPreferences.consentAt").isString())
+                .andExpect(jsonPath("$.websiteProtectionPreferences.routingMethod").value("BRAVE"));
         mvc.perform(delete("/api/v1/settings/data").header("Authorization", "Bearer test-token")
                         .contentType("application/json").content("{\"confirmation\":\"DELETE_ALL_DATA\"}"))
                 .andExpect(status().isNoContent());
         mvc.perform(get(path).header("Authorization", "Bearer test-token"))
-                .andExpect(status().isOk()).andExpect(jsonPath("$.enabled").value(false));
+                .andExpect(status().isOk()).andExpect(jsonPath("$.enabled").value(false))
+                .andExpect(jsonPath("$.routingMethod").value("SYSTEM_PROXY"));
     }
 
     @Test

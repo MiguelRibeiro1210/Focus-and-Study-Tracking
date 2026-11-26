@@ -182,9 +182,16 @@ a different proxy. Export/reset include/reset the selected method. Verify the
 local challenge before reporting connected routing; a saved flag or process
 launch is not proof that all browser profiles are protected.
 
-The Brave-only PAC may include `DIRECT` fallback only after isolated native
+The Brave-only PAC includes `DIRECT` fallback after isolated native
 Brave tests prove intentional HTTP/HTTPS denials cannot fall through to a direct
 origin, while shutdown/crash allows normal browsing. Other platform PAC behavior
 is unchanged. Protection is not tamper-proof and does not cover clients bypassing
 the configured proxy. Existing Windows/macOS/GNOME behavior and outstanding
 native authorization acceptance gaps remain tracked separately.
+
+Native Brave verification now covers controlled HTTP/HTTPS origins, YouTube's
+built-in HSTS upgrade, subdomain denial, pause/resume and both normal shutdown
+and abrupt fixture-process termination. This is network-request enforcement;
+cached/offline page content may remain visible. Related media/CDN domains are
+not silently added to a domain rule. Tests isolate both the profile and launcher
+configuration and never close the learner's existing browser.

@@ -547,3 +547,7 @@ html[data-theme="DARK"] .outlined-control, html[data-theme="DARK"] .outlined-con
   .shortcut-row kbd { min-width: 72px; }
   .dialog-actions { flex-direction: column-reverse; }
 }
+
+.website-routing-choice { display: grid; gap: 6px; margin: 12px 0; }
+.website-routing-choice select { width: 100%; min-height: 36px; font: inherit; color: inherit; background: var(--panel-bg, transparent); border: 1px solid currentColor; border-radius: 6px; padding: 6px; }
+.website-runtime-help code { overflow-wrap: anywhere; }

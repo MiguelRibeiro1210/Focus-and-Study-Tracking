@@ -27,7 +27,12 @@ export interface BlockingStatus {
 }
 export interface ProtectionNotice { id: string; kind: 'WARN' | 'ERROR'; message: string; occurredAt: string }
 export interface ProtectionPreferences { applicationsEnabled: boolean; applicationConsentAt: string | null }
+export type WebsiteRoutingMethod = 'SYSTEM_PROXY' | 'BRAVE'
 export interface WebsiteProtectionStatus {
+  runtimeEnabled?: boolean
+  routingMethod?: WebsiteRoutingMethod
+  braveAvailable?: boolean
+  braveLaunchPending?: boolean
   enabled: boolean
   state: 'DISABLED' | 'STARTING' | 'READY' | 'VERIFIED' | 'RESTORING' | 'UNAVAILABLE'
   routingVerified: boolean
@@ -43,7 +48,8 @@ export interface BlockingRulesApi {
   status?(): Promise<BlockingStatus>
   setApplicationProtection?(enabled: boolean): Promise<ProtectionPreferences>
   websiteStatus?(): Promise<WebsiteProtectionStatus>
-  setWebsiteProtection?(enabled: boolean): Promise<WebsiteProtectionStatus>
+  setWebsiteProtection?(enabled: boolean, routingMethod?: WebsiteRoutingMethod): Promise<WebsiteProtectionStatus>
+  setupBrave?(): Promise<WebsiteProtectionStatus>
 }
 
 function isRule(value: unknown): value is BlockingRule {
@@ -64,7 +70,7 @@ export function targetLabel(target: RuleTarget): string { return target.type ===
 
 export function createBlockingRulesApi(fetcher?: typeof fetch): BlockingRulesApi {
   const requestFetch = fetcher ?? (isDesktopShell() ? nativeFetch : fetch)
-  async function request(path = '', method = 'GET', input?: Partial<BlockingRuleInput> | { applicationsEnabled: boolean; consent?: string } | { enabled: boolean; consent?: string }, base = '/api/v1/blocking-rules'): Promise<unknown> {
+  async function request(path = '', method = 'GET', input?: Partial<BlockingRuleInput> | { applicationsEnabled: boolean; consent?: string } | { enabled: boolean; consent?: string; routingMethod?: WebsiteRoutingMethod } | { confirmation: string }, base = '/api/v1/blocking-rules'): Promise<unknown> {
     const response = await requestFetch(`${base}${path}`, {
       method, headers: { Accept: 'application/json', ...(input ? { 'Content-Type': 'application/json' } : {}) },
       body: input ? JSON.stringify(input) : undefined,
@@ -86,8 +92,9 @@ export function createBlockingRulesApi(fetcher?: typeof fetch): BlockingRulesApi
   }
   return {
     websiteStatus: async () => validateWebsiteStatus(await request('', 'GET', undefined, '/api/v1/website-protection')),
-    setWebsiteProtection: async (enabled) => validateWebsiteStatus(await request('', 'PATCH', { enabled,
-      ...(enabled ? { consent: 'FORWARD_SYSTEM_PROXY_TRAFFIC' } : {}) }, '/api/v1/website-protection')),
+    setWebsiteProtection: async (enabled, routingMethod) => validateWebsiteStatus(await request('', 'PATCH', { enabled,
+      ...(routingMethod ? { routingMethod } : {}), ...(enabled ? { consent: 'FORWARD_SYSTEM_PROXY_TRAFFIC' } : {}) }, '/api/v1/website-protection')),
+    setupBrave: async () => validateWebsiteStatus(await request('/brave', 'POST', { confirmation: 'OPEN_EXISTING_BRAVE_PROFILE' }, '/api/v1/website-protection')),
     status: async () => {
       const body = await request('', 'GET', undefined, '/api/v1/blocking-status') as Partial<BlockingStatus> | null
       if (!body || typeof body.monitorEnabled !== 'boolean' || typeof body.applicationReason !== 'string'
@@ -133,6 +140,10 @@ function validateWebsiteStatus(value: unknown): WebsiteProtectionStatus {
   }
   if (!body || typeof body.enabled !== 'boolean' || typeof body.routingVerified !== 'boolean'
     || !['DISABLED', 'STARTING', 'READY', 'VERIFIED', 'RESTORING', 'UNAVAILABLE'].includes(String(body.state))
+    || (body.runtimeEnabled !== undefined && typeof body.runtimeEnabled !== 'boolean')
+    || (body.routingMethod !== undefined && !['SYSTEM_PROXY', 'BRAVE'].includes(body.routingMethod))
+    || (body.braveAvailable !== undefined && typeof body.braveAvailable !== 'boolean')
+    || (body.braveLaunchPending !== undefined && typeof body.braveLaunchPending !== 'boolean')
     || (body.routingVerified && body.state !== 'VERIFIED') || !validUrl || typeof body.reason !== 'string'
     || (body.notice != null && (typeof body.notice.id !== 'string' || !['WARN', 'ERROR'].includes(body.notice.kind)
       || typeof body.notice.message !== 'string' || !Number.isFinite(Date.parse(body.notice.occurredAt)))))

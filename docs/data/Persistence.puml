@@ -87,6 +87,7 @@ entity "blocking_policy" as blocking_policy {
   application_consent_at : TIMESTAMP
   * websites_enabled : BOOLEAN
   website_consent_at : TIMESTAMP
+  * website_routing_method : VARCHAR(20)
   * version : BIGINT
   * created_at : TIMESTAMP
   * updated_at : TIMESTAMP

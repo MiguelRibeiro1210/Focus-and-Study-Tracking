@@ -73,8 +73,8 @@ public class ExportAllDataUseCase {
                 add(zip, "blocking-rules.csv", blockingRulesCsv(bundle));
                 add(zip, "protection-preferences.csv", csv("applicationsEnabled", "applicationConsentAt")
                         + csv(bundle.protectionPreferences().applicationsEnabled(), bundle.protectionPreferences().applicationConsentAt()));
-                add(zip, "website-protection-preferences.csv", csv("enabled", "consentAt")
-                        + csv(bundle.websiteProtectionPreferences().enabled(), bundle.websiteProtectionPreferences().consentAt()));
+                add(zip, "website-protection-preferences.csv", csv("enabled", "consentAt", "routingMethod")
+                        + csv(bundle.websiteProtectionPreferences().enabled(), bundle.websiteProtectionPreferences().consentAt(), bundle.websiteProtectionPreferences().routingMethod()));
                 add(zip, "distractions.csv", distractionsCsv(bundle));
             }
             return new ExportFile("focusdesktop-export.zip", "application/zip", bytes.toByteArray());

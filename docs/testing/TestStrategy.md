@@ -299,3 +299,27 @@ one optional browser test skipped in the default run; frontend verification
 passes 107 tests, build, lint (two existing warnings) and the privacy audit.
 The isolated Firefox test also passes separately with `FOCUSDESKTOP_FIREFOX`.
 Native OS/browser and macOS authorization gaps in ADR-011 remain open.
+
+### Linux Brave / Hyprland setup
+
+FST-050 adds existing-profile native Brave routing without touching system or
+profile files. Runtime tests cover explicit protection-enabled development,
+unsupported system setup, routing changes/restoration, voluntary exit, timeout,
+cancellation and launch errors. Controller tests require bearer authentication,
+a local origin and exact launch confirmation; preference integration verifies
+routing persistence, export and reset.
+
+Run `FOCUSDESKTOP_BRAVE=/usr/bin/brave ./mvnw test -Dtest=BraveProxyIntegrationTest`
+from `backend/` with a full Java 17 JDK. Two native tests use isolated temporary
+profiles, controlled HTTP/HTTPS origins and test DNS mappings. They prove PAC
+verification, allowed HTTPS, YouTube/HSTS and subdomain denial without DIRECT
+bypass, pause/resume, fresh responses after normal shutdown and recovery after
+forcibly terminating a fixture proxy process. The test never launches the user's
+profile or contacts the public YouTube service. Only the Brave route enables
+DIRECT fallback; the other platform routes retain their existing PAC behavior.
+
+Full Java 17 verification passes 306 tests with Brave and Firefox enabled;
+frontend verification passes 111 tests, build, lint (two existing SettingsPage
+warnings) and privacy audit. Final focused checks also cover the fresh-response
+assertions and startup failure handling. Other native browser/OS authorization
+gaps remain open under FST-050.

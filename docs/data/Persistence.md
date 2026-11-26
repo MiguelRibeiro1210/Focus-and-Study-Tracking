@@ -81,6 +81,10 @@ See [ADR-007](../decisions/ADR-007-BlockingRuleManagement.md).
   delete-all resets both fields. Preference writes share the policy lock.
   JSON exports include `protectionPreferences`; ZIP exports include
   `protection-preferences.csv`. These preferences do not claim current blocking.
+- FST-050 migration V10 adds `website_routing_method`, constrained to
+  `SYSTEM_PROXY` (the compatibility default) or `BRAVE`. JSON/CSV export includes
+  the selection; delete-all resets it. V9 clears the older browser-only website
+  consent so the wider system-proxy scope requires fresh acknowledgement.
 - FST-050 migration V7 adds `websites_enabled` (initially false) and nullable
   `website_consent_at`, with a check requiring consent while enabled. This is
   separate from suspension consent and shares the policy lock, export and reset

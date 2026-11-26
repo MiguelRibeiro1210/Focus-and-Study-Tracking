@@ -315,18 +315,33 @@ delete-all. Rules alone never activate protection. See
 Authenticated `GET /api/v1/website-protection` returns `enabled`, `state`
 (`DISABLED`, `STARTING`, `READY`, `VERIFIED`, `RESTORING`, `UNAVAILABLE`),
 `routingVerified`, nullable `verificationUrl`, safe `reason` and optional local
-`notice`. `VERIFIED` proves a browser requested the local challenge through the
+`notice`, `runtimeEnabled`, `routingMethod` (`SYSTEM_PROXY` or `BRAVE`),
+`braveAvailable` and `braveLaunchPending`. `VERIFIED` proves a browser requested the local challenge through the
 proxy; it does not prove every browser honors system settings or that a site
 was blocked. Verify each browser separately.
 
 Authenticated `PATCH /api/v1/website-protection` accepts
 `{"enabled":true,"consent":"FORWARD_SYSTEM_PROXY_TRAFFIC"}` or `{"enabled":false}`.
+PATCH optionally includes `routingMethod`; omission preserves the saved method.
 Application consent cannot enable website forwarding. Missing consent, wrong
 types and unknown fields return `400`. Setup/permission failures return the
 actual unavailable/restoring status rather than a successful-protection claim.
 Standalone backend mode does not apply native settings. Export includes
 `websiteProtectionPreferences` and `website-protection-preferences.csv`;
 delete-all resets website consent. See [ADR-011](../decisions/ADR-011-WebsiteProtection.md).
+
+Authenticated `POST /api/v1/website-protection/brave` accepts exactly
+`{"confirmation":"OPEN_EXISTING_BRAVE_PROFILE"}` and returns `202` with the
+current status. Consent, enabled runtime, native Linux Brave and ready `BRAVE`
+routing are required; invalid bodies or unavailable setup return `400`.
+The learner has 60 seconds to close all of their Brave windows, including a
+browser-hosted development UI. The backend then launches the installed native
+Brave with fixed PAC/verification arguments and the existing default profile.
+No arbitrary executable, command, URL or profile path can be supplied. Pending
+launches expire or cancel on disabling/changing routing; nothing is force-closed.
+Runtime status reports timeout or startup failure without claiming verification.
+The Brave-only PAC has tested DIRECT fallback for proxy shutdown/crash; intentional
+HTTP/HTTPS denials remain blocked. Other browsers are outside this routing method.
 
 The proxy has its own ephemeral loopback port and serves a random PAC path and
 local browser verification challenge. It does not expose the authenticated API,

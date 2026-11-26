@@ -1,6 +1,7 @@
 package com.focusdesktop.infrastructure.proxy;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import com.focusdesktop.application.port.WebsiteProtectionPreferences.RoutingMethod;
+import org.springframework.beans.factory.annotation.Autowired;
 import com.focusdesktop.application.port.WebsiteProtectionPreferences;
 import com.focusdesktop.application.usecase.EvaluateWebsiteRequestUseCase;
 import jakarta.annotation.PreDestroy;
@@ -16,11 +17,14 @@ import org.springframework.stereotype.Component;
 @Component
 public class WebsiteProtectionRuntime implements AutoCloseable {
     public record Status(boolean enabled, String state, boolean routingVerified, String verificationUrl,
-                         String reason, com.focusdesktop.application.usecase.ApplicationProtectionCoordinator.Notice notice) { }
+                         String reason, com.focusdesktop.application.usecase.ApplicationProtectionCoordinator.Notice notice,
+                         boolean runtimeEnabled, RoutingMethod routingMethod, boolean braveAvailable, boolean braveLaunchPending) { }
     private final WebsiteProtectionPreferences preferences;
     private final EvaluateWebsiteRequestUseCase gate;
     private final Path journal;
     private final boolean managed;
+    private final BraveBrowserLauncher brave;
+    private Instant braveLaunchUntil;
     private WebsiteProxy proxy;
     private Process guardian;
     private BufferedWriter input;
@@ -30,23 +34,44 @@ public class WebsiteProtectionRuntime implements AutoCloseable {
     private String reason = "Website protection is disabled.";
     private Instant retryAfter = Instant.EPOCH;
 
+    @Autowired
     public WebsiteProtectionRuntime(WebsiteProtectionPreferences preferences, EvaluateWebsiteRequestUseCase gate,
             @Value("${focusdesktop.data-dir}") String dataDir,
             @Value("${focusdesktop.blocking.monitor-enabled:false}") boolean managed) {
-        this.preferences = preferences; this.gate = gate; this.managed = managed;
+        this(preferences, gate, dataDir, managed, new BraveBrowserLauncher());
+    }
+    WebsiteProtectionRuntime(WebsiteProtectionPreferences preferences, EvaluateWebsiteRequestUseCase gate,
+                             String dataDir, boolean managed, BraveBrowserLauncher brave) {
+        this.preferences = preferences; this.gate = gate; this.managed = managed; this.brave = brave;
         journal = Path.of(dataDir).toAbsolutePath().resolve("website-proxy-settings.json");
     }
     public synchronized Status configure(boolean enabled, String consent) {
-        preferences.setEnabled(enabled, consent);
+        return configure(enabled, consent, preferences.get().routingMethod());
+    }
+    public synchronized Status configure(boolean enabled, String consent, RoutingMethod method) {
+        Objects.requireNonNull(method, "routingMethod");
+        if (enabled && !"FORWARD_SYSTEM_PROXY_TRAFFIC".equals(consent))
+            throw new IllegalArgumentException("Explicit forwarding consent is required");
+        if (method != preferences.get().routingMethod()) {
+            try { restoreAndClose(); }
+            catch (Exception exception) {
+                state = "RESTORING"; reason = "Wait for owned network settings to be restored before changing routing.";
+                return status();
+            }
+        }
+        preferences.setEnabled(enabled, consent, method);
         retryAfter = Instant.EPOCH;
         reconcile();
         return status();
     }
     public synchronized Status status() {
-        boolean enabled = preferences.get().enabled();
-        boolean verified = proxy != null && proxy.routingObserved() && state.equals("READY");
+        var preference = preferences.get();
+        boolean enabled = preference.enabled();
+        boolean verified = enabled && proxy != null && proxy.routingObserved() && state.equals("READY");
         return new Status(enabled, enabled && verified ? "VERIFIED" : state, verified,
-                enabled && proxy != null ? proxy.verificationUrl() : null, reason, gate.notice());
+                enabled && proxy != null ? proxy.verificationUrl() : null,
+                !managed ? "Protection runtime is disabled. Use Tauri or explicitly enable protection in the development backend." : reason,
+                gate.notice(), managed, preference.routingMethod(), brave.available(), braveLaunchUntil != null);
     }
     @Scheduled(fixedDelay = 500, initialDelay = 1000, scheduler = "websiteTaskScheduler")
     public synchronized void reconcile() {
@@ -58,17 +83,31 @@ public class WebsiteProtectionRuntime implements AutoCloseable {
                 return;
             }
             if (!enabled) { restoreAndClose(); return; }
-            if (Instant.now().isBefore(retryAfter)) return;
+            if (now().isBefore(retryAfter)) return;
+            if (preferences.get().routingMethod() == RoutingMethod.BRAVE) {
+                if (!brave.available()) {
+                    state = "UNAVAILABLE"; reason = "Native Linux Brave is not available. Flatpak/Snap installations are not supported by this setup.";
+                    return;
+                }
+                if (proxy == null) {
+                    restoreAndClose();
+                    startProxy(true);
+                    state = "READY";
+                    reason = "Brave routing is ready for setup. Choose Set up Brave, then close all Brave windows within 60 seconds.";
+                }
+                processBraveLaunch();
+                proxy.reconcile();
+                return;
+            }
+            if (!brave.systemProxySupported()) {
+                state = "UNAVAILABLE";
+                reason = "Automatic Linux system proxy setup requires GNOME. On Hyprland choose Brave routing instead.";
+                return;
+            }
             if (guardian == null || !guardian.isAlive()) {
                 restoreAndClose();
                 state = "STARTING";
-                proxy = new WebsiteProxy(host -> {
-                    // A missing native integration never silently claims enforcement.
-                    if (!state.equals("READY")) return WebsiteProxy.Decision.allow();
-                    var decision = gate.execute(host);
-                    return new WebsiteProxy.Decision(decision.block(), decision.denied(), decision.failed());
-                });
-                proxy.start();
+                startProxy(false);
                 startGuardian(proxy.pacUrl());
                 state = "READY";
                 reason = "Open the verification link in each browser you use. Only browsers using system proxy settings can be protected.";
@@ -84,13 +123,47 @@ public class WebsiteProtectionRuntime implements AutoCloseable {
             if (!"OK".equals(heartbeat)) throw new IOException("Guardian unavailable");
             proxy.reconcile();
         } catch (Exception exception) {
+            retryAfter = now().plusSeconds(10);
+            try { restoreAndClose(); } catch (Exception ignored) { }
             state = Files.exists(journal) ? "RESTORING" : "UNAVAILABLE";
             reason = "Website setup or restoration could not be confirmed. Check OS proxy permissions and browser connection settings; existing custom proxies are preserved.";
-            retryAfter = Instant.now().plusSeconds(10);
-            try { restoreAndClose(); } catch (Exception ignored) { }
-            if (state.equals("DISABLED")) state = "UNAVAILABLE";
         }
     }
+    private void startProxy(boolean fallback) throws IOException {
+        proxy = new WebsiteProxy(host -> {
+            if (!state.equals("READY")) return WebsiteProxy.Decision.allow();
+            var decision = gate.execute(host);
+            return new WebsiteProxy.Decision(decision.block(), decision.denied(), decision.failed());
+        }, fallback);
+        proxy.start();
+    }
+    public synchronized Status requestBraveSetup() {
+        if (!managed || !preferences.get().enabled() || preferences.get().routingMethod() != RoutingMethod.BRAVE
+                || proxy == null || !state.equals("READY") || !brave.available())
+            throw new IllegalArgumentException("Enable available Brave routing before requesting setup");
+        if (braveLaunchUntil == null) {
+            proxy.resetRoutingProof();
+            braveLaunchUntil = now().plusSeconds(60);
+            reason = "Close all Brave windows within 60 seconds, including this development UI. FocusDesktop will reopen your existing profile; it will not force-close Brave.";
+        }
+        return status();
+    }
+    private void processBraveLaunch() {
+        if (braveLaunchUntil == null) return;
+        if (!now().isBefore(braveLaunchUntil)) {
+            braveLaunchUntil = null;
+            reason = "Brave setup timed out. Close all Brave windows and background processes yourself, then retry Set up Brave.";
+        } else if (!brave.running()) {
+            braveLaunchUntil = null;
+            try {
+                brave.launch(proxy.pacUrl(), proxy.verificationUrl());
+                reason = "Brave was opened with proxy routing. Wait for the verification page before relying on protection.";
+            } catch (IOException exception) {
+                reason = "Brave could not be opened. Check the native installation and retry Set up Brave.";
+            }
+        }
+    }
+    Instant now() { return Instant.now(); }
     private void startGuardian(String pac) throws Exception {
         Files.createDirectories(journal.getParent());
         guardian = new ProcessBuilder(launcher(pac)).redirectError(ProcessBuilder.Redirect.DISCARD).start();
@@ -116,6 +189,7 @@ public class WebsiteProtectionRuntime implements AutoCloseable {
     }
     private String read(int seconds) throws Exception { return reads.submit(output::readLine).get(seconds, TimeUnit.SECONDS); }
     private void restoreAndClose() throws Exception {
+        braveLaunchUntil = null;
         state = "RESTORING";
         if (guardian != null && guardian.isAlive()) {
             input.close();

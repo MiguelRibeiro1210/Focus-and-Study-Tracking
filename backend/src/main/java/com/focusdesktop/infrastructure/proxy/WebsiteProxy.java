@@ -17,6 +17,7 @@ public final class WebsiteProxy implements AutoCloseable {
     private static final int MAX_HEADERS = 32768;
     private final Function<String, Decision> gate;
     private final Connector connector;
+    private final boolean directFallback;
     private final ExecutorService workers = new ThreadPoolExecutor(0, 160, 30, TimeUnit.SECONDS,
             new SynchronousQueue<>(), task -> { var thread = new Thread(task, "website-proxy"); thread.setDaemon(true); return thread; });
     private final Semaphore slots = new Semaphore(64);
@@ -28,7 +29,11 @@ public final class WebsiteProxy implements AutoCloseable {
     private ServerSocket listener;
 
     public WebsiteProxy(Function<String, Decision> gate) { this(gate, WebsiteProxy::connectPublic); }
-    WebsiteProxy(Function<String, Decision> gate, Connector connector) { this.gate = gate; this.connector = connector; }
+    WebsiteProxy(Function<String, Decision> gate, Connector connector) { this(gate, connector, false); }
+    WebsiteProxy(Function<String, Decision> gate, boolean directFallback) { this(gate, WebsiteProxy::connectPublic, directFallback); }
+    WebsiteProxy(Function<String, Decision> gate, Connector connector, boolean directFallback) {
+        this.gate = gate; this.connector = connector; this.directFallback = directFallback;
+    }
     public synchronized void start() throws IOException {
         if (running) return;
         listener = new ServerSocket();
@@ -50,6 +55,7 @@ public final class WebsiteProxy implements AutoCloseable {
     public int port() { return listener == null ? 0 : listener.getLocalPort(); }
     public String pacUrl() { return "http://127.0.0.1:" + port() + "/pac/" + pacToken; }
     public boolean routingObserved() { return routingObserved; }
+    void resetRoutingProof() { routingObserved = false; }
     public String verificationUrl() { return "http://focusdesktop.invalid/verify/" + pacToken; }
 
     public void reconcile() {
@@ -75,7 +81,7 @@ public final class WebsiteProxy implements AutoCloseable {
                 String script = "function FindProxyForURL(url, host) { "
                         + "if (isPlainHostName(host) || host === 'localhost' || host === '::1' || "
                         + "shExpMatch(host, '127.*') || dnsDomainIs(host, '.localhost')) return 'DIRECT'; "
-                        + "return 'PROXY 127.0.0.1:" + port() + "'; }";
+                        + "return 'PROXY 127.0.0.1:" + port() + (directFallback ? "; DIRECT" : "") + "'; }";
                 respond(output, 200, script, "application/x-ns-proxy-autoconfig"); return;
             }
             Endpoint endpoint;
