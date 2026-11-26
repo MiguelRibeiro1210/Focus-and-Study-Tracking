@@ -54,6 +54,30 @@ class JpaFocusSessionRepositoryAdapterTest {
     private Flyway flyway;
 
     @Test
+    void readsSessionAndIntervalsTogetherWithoutATornLazySnapshot() {
+        FocusSession session = FocusSessionFactory.create(SETTINGS, START);
+        session.start(START);
+        sessions.save(session);
+        entityManager.flush();
+        entityManager.clear();
+        var statistics = entityManager.getEntityManagerFactory()
+                .unwrap(org.hibernate.SessionFactory.class).getStatistics();
+        boolean previouslyEnabled = statistics.isStatisticsEnabled();
+        statistics.setStatisticsEnabled(true);
+        try {
+            long before = statistics.getPrepareStatementCount();
+            assertEquals(IntervalState.RUNNING, sessions.findById(session.id()).orElseThrow().currentInterval().state());
+            assertEquals(1, statistics.getPrepareStatementCount() - before,
+                    "Parent and intervals must share one SQL snapshot");
+            entityManager.clear();
+            before = statistics.getPrepareStatementCount();
+            assertEquals(session.id(), sessions.findActive().orElseThrow().id());
+            assertEquals(1, statistics.getPrepareStatementCount() - before,
+                    "Active session and intervals must share one SQL snapshot");
+        } finally { statistics.setStatisticsEnabled(previouslyEnabled); }
+    }
+
+    @Test
     void flywayAppliesSessionAndOutboxRetryMigrations() {
         var currentMigration = flyway.info().current();
         assertNotNull(currentMigration);

@@ -16,7 +16,8 @@ public class SessionIntervalScheduler {
         this.completeDueIntervals = completeDueIntervals;
     }
 
-    @Scheduled(fixedDelayString = "${focusdesktop.session.interval-check-delay-ms:5000}")
+    @Scheduled(fixedDelayString = "${focusdesktop.session.interval-check-delay-ms:5000}",
+            initialDelayString = "${focusdesktop.session.interval-check-initial-delay-ms:0}")
     public void completeDueIntervals() {
         try {
             completeDueIntervals.execute();

@@ -4,6 +4,17 @@ The test strategy protects the timer, privacy and read-model guarantees. Tests
 are layered: fast domain tests for invariants, application tests with fakes,
 integration tests for adapters, and a small E2E suite for desktop flows.
 
+### Interval transaction regression (2026-11-26)
+
+CI exposed a race in IntervalCompletionTransactionTest: increasing a scheduled
+task's fixed delay does not delay its first invocation. Give that integration
+fixture an explicit initial delay so only the test invokes interval completion.
+Session aggregate reads must fetch the parent and intervals in one database
+statement, avoiding inconsistent reconstruction if another transaction commits
+between parent and lazy-child reads. Verify both ID and active-session loading
+use one statement and retain rollback/outbox assertions. Keep domain validation
+strict; do not hide inconsistent persisted state by weakening its invariants.
+
 ## 1. Test levels
 
 | Level | Scope | Tooling | Runs in CI |

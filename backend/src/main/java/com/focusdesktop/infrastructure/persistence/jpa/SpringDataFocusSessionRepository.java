@@ -6,14 +6,20 @@ import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
-import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 interface SpringDataFocusSessionRepository extends JpaRepository<FocusSessionJpaEntity, UUID> {
-    Optional<FocusSessionJpaEntity> findFirstByStateIn(Collection<SessionState> states);
+    @Override
+    @EntityGraph(attributePaths = "intervals")
+    Optional<FocusSessionJpaEntity> findById(UUID id);
+
+    // The active-slot constraint guarantees at most one active aggregate.
+    // Fetch its intervals in the same statement; pagination would split the snapshot.
+    @Query("select s from FocusSessionJpaEntity s left join fetch s.intervals where s.state in :states")
+    Optional<FocusSessionJpaEntity> findFirstByStateIn(@Param("states") Collection<SessionState> states);
     @EntityGraph(attributePaths = "intervals")
     List<FocusSessionJpaEntity> findAllByOrderByCreatedAtDescIdAsc();
     @Query("select s.id from FocusSessionJpaEntity s where s.state in :states")

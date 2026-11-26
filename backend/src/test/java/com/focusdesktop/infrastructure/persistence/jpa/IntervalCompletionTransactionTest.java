@@ -29,6 +29,7 @@ import org.springframework.transaction.support.TransactionTemplate;
         "focusdesktop.data-dir=target/test-interval-transaction-data",
         "focusdesktop.api.token=test-token",
         "focusdesktop.session.interval-check-delay-ms=86400000",
+        "focusdesktop.session.interval-check-initial-delay-ms=86400000",
         "spring.datasource.url=jdbc:h2:mem:interval_completion_transaction_test;DB_CLOSE_DELAY=-1",
         "spring.datasource.driver-class-name=org.h2.Driver",
         "spring.datasource.username=sa",
