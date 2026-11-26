@@ -126,6 +126,21 @@
 .dialog-actions { display: flex; justify-content: flex-end; gap: .6rem; margin-top: 1.6rem; }
 
 /* Distraction rules */
+.rule-editor { padding: 20px; }
+.rule-editor fieldset { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 16px; margin-top: 16px; padding: 0; border: 0; }
+.rule-editor label { display: grid; gap: 7px; font-size: 12px; }
+.rule-editor input:not([type="checkbox"]), .rule-editor select { width: 100%; min-height: 38px; padding: 8px; border: 1px solid #b7c7bb; border-radius: 6px; background: inherit; color: inherit; font: inherit; }
+.rule-editor small { color: #69766c; }
+.rule-editor .rule-enabled, .rule-form-actions, .rule-action, .rule-controls { display: flex; align-items: center; gap: 12px; }
+.rule-editor p, .rule-form-actions { grid-column: 1 / -1; }
+.rule-error { padding: 12px; border: 1px solid #b85949; border-radius: 8px; }
+.rule-error button { margin-left: 16px; }
+.saved-rules-table .distraction-row { grid-template-columns: minmax(130px, 1fr) 100px 90px; gap: 10px; padding: 10px 0; }
+.saved-rules-table .distraction-name { min-width: 0; overflow-wrap: anywhere; }
+.saved-rules-table .distraction-row > :nth-child(2) { display: flex; }
+.saved-rules-table .rule-controls { flex-wrap: wrap; gap: 8px; }
+.rule-controls button, .rule-editor button:not(.button) { padding: 6px; border: 1px solid #b7c7bb; border-radius: 5px; background: transparent; color: inherit; cursor: pointer; }
+.distractions-page button:disabled { opacity: .55; cursor: wait; }
 .distractions-page { display: grid; gap: 24px; }
 .boundaries-banner { display: flex; min-height: 85px; align-items: center; justify-content: space-between; gap: 20px; padding: 16px 24px; border-radius: 12px; background: #eaf0df; }
 .boundaries-banner h2 { font-size: 17px; }
