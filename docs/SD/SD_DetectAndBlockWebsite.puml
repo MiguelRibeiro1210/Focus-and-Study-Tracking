@@ -35,11 +35,11 @@ alt eligible matching rule
     opt WARN
       Proxy -> UI : local warning
     end
-    Proxy -> Origin : forward browser-requested bytes
+    Proxy -> Origin : forward client-requested bytes
     Origin --> Browser : response through proxy
   end
 else no blocking decision / paused / break / stopped
-  Proxy -> Origin : forward browser-requested bytes
+  Proxy -> Origin : forward client-requested bytes
   Origin --> Browser : response through proxy
 end
 note over Proxy, Origin

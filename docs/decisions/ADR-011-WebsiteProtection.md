@@ -5,10 +5,12 @@
 
 ## Approved privacy exception
 
-The user explicitly approved forwarding browser-requested traffic through a
-local proxy, without HTTPS decryption, telemetry or a cloud service. This is a
-narrow exception to FST-026 and ADR-001: only the consented website proxy may
-open remote connections, and only to serve a browser request. Timer, local API,
+The user explicitly approved forwarding requests from browsers and other apps
+that use the temporary system proxy, without HTTPS decryption, telemetry or a
+cloud service. The system proxy cannot reliably identify a client executable
+from its HTTP request. This is a narrow exception to FST-026 and ADR-001: only
+the consented website proxy may open remote connections, and only in response
+to a client request. It must never initiate autonomous outbound requests. Timer, local API,
 storage, exports and application monitoring remain local. No certificate is
 installed. TLS bytes pass unchanged through CONNECT tunnels. Do not retain URL
 paths, queries, credentials, cookies, page contents or packet payloads.
@@ -17,6 +19,18 @@ Website protection is initially disabled. Enabling requires a separate explicit
 acknowledgement explaining forwarding and temporary network configuration.
 Record consent locally and include it in export/reset behavior. Consent to
 application suspension does not imply website-proxy consent.
+
+The API acknowledgement is `FORWARD_SYSTEM_PROXY_TRAFFIC`. Reject the previous
+browser-only acknowledgement instead of treating it as consent to a broader
+scope. A forward-only migration disables website protection and clears its old
+consent timestamp so existing installations must explicitly accept the new
+scope. Keep saved rules and application protection unchanged. Startup recovery
+must still restore any settings journal left by the previous process before
+closing its proxy. Export/reset continue to include/clear the current consent.
+The UI must name browsers and other apps using temporary system proxy settings,
+state that HTTPS is not decrypted, and disclaim autonomous requests or telemetry.
+A browser verification challenge proves that client's routing only; it cannot
+prove that all apps use the proxy or identify the client's executable.
 
 ## Identification and enforcement
 

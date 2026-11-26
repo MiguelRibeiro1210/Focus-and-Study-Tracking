@@ -320,7 +320,7 @@ proxy; it does not prove every browser honors system settings or that a site
 was blocked. Verify each browser separately.
 
 Authenticated `PATCH /api/v1/website-protection` accepts
-`{"enabled":true,"consent":"FORWARD_BROWSER_TRAFFIC"}` or `{"enabled":false}`.
+`{"enabled":true,"consent":"FORWARD_SYSTEM_PROXY_TRAFFIC"}` or `{"enabled":false}`.
 Application consent cannot enable website forwarding. Missing consent, wrong
 types and unknown fields return `400`. Setup/permission failures return the
 actual unavailable/restoring status rather than a successful-protection claim.
@@ -470,3 +470,9 @@ When a session is abandoned because it ended before the five-minute minimum,
 - [Sequence diagrams](../SD/SequenceDiagrams.md)
 - [Persistence](../data/Persistence.md)
 - [Test strategy](../testing/TestStrategy.md)
+
+Website forwarding consent covers browsers and other apps that use temporary
+system proxy settings. Browser-only consent tokens are rejected. Migration V9
+disables old website preferences and clears their consent timestamp; saved rules
+and application protection are retained. No autonomous outbound requests, HTTPS
+decryption or telemetry are authorized.
