@@ -43,6 +43,17 @@ class BlockingRuleControllerIntegrationTest {
     void clearRules() { jdbc.update("DELETE FROM blocking_rule"); }
 
     @Test
+    void diagnosticStatusIsAuthenticatedReadOnlyAndDoesNotClaimEnforcement() throws Exception {
+        mvc.perform(get("/api/v1/blocking-status")).andExpect(status().isUnauthorized());
+        mvc.perform(get("/api/v1/blocking-status").header("Authorization", "Bearer test-token"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.monitorEnabled").value(false))
+                .andExpect(jsonPath("$.applicationDetection").value("DISABLED"))
+                .andExpect(jsonPath("$.applicationEnforcement").value(false))
+                .andExpect(jsonPath("$.websiteEnforcement").value(false))
+                .andExpect(jsonPath("$.checkedAt").isString());
+    }
+
+    @Test
     void migrationSeedsExactlyOneEmptyPolicyAndCrudReloadsTheTypedDomain() throws Exception {
         assertEquals(1, jdbc.queryForObject("SELECT COUNT(*) FROM blocking_policy", Integer.class));
         mvc.perform(get("/api/v1/blocking-rules").header("Authorization", "Bearer test-token"))

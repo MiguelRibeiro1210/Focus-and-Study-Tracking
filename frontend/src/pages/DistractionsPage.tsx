@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
 import { createBlockingRulesApi, targetLabel } from '../api/blockingRulesApi'
-import type { ApplicationMatchKind, BlockingAction, BlockingRule, BlockingRuleInput, BlockingRulesApi, TargetPlatform } from '../api/blockingRulesApi'
+import type { ApplicationMatchKind, BlockingAction, BlockingRule, BlockingRuleInput, BlockingRulesApi, BlockingStatus, TargetPlatform } from '../api/blockingRulesApi'
 
 export function DistractionsPage({ api: suppliedApi }: { api?: BlockingRulesApi }) {
   const [api] = useState(() => suppliedApi ?? createBlockingRulesApi())
@@ -86,12 +86,38 @@ export function DistractionsPage({ api: suppliedApi }: { api?: BlockingRulesApi 
         </div>}
       </section>
       <aside className="distraction-side-column">
-        <section className="profile-panel card-panel"><h2>Protection availability</h2><p>Rules are saved locally. Runtime protection is not connected yet.</p></section>
+        <ProtectionAvailability api={api} />
         <section className="profile-panel card-panel"><h2>Focus profiles</h2><p className="muted-copy">One rule set applies to this installation. Multiple rule profiles are not available yet.</p></section>
         <section className="boundaries-info card-panel"><h2>You set the boundaries.</h2><div><strong>During focus time</strong><p>Protection will apply during running work intervals. Pauses and breaks release restrictions.</p></div><div><strong>Control stays local</strong><p>Your rules stay on your computer.</p></div></section>
       </aside>
     </div>
   </div>
+}
+
+function ProtectionAvailability({ api }: { api: BlockingRulesApi }) {
+  const [status, setStatus] = useState<BlockingStatus | null>(null)
+  const [error, setError] = useState('')
+  useEffect(() => {
+    if (!api.status) return
+    let active = true
+    let timer: ReturnType<typeof setTimeout> | undefined
+    async function refresh() {
+      try {
+        const result = await api.status!()
+        if (active) { setStatus(result); setError('') }
+      } catch (cause) { if (active) { setStatus(null); setError(message(cause)) } }
+      finally { if (active) timer = setTimeout(() => void refresh(), 2000) }
+    }
+    void refresh()
+    return () => { active = false; clearTimeout(timer) }
+  }, [api])
+  return <section className="profile-panel card-panel" aria-label="Protection availability">
+    <h2>Protection availability</h2>
+    {!api.status ? <p>Rules are saved locally. Runtime protection is not connected yet.</p>
+      : error ? <p role="status">Protection status unavailable: {error}</p>
+        : !status ? <p role="status">Checking protection status…</p>
+          : <><p role="status">{status.applicationReason}</p><p>Application blocking: {status.applicationEnforcement ? 'available' : 'not connected yet'}. Website blocking: {status.websiteEnforcement ? 'available' : 'not connected yet'}.</p></>}
+  </section>
 }
 
 function RuleEditor({ rule, pending, onSave, onCancel }: { rule?: BlockingRule; pending: boolean; onSave(input: BlockingRuleInput): Promise<void>; onCancel(): void }) {

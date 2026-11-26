@@ -207,6 +207,7 @@ impl BackendSupervisor {
             .arg(java_compatible_path(&jar))
             .arg("--server.address=127.0.0.1")
             .arg("--server.port=8080")
+            .arg("--focusdesktop.blocking.monitor-enabled=true")
             .env("FOCUSDESKTOP_DATA_DIR", &self.data_dir)
             .stdin(Stdio::null())
             .stdout(Stdio::from(log))

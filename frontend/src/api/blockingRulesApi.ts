@@ -13,11 +13,20 @@ export interface BlockingRuleInput {
   enabled: boolean
 }
 export interface BlockingRule extends BlockingRuleInput { id: string; createdAt: string; updatedAt: string }
+export interface BlockingStatus {
+  monitorEnabled: boolean
+  applicationDetection: 'DISABLED' | 'IDLE' | 'OBSERVING' | 'UNAVAILABLE'
+  applicationReason: string
+  applicationEnforcement: boolean
+  websiteEnforcement: boolean
+  checkedAt: string
+}
 export interface BlockingRulesApi {
   list(): Promise<BlockingRule[]>
   create(input: BlockingRuleInput): Promise<BlockingRule>
   patch(id: string, input: Partial<BlockingRuleInput>): Promise<BlockingRule>
   delete(id: string): Promise<void>
+  status?(): Promise<BlockingStatus>
 }
 
 function isRule(value: unknown): value is BlockingRule {
@@ -38,8 +47,8 @@ export function targetLabel(target: RuleTarget): string { return target.type ===
 
 export function createBlockingRulesApi(fetcher?: typeof fetch): BlockingRulesApi {
   const requestFetch = fetcher ?? (isDesktopShell() ? nativeFetch : fetch)
-  async function request(path = '', method = 'GET', input?: Partial<BlockingRuleInput>): Promise<unknown> {
-    const response = await requestFetch(`/api/v1/blocking-rules${path}`, {
+  async function request(path = '', method = 'GET', input?: Partial<BlockingRuleInput>, base = '/api/v1/blocking-rules'): Promise<unknown> {
+    const response = await requestFetch(`${base}${path}`, {
       method, headers: { Accept: 'application/json', ...(input ? { 'Content-Type': 'application/json' } : {}) },
       body: input ? JSON.stringify(input) : undefined,
     })
@@ -59,6 +68,14 @@ export function createBlockingRulesApi(fetcher?: typeof fetch): BlockingRulesApi
     return body
   }
   return {
+    status: async () => {
+      const body = await request('', 'GET', undefined, '/api/v1/blocking-status') as Partial<BlockingStatus> | null
+      if (!body || typeof body.monitorEnabled !== 'boolean' || typeof body.applicationReason !== 'string'
+        || !['DISABLED', 'IDLE', 'OBSERVING', 'UNAVAILABLE'].includes(String(body.applicationDetection))
+        || typeof body.applicationEnforcement !== 'boolean' || typeof body.websiteEnforcement !== 'boolean'
+        || typeof body.checkedAt !== 'string' || !Number.isFinite(Date.parse(body.checkedAt))) throw new Error('The local API returned invalid protection status.')
+      return body as BlockingStatus
+    },
     list: async () => {
       const body = await request()
       if (!Array.isArray(body) || !body.every(isRule)) throw new Error('The local API returned an invalid rule list.')

@@ -68,6 +68,16 @@ recorded explicitly, including any unavailable desktop configurations.
 
 ## Sources and diagrams
 
+Implementation verification on 2026-11-26: full offline Maven verify passes
+253 tests, including eligibility/race checks, platform fixture parsing, current
+test-process identity, bounded owned-command execution and authenticated status.
+Frontend Vitest passes 94 tests; frontend build, privacy audit, offline Rust
+compilation and formatting pass. Lint reports only existing SettingsPage warnings.
+No live Windows/macOS foreground query or live compositor query was performed
+in this environment. Linux process identity and command bounds were checked with
+owned test processes. Unsupported Wayland configurations remain explicitly
+unavailable. App suspension and website blocking are still subsequent stories.
+
 - [Windows foreground window](https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-getforegroundwindow)
 - [Window PID](https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-getwindowthreadprocessid)
 - [macOS frontmost application](https://developer.apple.com/documentation/appkit/nsworkspace/frontmostapplication?language=objc)

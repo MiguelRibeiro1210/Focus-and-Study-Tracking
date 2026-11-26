@@ -284,6 +284,18 @@ delete-all clears the rules while preserving an empty policy. History-only
 cleanup preserves configuration. Saving/enabling a rule does not claim runtime
 protection or emit a block-success event. The Distractions UI is FST-049.
 
+### Foreground detection status (FST-027)
+
+Authenticated `GET /api/v1/blocking-status` returns `monitorEnabled`,
+`applicationDetection` (`DISABLED`, `IDLE`, `OBSERVING`, `UNAVAILABLE`), a safe
+`applicationReason`, `applicationEnforcement`, `websiteEnforcement` and UTC
+`checkedAt`. This endpoint reads diagnostics without querying the OS and returns
+no executable, title or process identifier. Both enforcement fields are false
+until the enforcement stories integrate real runtime behavior. Desktop launch
+enables monitoring; standalone backend launches require the explicit
+`--focusdesktop.blocking.monitor-enabled=true` option. See
+[ADR-009](../decisions/ADR-009-ApplicationMonitoring.md) for platform requirements.
+
 ## 6. Distraction log (Phase 2 read model)
 
 | Method | Path | Purpose | Success |

@@ -15,6 +15,20 @@ function api(overrides: Partial<BlockingRulesApi> = {}): BlockingRulesApi {
 }
 
 describe('saved distraction rules', () => {
+  it('reports unavailable detection separately from rule configuration and enforcement', async () => {
+    render(<DistractionsPage api={api({ status: vi.fn().mockResolvedValue({ monitorEnabled: true,
+      applicationDetection: 'UNAVAILABLE', applicationReason: 'This Wayland desktop has no supported foreground adapter.',
+      applicationEnforcement: false, websiteEnforcement: false, checkedAt: '2026-11-26T00:00:00Z' }) })} />)
+    expect(await screen.findByText(/This Wayland desktop/)).toBeTruthy()
+    expect(screen.getByText(/Application blocking: not connected yet/)).toBeTruthy()
+    expect(await screen.findByText('Video')).toBeTruthy()
+  })
+
+  it('shows unknown protection availability when status requests fail', async () => {
+    render(<DistractionsPage api={api({ status: vi.fn().mockRejectedValue(new Error('Offline')) })} />)
+    expect(await screen.findByText('Protection status unavailable: Offline')).toBeTruthy()
+    expect(screen.queryByText(/Application blocking: available/)).toBeNull()
+  })
   it('disables concurrent mutations until a toggle is confirmed by storage', async () => {
     const user = userEvent.setup()
     let complete!: (rule: BlockingRule) => void
