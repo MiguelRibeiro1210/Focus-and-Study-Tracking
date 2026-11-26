@@ -104,6 +104,7 @@ public final class ApplicationTarget implements DistractionTarget {
     public TargetPlatform platform() { return platform; }
     public ApplicationMatchKind matchKind() { return matchKind; }
     public String value() { return value; }
+    public String canonicalValue() { return canonicalValue; }
 
     @Override
     public boolean equals(Object other) {

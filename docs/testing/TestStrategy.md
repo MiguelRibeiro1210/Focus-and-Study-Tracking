@@ -158,7 +158,7 @@ The design source is [ADR-006](../decisions/ADR-006-distraction-model.md).
 
 Rules, targets, decisions and observation facts are immutable. The policy
 validates a complete replacement before changing a rule. The domain repository
-port has no adapter yet; FST-048 supplies storage and its single-active-policy
+port is implemented by FST-048, which supplies storage and its single-active-policy
 constraint. `domain.readmodel.DistractionLog` pairs a detection with an optional
 sealed `DistractionBlockOutcome`, checking their facts and chronology. Log
 projection/delivery and persistence belong to FST-037. Category fixtures use
@@ -182,8 +182,14 @@ Those remain in the assigned follow-on stories and require their own approvals.
 
 ## Blocking rule management verification (FST-048)
 
-This is a documentation-stage test plan, not a claim of implemented behavior.
-[ADR-007](../decisions/ADR-007-BlockingRuleManagement.md) defines the contract.
+[ADR-007](../decisions/ADR-007-BlockingRuleManagement.md) defines the implemented contract.
+Verification on 2026-11-26 passed: full offline Maven verify (239 tests),
+frontend Vitest (82 tests), frontend build/lint, offline Rust compilation and
+Rust formatting. Fifteen API integration cases cover CRUD, normalized target
+replacement, concurrent distinct/duplicate creates, database constraints,
+rollback, exports, history preservation and delete-all. Three frontend transport
+cases cover PATCH, validation errors and bodyless deletion. OS/browser runtime
+enforcement is not implemented or verified by this story.
 
 - Verify V5 on empty and existing databases, one seeded empty policy, FK/target
   shape checks and canonical uniqueness for both application and website rules.

@@ -10,10 +10,13 @@ public class DeleteAllDataUseCase {
     public static final String CONFIRMATION = "DELETE_ALL_DATA";
     private final SessionDataMaintenance maintenance;
     private final AppSettingsRepository settings;
+    private final ManageBlockingRulesUseCase blockingRules;
 
-    public DeleteAllDataUseCase(SessionDataMaintenance maintenance, AppSettingsRepository settings) {
+    public DeleteAllDataUseCase(SessionDataMaintenance maintenance, AppSettingsRepository settings,
+                                ManageBlockingRulesUseCase blockingRules) {
         this.maintenance = maintenance;
         this.settings = settings;
+        this.blockingRules = blockingRules;
     }
 
     @Transactional
@@ -21,6 +24,7 @@ public class DeleteAllDataUseCase {
         if (!CONFIRMATION.equals(confirmation)) {
             throw new IllegalArgumentException("Explicit delete-all confirmation is required");
         }
+        blockingRules.clear();
         maintenance.deleteAllSessionData();
         settings.resetToDefaults();
     }

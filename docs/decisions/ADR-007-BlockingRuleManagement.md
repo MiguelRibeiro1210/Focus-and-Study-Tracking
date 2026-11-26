@@ -1,7 +1,7 @@
 # ADR-007 — Persisted blocking rules and local management API
 
 **Status:** Documentation approved for commit by the user on 2026-11-26.
-Production implementation follows this documentation commit.
+Implemented after the documentation commit; verification is recorded below.
 
 ## Delivery workflow and boundaries
 
@@ -70,8 +70,10 @@ configuration, not runtime capability state or detection events. Future
 monitoring reads committed policy state on its next cycle; introduce no stale
 application cache.
 
-Keep transaction-lock access in an application port implemented by the JPA
-adapter; do not put Spring lock types in the pure domain. A read projection
+Keep transaction-lock access in an application port implemented by a JDBC
+adapter using the existing JPA transaction manager and shared datasource. This
+keeps aggregate reconstruction and row locking explicit without introducing
+managed entity snapshots. Do not put Spring lock types in the pure domain. A read projection
 provides API DTOs with persisted audit metadata, avoiding persistence timestamps
 in the existing domain rule. Flush mutations before reading their response DTOs.
 Unchanged rules keep their audit timestamps; only new/changed rows receive new

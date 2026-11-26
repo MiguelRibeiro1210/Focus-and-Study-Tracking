@@ -21,19 +21,22 @@ public class ExportAllDataUseCase {
     private final DataExportReader sessions;
     private final GetAnalyticsSummaryUseCase analytics;
     private final ObjectMapper objectMapper;
+    private final ManageBlockingRulesUseCase blockingRules;
 
     public ExportAllDataUseCase(SettingsUseCase settings, DataExportReader sessions,
-                                GetAnalyticsSummaryUseCase analytics, ObjectMapper objectMapper) {
+                                GetAnalyticsSummaryUseCase analytics, ObjectMapper objectMapper,
+                                ManageBlockingRulesUseCase blockingRules) {
         this.settings = settings;
         this.sessions = sessions;
         this.analytics = analytics;
         this.objectMapper = objectMapper;
+        this.blockingRules = blockingRules;
     }
 
     @Transactional
     public ExportFile execute(String format) {
         DataExportBundle bundle = new DataExportBundle(settings.get(), sessions.loadAllSessions(),
-                analytics.execute(null, null));
+                analytics.execute(null, null), blockingRules.list());
         return switch (format == null ? "" : format.toLowerCase(java.util.Locale.ROOT)) {
             case "json" -> json(bundle);
             case "csv-zip" -> csvZip(bundle);
@@ -58,6 +61,7 @@ public class ExportAllDataUseCase {
                 add(zip, "sessions.csv", sessionsCsv(bundle));
                 add(zip, "intervals.csv", intervalsCsv(bundle));
                 add(zip, "analytics.csv", analyticsCsv(bundle.analytics()));
+                add(zip, "blocking-rules.csv", blockingRulesCsv(bundle));
             }
             return new ExportFile("focusdesktop-export.zip", "application/zip", bytes.toByteArray());
         } catch (IOException exception) {
@@ -69,6 +73,15 @@ public class ExportAllDataUseCase {
         return csv("defaultProfileId", "dailyGoalHours", "theme", "notificationsEnabled", "retentionDays")
                 + csv(settings.defaultProfileId(), settings.dailyGoalHours(), settings.theme(),
                 settings.notificationsEnabled(), settings.retentionDays());
+    }
+
+    private String blockingRulesCsv(DataExportBundle bundle) {
+        StringBuilder result = new StringBuilder(csv("id", "displayName", "type", "platform", "matchKind",
+                "value", "domain", "category", "action", "enabled", "createdAt", "updatedAt"));
+        bundle.blockingRules().forEach(rule -> result.append(csv(rule.id(), rule.displayName(), rule.target().type(),
+                rule.target().platform(), rule.target().matchKind(), rule.target().value(), rule.target().domain(),
+                rule.category(), rule.action(), rule.enabled(), rule.createdAt(), rule.updatedAt())));
+        return result.toString();
     }
 
     private String profilesCsv(SettingsDto settings) {

@@ -5,9 +5,11 @@ import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 
-public record DataExportBundle(SettingsDto settings, List<SessionExport> sessions, AnalyticsSummary analytics) {
+public record DataExportBundle(SettingsDto settings, List<SessionExport> sessions, AnalyticsSummary analytics,
+                               List<BlockingRuleDto> blockingRules) {
     public DataExportBundle {
         sessions = List.copyOf(sessions);
+        blockingRules = List.copyOf(blockingRules);
     }
 
     public record SessionExport(UUID sessionId, String projectName, String sessionType, String status,
