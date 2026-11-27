@@ -1,0 +1,41 @@
+@startuml
+title FST-051 - Select installed applications
+actor User
+participant "Distractions UI" as UI
+participant "Local API" as API
+participant "Application catalog" as Catalog
+participant "Native metadata" as OS
+participant "Foreground monitor" as Monitor
+participant "Blocking policy" as Policy
+database "Local database" as DB
+User -> UI: Add distraction / Application
+UI -> API: GET /api/v1/applications
+API -> Catalog: discover or use 60-second cache
+Catalog -> OS: read native and package metadata
+OS --> Catalog: applications and provider warnings
+Catalog --> API: typed targets and availability
+API --> UI: catalog for current platform
+UI --> User: searchable checkboxes / manual fallback
+User -> UI: select apps and add
+UI -> API: POST /api/v1/blocking-rules/batch
+API -> Policy: validate all / lock policy once
+alt invalid or duplicate target
+  Policy --> API: reject complete batch
+  API --> UI: 422 / 409; no partial additions
+  UI --> User: preserve selection and show error
+else valid batch
+  Policy -> DB: save all rules in one transaction
+  DB --> Policy: committed rules
+  Policy --> API: saved DTOs
+  API --> UI: 201 and saved rules
+end
+== During an eligible focus interval ==
+Monitor -> OS: resolve actual foreground process identity
+OS --> Monitor: PID / start time / executable / optional app ID
+Monitor -> Policy: evaluate exact identity
+note right of Policy
+Path > app ID > process name.
+Never target a shared package launcher.
+Existing suspension/recovery safeguards apply.
+end note
+@enduml

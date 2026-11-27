@@ -1,5 +1,11 @@
 # REST and WebSocket API
 
+FST-051 adds the application catalog and atomic rule batch described in
+[ADR-016](../decisions/ADR-016-ApplicationPicker.md). Both use the existing local
+bearer-token/origin protections. `APPLICATION_ID` adds namespaced package/bundle
+targets without removing executable-path or process-name rules. The catalog
+does not activate protection or execute any discovered application.
+
 The local backend exposes a versioned REST API for commands and queries and a
 WebSocket channel for live timer and domain-event notifications. The API is
 local-only: it binds to `127.0.0.1`, rejects non-loopback origins and requires a
