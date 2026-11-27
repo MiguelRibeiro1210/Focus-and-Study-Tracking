@@ -58,6 +58,27 @@ public class ManageBlockingRulesUseCase {
     }
 
     @Transactional
+    public List<BlockingRuleDto> createBatch(List<Change> changes) {
+        if (changes == null || changes.isEmpty() || changes.size() > 100)
+            throw BlockingRuleException.invalid("rules", "Select between 1 and 100 applications");
+        BlockingPolicy policy = lockAndLoad();
+        var created = new java.util.ArrayList<BlockingRule>();
+        for (Change change : changes) {
+            if (change == null || !(change.target() instanceof ApplicationTarget))
+                throw BlockingRuleException.invalid("rules", "Batch entries must be complete application rules");
+            ensureUnique(policy, change.target(), null);
+            try {
+                var rule = BlockingRule.create(change.displayName(), change.target(), change.category(), change.action(), change.enabled());
+                policy.addRule(rule); created.add(rule);
+            } catch (IllegalArgumentException | NullPointerException exception) {
+                throw BlockingRuleException.invalid("rules", "Each application needs a valid complete rule");
+            }
+        }
+        policies.save(policy);
+        return created.stream().map(rule -> access.find(rule.id().value()).orElseThrow(BlockingRuleException::missing)).toList();
+    }
+
+    @Transactional
     public void delete(UUID id) {
         BlockingPolicy policy = lockAndLoad();
         BlockingRule rule = policy.rules().stream().filter(item -> item.id().value().equals(id))

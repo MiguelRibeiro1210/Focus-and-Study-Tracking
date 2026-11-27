@@ -69,6 +69,55 @@ class BlockingRuleControllerIntegrationTest {
         assertNull(jdbc.queryForObject("SELECT application_consent_at FROM blocking_policy", java.time.OffsetDateTime.class));
     }
 
+    @Test void applicationCatalogAndAtomicBatchAreAuthenticatedAndPersistPackageTargets() throws Exception {
+        mvc.perform(get("/api/v1/applications")).andExpect(status().isUnauthorized());
+        mvc.perform(get("/api/v1/applications").header("Authorization", "Bearer test-token").header("Origin", "https://untrusted.example"))
+                .andExpect(status().isForbidden());
+        mvc.perform(get("/api/v1/applications").header("Authorization", "Bearer test-token"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.applications").isArray()).andExpect(jsonPath("$.platform").isString());
+        String first = appRule("Chat", "flatpak:org.example.Chat"), second = appRule("Music", "snap:music.music");
+        String body = "{\"rules\":[" + first + "," + second + "]}";
+        mvc.perform(post("/api/v1/blocking-rules/batch").contentType("application/json").content(body)).andExpect(status().isUnauthorized());
+        mvc.perform(post("/api/v1/blocking-rules/batch").header("Authorization", "Bearer test-token").contentType("application/json").content(body))
+                .andExpect(status().isCreated()).andExpect(jsonPath("$.length()").value(2)).andExpect(jsonPath("$[0].target.matchKind").value("APPLICATION_ID"));
+        assertEquals(2, rules.list().size());
+        assertTrue(policies.findActive().orElseThrow().evaluate(ObservedDistraction.application(new com.focusdesktop.domain.model.AppIdentifier(
+                com.focusdesktop.domain.model.TargetPlatform.LINUX, "/app/bin/chat", "chat", "flatpak:org.example.Chat"))).isPresent());
+        mvc.perform(get("/api/v1/settings/export?format=json").header("Authorization", "Bearer test-token"))
+                .andExpect(status().isOk()).andExpect(content().string(org.hamcrest.Matchers.containsString("flatpak:org.example.Chat")));
+        mvc.perform(post("/api/v1/blocking-rules/batch").header("Authorization", "Bearer test-token").contentType("application/json")
+                        .content("{\"rules\":[" + appRule("New", "flatpak:org.example.New") + "," + first + "]}"))
+                .andExpect(status().isConflict());
+        assertEquals(2, rules.list().size());
+    }
+
+    @Test void invalidAndDuplicateBatchEntriesNeverLeavePartialRules() throws Exception {
+        String first = appRule("Chat", "flatpak:org.example.Chat");
+        for (String body : List.of("{\"rules\":[]}", "{\"rules\":[" + first + ",{}]}", "{\"rules\":[" + first + ",null]}",
+                "{\"rules\":[" + first + "," + appRule("Invalid", "flatpak:org.example.Chat;run") + "]}")) {
+            mvc.perform(post("/api/v1/blocking-rules/batch").header("Authorization", "Bearer test-token").contentType("application/json").content(body))
+                    .andExpect(status().isUnprocessableEntity());
+            assertTrue(rules.list().isEmpty());
+        }
+        mvc.perform(post("/api/v1/blocking-rules/batch").header("Authorization", "Bearer test-token").contentType("application/json")
+                        .content("{\"rules\":[" + first + "," + first + "]}"))
+                .andExpect(status().isConflict());
+        assertTrue(rules.list().isEmpty());
+        var transaction = new org.springframework.transaction.support.TransactionTemplate(transactionManager);
+        assertThrows(IllegalStateException.class, () -> transaction.execute(status -> {
+            var change = new com.focusdesktop.application.usecase.ManageBlockingRulesUseCase.Change("Chat",
+                    new com.focusdesktop.domain.model.ApplicationTarget(com.focusdesktop.domain.model.TargetPlatform.LINUX,
+                            com.focusdesktop.domain.model.ApplicationMatchKind.APPLICATION_ID, "flatpak:org.example.Chat"),
+                    com.focusdesktop.domain.model.DistractionCategory.OTHER, com.focusdesktop.domain.model.BlockingAction.BLOCK, true);
+            rules.createBatch(List.of(change)); throw new IllegalStateException("rollback fixture");
+        }));
+        assertTrue(rules.list().isEmpty());
+    }
+    private static String appRule(String name, String identity) {
+        return "{\"displayName\":\"" + name + "\",\"target\":{\"type\":\"APPLICATION\",\"platform\":\"LINUX\",\"matchKind\":\"APPLICATION_ID\",\"value\":\"" + identity
+                + "\"},\"category\":\"OTHER\",\"action\":\"BLOCK\",\"enabled\":true}";
+    }
+
     @Test
     void diagnosticStatusIsAuthenticatedReadOnlyAndDoesNotClaimEnforcement() throws Exception {
         mvc.perform(get("/api/v1/blocking-status")).andExpect(status().isUnauthorized());

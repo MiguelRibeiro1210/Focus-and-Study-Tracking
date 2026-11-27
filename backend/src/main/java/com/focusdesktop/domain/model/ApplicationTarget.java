@@ -23,6 +23,7 @@ public final class ApplicationTarget implements DistractionTarget {
                 || normalized.indexOf('*') >= 0 || normalized.indexOf('?') >= 0) {
             throw new IllegalArgumentException("Application identifier must be a nonempty literal value");
         }
+        if (kind == ApplicationMatchKind.APPLICATION_ID) return ApplicationIds.validate(platform, normalized);
         if (platform == TargetPlatform.WINDOWS) {
             String windowsValue = normalized.replace('\\', '/');
             String withoutDrive = kind == ApplicationMatchKind.EXECUTABLE_PATH
@@ -88,8 +89,11 @@ public final class ApplicationTarget implements DistractionTarget {
 
     public boolean matches(AppIdentifier observation) {
         if (observation == null || observation.platform() != platform) return false;
-        String identifier = matchKind == ApplicationMatchKind.EXECUTABLE_PATH
-                ? observation.executablePath() : observation.processName();
+        String identifier = switch (matchKind) {
+            case EXECUTABLE_PATH -> observation.executablePath();
+            case PROCESS_NAME -> observation.processName();
+            case APPLICATION_ID -> observation.applicationId();
+        };
         return identifier != null && canonicalValue.equals(normalize(platform, matchKind, identifier));
     }
 
@@ -99,7 +103,7 @@ public final class ApplicationTarget implements DistractionTarget {
     }
 
     @Override
-    public int specificity() { return matchKind == ApplicationMatchKind.EXECUTABLE_PATH ? 1 : 0; }
+    public int specificity() { return switch (matchKind) { case EXECUTABLE_PATH -> 2; case APPLICATION_ID -> 1; case PROCESS_NAME -> 0; }; }
 
     public TargetPlatform platform() { return platform; }
     public ApplicationMatchKind matchKind() { return matchKind; }

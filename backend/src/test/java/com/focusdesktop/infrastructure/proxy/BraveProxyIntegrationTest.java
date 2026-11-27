@@ -112,6 +112,9 @@ class BraveProxyIntegrationTest {
     @Test
     @EnabledIfEnvironmentVariable(named = "FOCUSDESKTOP_POLICY_SANDBOX", matches = "1")
     void policiesSurviveNormalRelaunchWithoutProxyFlags() throws Exception {
+        var catalog = new com.focusdesktop.infrastructure.desktop.NativeApplicationCatalog(mapper).scan();
+        assertTrue(catalog.applications().stream().anyMatch(app -> app.selectable() && app.displayName().toLowerCase(Locale.ROOT).contains("brave")),
+                "Native catalog must discover installed Brave; warnings=" + catalog.warnings());
         Path policyRoot = Files.createDirectory(directory.resolve("policy-root"));
         Path binary = policyRoot.resolve("usr/bin/brave"); Files.createDirectories(binary.getParent());
         Files.writeString(binary, "native browser fixture"); assertTrue(binary.toFile().setExecutable(true));

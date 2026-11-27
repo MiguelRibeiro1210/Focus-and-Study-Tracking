@@ -5,6 +5,25 @@ const rule = { id: 'one', displayName: 'Video', target: { type: 'WEBSITE', domai
   category: 'OTHER', action: 'BLOCK', enabled: true, createdAt: '2026-11-26T00:00:00Z', updatedAt: '2026-11-26T00:00:00Z' }
 
 describe('blocking rules API', () => {
+  it('loads and validates local application identities and sends one atomic batch', async () => {
+    const target = { type: 'APPLICATION', platform: 'LINUX', matchKind: 'APPLICATION_ID', value: 'flatpak:org.example.Chat' } as const
+    const input = { displayName: 'Chat', target, action: 'BLOCK', category: 'OTHER', enabled: true } as const
+    const catalog = { platform: 'LINUX', partial: false, warnings: [], scannedAt: rule.createdAt,
+      applications: [{ id: 'chat', displayName: 'Chat', source: 'Flatpak', target, selectable: true, reason: null }] }
+    const fetcher = vi.fn().mockResolvedValueOnce(Response.json(catalog)).mockResolvedValueOnce(Response.json([{ ...rule, ...input }], { status: 201 }))
+      .mockResolvedValueOnce(Response.json({ ...catalog, applications: [{ ...catalog.applications[0], target: null }] }))
+    const api = createBlockingRulesApi(fetcher)
+    expect((await api.applications!(true)).applications[0].target).toEqual(target)
+    await api.createBatch!([input])
+    expect(fetcher.mock.calls[0][0]).toBe('/api/v1/applications?refresh=true')
+    expect(fetcher.mock.calls[1]).toEqual(['/api/v1/blocking-rules/batch', expect.objectContaining({ method: 'POST', body: JSON.stringify({ rules: [input] }) })])
+    await expect(api.applications!()).rejects.toThrow('invalid application list')
+  })
+  it('rejects a partial batch success payload', async () => {
+    const api = createBlockingRulesApi(vi.fn().mockResolvedValue(Response.json([], { status: 201 })))
+    const input = { displayName: 'Chat', target: { type: 'APPLICATION', platform: 'LINUX', matchKind: 'PROCESS_NAME', value: 'chat' }, category: 'OTHER', action: 'BLOCK', enabled: true } as const
+    await expect(api.createBatch!([input])).rejects.toThrow('invalid saved application list')
+  })
   it('sends explicit suspension consent only when enabling protection', async () => {
     const fetcher = vi.fn().mockResolvedValueOnce(Response.json({ applicationsEnabled: true, applicationConsentAt: '2026-11-26T00:00:00Z' }))
       .mockResolvedValueOnce(Response.json({ applicationsEnabled: false, applicationConsentAt: null }))

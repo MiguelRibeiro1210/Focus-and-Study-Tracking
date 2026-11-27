@@ -13,14 +13,6 @@ import org.springframework.stereotype.Component;
 
 @Component
 public class PlatformActiveApplicationAdapter implements ActiveApplicationPort {
-    private static final String WINDOWS_SCRIPT = """
-            $ErrorActionPreference = 'Stop'
-            Add-Type -TypeDefinition 'using System; using System.Runtime.InteropServices; public static class FocusForeground { [DllImport("user32.dll")] public static extern IntPtr GetForegroundWindow(); [DllImport("user32.dll")] public static extern uint GetWindowThreadProcessId(IntPtr hWnd, out uint processId); }'
-            $window = [FocusForeground]::GetForegroundWindow()
-            [uint32]$foregroundProcessId = 0
-            if ($window -ne [IntPtr]::Zero) { [void][FocusForeground]::GetWindowThreadProcessId($window, [ref]$foregroundProcessId) }
-            Write-Output $foregroundProcessId
-            """;
     private final String os;
     private final Map<String, String> environment;
     private final NativeCommands commands;
@@ -43,7 +35,15 @@ public class PlatformActiveApplicationAdapter implements ActiveApplicationPort {
     public Optional<Observation> currentApplication() {
         long pid;
         if (os.contains("win")) {
-            pid = numeric(commands.run(List.of("powershell.exe", "-NoLogo", "-NoProfile", "-NonInteractive", "-WindowStyle", "Hidden", "-Command", WINDOWS_SCRIPT)));
+            String result = commands.run(NativePowerShell.command(NativePowerShell.resource("foreground-application.ps1")));
+            if (result.matches("\\d+")) pid = numeric(result);
+            else {
+                try {
+                    var node = mapper.readTree(result).get("pid");
+                    if (node == null || !node.isIntegralNumber() || !node.canConvertToLong() || node.longValue() < 0) throw new IllegalArgumentException();
+                    pid = node.longValue();
+                } catch (Exception exception) { throw new Unavailable("The desktop returned an invalid foreground process identifier."); }
+            }
         } else if (os.contains("mac")) {
             pid = numeric(commands.run(List.of("/usr/bin/osascript", "-l", "JavaScript", "-e",
                     "ObjC.import('AppKit'); var app = $.NSWorkspace.sharedWorkspace.frontmostApplication; app.isNil() ? 0 : app.processIdentifier;")));
@@ -107,8 +107,23 @@ public class PlatformActiveApplicationAdapter implements ActiveApplicationPort {
             TargetPlatform platform = os.contains("win") ? TargetPlatform.WINDOWS : os.contains("mac") ? TargetPlatform.MACOS : TargetPlatform.LINUX;
             String name = path.substring(Math.max(path.lastIndexOf('/'), path.lastIndexOf('\\')) + 1);
             try {
-                return process.isAlive() ? Optional.of(new Observation(pid, started, new AppIdentifier(platform, path, name))) : Optional.empty();
+                String applicationId = applicationId(platform, pid);
+                var after = process.info();
+                if (!process.isAlive() || !after.startInstant().filter(started::equals).isPresent() || !after.command().filter(path::equals).isPresent()) return Optional.empty();
+                return Optional.of(new Observation(pid, started, new AppIdentifier(platform, path, name, applicationId)));
             } catch (IllegalArgumentException exception) { throw new Unavailable("Foreground executable metadata is not a usable application identifier."); }
         });
+    }
+
+    private static String applicationId(TargetPlatform platform, long pid) {
+        try {
+            if (platform == TargetPlatform.LINUX) return LinuxApplicationIdentity.read(pid);
+            String value = platform == TargetPlatform.WINDOWS
+                    ? NativeCommands.execute(NativePowerShell.command("$FocusProcessId=" + pid + "; " + NativePowerShell.resource("foreground-application.ps1")))
+                    : NativeCommands.execute(List.of("/usr/bin/osascript", "-l", "JavaScript", "-e",
+                        "ObjC.import('AppKit'); var app=$.NSRunningApplication.runningApplicationWithProcessIdentifier(" + pid
+                        + "); app.isNil() || app.bundleIdentifier.isNil() ? '' : 'macos:'+ObjC.unwrap(app.bundleIdentifier);"));
+            return value.isBlank() ? null : com.focusdesktop.domain.model.ApplicationIds.validate(platform, value.trim());
+        } catch (RuntimeException exception) { return null; }
     }
 }

@@ -1,7 +1,7 @@
 import { isDesktopShell, nativeFetch } from './nativeTransport'
 
 export type TargetPlatform = 'WINDOWS' | 'MACOS' | 'LINUX'
-export type ApplicationMatchKind = 'EXECUTABLE_PATH' | 'PROCESS_NAME'
+export type ApplicationMatchKind = 'EXECUTABLE_PATH' | 'PROCESS_NAME' | 'APPLICATION_ID'
 export type BlockingAction = 'LOG' | 'WARN' | 'BLOCK'
 export type RuleTarget = { type: 'WEBSITE'; domain: string }
   | { type: 'APPLICATION'; platform: TargetPlatform; matchKind: ApplicationMatchKind; value: string }
@@ -13,6 +13,21 @@ export interface BlockingRuleInput {
   enabled: boolean
 }
 export interface BlockingRule extends BlockingRuleInput { id: string; createdAt: string; updatedAt: string }
+export interface InstalledApplication {
+  id: string
+  displayName: string
+  source: string
+  target: Extract<RuleTarget, { type: 'APPLICATION' }> | null
+  selectable: boolean
+  reason: string | null
+}
+export interface ApplicationCatalog {
+  platform: TargetPlatform
+  applications: InstalledApplication[]
+  partial: boolean
+  warnings: string[]
+  scannedAt: string
+}
 export interface BlockingStatus {
   monitorEnabled: boolean
   applicationDetection: 'DISABLED' | 'IDLE' | 'OBSERVING' | 'UNAVAILABLE'
@@ -42,6 +57,8 @@ export interface WebsiteProtectionStatus {
   notice?: ProtectionNotice | null
 }
 export interface BlockingRulesApi {
+  applications?(refresh?: boolean): Promise<ApplicationCatalog>
+  createBatch?(inputs: BlockingRuleInput[]): Promise<BlockingRule[]>
   list(): Promise<BlockingRule[]>
   create(input: BlockingRuleInput): Promise<BlockingRule>
   patch(id: string, input: Partial<BlockingRuleInput>): Promise<BlockingRule>
@@ -64,14 +81,14 @@ function isRule(value: unknown): value is BlockingRule {
     && typeof rule.updatedAt === 'string' && Number.isFinite(Date.parse(rule.updatedAt))
     && !!target && ((target.type === 'WEBSITE' && typeof target.domain === 'string')
       || (target.type === 'APPLICATION' && ['WINDOWS', 'MACOS', 'LINUX'].includes(target.platform)
-        && ['EXECUTABLE_PATH', 'PROCESS_NAME'].includes(target.matchKind) && typeof target.value === 'string'))
+        && ['EXECUTABLE_PATH', 'PROCESS_NAME', 'APPLICATION_ID'].includes(target.matchKind) && typeof target.value === 'string'))
 }
 
 export function targetLabel(target: RuleTarget): string { return target.type === 'WEBSITE' ? target.domain : target.value }
 
 export function createBlockingRulesApi(fetcher?: typeof fetch): BlockingRulesApi {
   const requestFetch = fetcher ?? (isDesktopShell() ? nativeFetch : fetch)
-  async function request(path = '', method = 'GET', input?: Partial<BlockingRuleInput> | { applicationsEnabled: boolean; consent?: string } | { enabled: boolean; consent?: string; routingMethod?: WebsiteRoutingMethod } | { confirmation: string }, base = '/api/v1/blocking-rules'): Promise<unknown> {
+  async function request(path = '', method = 'GET', input?: Partial<BlockingRuleInput> | { rules: BlockingRuleInput[] } | { applicationsEnabled: boolean; consent?: string } | { enabled: boolean; consent?: string; routingMethod?: WebsiteRoutingMethod } | { confirmation: string }, base = '/api/v1/blocking-rules'): Promise<unknown> {
     const response = await requestFetch(`${base}${path}`, {
       method, headers: { Accept: 'application/json', ...(input ? { 'Content-Type': 'application/json' } : {}) },
       body: input ? JSON.stringify(input) : undefined,
@@ -92,6 +109,24 @@ export function createBlockingRulesApi(fetcher?: typeof fetch): BlockingRulesApi
     return body
   }
   return {
+    applications: async (refresh = false) => {
+      const body = await request(refresh ? '?refresh=true' : '', 'GET', undefined, '/api/v1/applications') as ApplicationCatalog | null
+      if (!body || !['WINDOWS', 'MACOS', 'LINUX'].includes(body.platform) || typeof body.partial !== 'boolean'
+        || !Array.isArray(body.warnings) || !body.warnings.every((warning) => typeof warning === 'string')
+        || typeof body.scannedAt !== 'string' || !Number.isFinite(Date.parse(body.scannedAt))
+        || !Array.isArray(body.applications) || body.applications.length > 4096 || !body.applications.every((app) =>
+          app && typeof app.id === 'string' && app.id.length > 0 && typeof app.displayName === 'string' && typeof app.source === 'string'
+          && typeof app.selectable === 'boolean' && (app.reason === null || typeof app.reason === 'string')
+          && (app.target === null ? !app.selectable : app.target.type === 'APPLICATION' && app.target.platform === body.platform
+            && ['EXECUTABLE_PATH', 'PROCESS_NAME', 'APPLICATION_ID'].includes(app.target.matchKind) && typeof app.target.value === 'string')))
+        throw new Error('The local API returned an invalid application list.')
+      return body
+    },
+    createBatch: async (rules) => {
+      const body = await request('/batch', 'POST', { rules })
+      if (!Array.isArray(body) || body.length !== rules.length || !body.every(isRule)) throw new Error('The local API returned an invalid saved application list.')
+      return body
+    },
     websiteStatus: async () => validateWebsiteStatus(await request('', 'GET', undefined, '/api/v1/website-protection')),
     setWebsiteProtection: async (enabled, routingMethod) => validateWebsiteStatus(await request('', 'PATCH', { enabled,
       ...(routingMethod ? { routingMethod } : {}), ...(enabled ? { consent: 'CONFIGURE_BROWSER_ROUTING_AND_FORWARD_TRAFFIC' } : {}) }, '/api/v1/website-protection')),

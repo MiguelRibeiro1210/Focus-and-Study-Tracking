@@ -72,6 +72,11 @@ a separate materialized history table.
 FST-048 migration V5 creates the persisted policy and rule tables.
 See [ADR-007](../decisions/ADR-007-BlockingRuleManagement.md).
 
+FST-051 migration V12 extends `match_kind` with `APPLICATION_ID` for namespaced
+bundle/package IDs. Existing rows and canonical target keys are preserved.
+Multi-add locks the policy once and saves the complete validated batch in
+one transaction; catalog discovery itself has no database table.
+
 - `blocking_policy`: UUID PK, non-null singleton slot constrained to `1` and
   unique, version and UTC created/updated timestamps. Seed UUID
   `00000000-0000-0000-0000-000000000001` with no rules through Flyway; do not

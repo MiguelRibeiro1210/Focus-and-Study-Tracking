@@ -31,6 +31,21 @@ public class BlockingRuleController {
         return ResponseEntity.created(URI.create("/api/v1/blocking-rules/" + stored.id())).body(stored);
     }
 
+    @PostMapping("/batch")
+    public ResponseEntity<List<BlockingRuleDto>> createBatch(@RequestBody JsonNode body) {
+        if (!body.isObject()) throw BlockingRuleException.invalid("request", "Expected an object containing rules");
+        fields(body, Set.of("rules"), "request");
+        var entries = required(body, "rules");
+        if (!entries.isArray() || entries.isEmpty() || entries.size() > 100)
+            throw BlockingRuleException.invalid("rules", "Select between 1 and 100 applications");
+        var changes = new java.util.ArrayList<Change>();
+        for (var entry : entries) {
+            try { changes.add(parse(entry, true)); }
+            catch (IllegalArgumentException exception) { throw BlockingRuleException.invalid("rules", "Each application needs a complete rule object"); }
+        }
+        return ResponseEntity.status(201).body(rules.createBatch(changes));
+    }
+
     @PatchMapping("/{id}")
     public BlockingRuleDto patch(@PathVariable UUID id, @RequestBody JsonNode body) { return rules.patch(id, parse(body, false)); }
 

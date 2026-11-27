@@ -26,6 +26,18 @@ class NativePlatformConnectionTest {
     @Test void normalBrowserLaunchAndRelaunchUseAutomaticRoutingAndRestoreAfterward() throws Exception {
         String executable = System.getenv("FOCUSDESKTOP_NATIVE_BROWSER");
         assertNotNull(executable, "CI must supply a native Chromium browser"); assertTrue(Files.isExecutable(Path.of(executable)));
+        var catalog = new com.focusdesktop.infrastructure.desktop.NativeApplicationCatalog(System.getProperty("os.name"), Path.of(System.getProperty("user.home")), System.getenv(), args -> {
+            try { return com.focusdesktop.infrastructure.desktop.NativeCommands.execute(args, true, 12); }
+            catch (RuntimeException exception) { throw new AssertionError("Native application catalog helper failed", exception); }
+        }, new ObjectMapper()).scan();
+        assertTrue(catalog.applications().stream().anyMatch(app -> app.selectable() && app.target() != null
+                        && ("macos:com.google.Chrome".equals(app.target().value()) || app.target().value().equalsIgnoreCase(executable))),
+                "Native catalog must discover the installed CI browser; warnings=" + catalog.warnings());
+        if (System.getProperty("os.name").startsWith("Windows")) {
+            String identity = com.focusdesktop.infrastructure.desktop.NativeCommands.execute(com.focusdesktop.infrastructure.desktop.NativePowerShell.command(
+                    "$FocusProcessId=" + ProcessHandle.current().pid() + "; " + com.focusdesktop.infrastructure.desktop.NativePowerShell.resource("foreground-application.ps1")), true);
+            assertTrue(identity.isEmpty(), "The test JVM is not a packaged Windows application");
+        }
         var preferences = new WebsiteProtectionPreferences() {
             State value = new State(false, null);
             public State get() { return value; }

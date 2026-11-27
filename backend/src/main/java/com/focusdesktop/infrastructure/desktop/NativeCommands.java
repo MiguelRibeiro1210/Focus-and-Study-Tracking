@@ -15,6 +15,10 @@ public interface NativeCommands {
     }
 
     static String execute(List<String> arguments, boolean includeDiagnostics) {
+        return execute(arguments, includeDiagnostics, 3);
+    }
+
+    static String execute(List<String> arguments, boolean includeDiagnostics, int timeoutSeconds) {
         Process process = null;
         ExecutorService reader = Executors.newFixedThreadPool(includeDiagnostics ? 2 : 1, task -> {
             Thread thread = new Thread(task, "foreground-command-output"); thread.setDaemon(true); return thread;
@@ -29,7 +33,7 @@ public interface NativeCommands {
                 child.getErrorStream().transferTo(java.io.OutputStream.nullOutputStream());
                 return captured;
             }) : null;
-            if (!process.waitFor(3, TimeUnit.SECONDS)) throw new Unavailable("Desktop query timed out; check desktop access and permissions.");
+            if (!process.waitFor(timeoutSeconds, TimeUnit.SECONDS)) throw new Unavailable("Desktop query timed out; check desktop access and permissions.");
             byte[] bytes = output.get(1, TimeUnit.SECONDS);
             if (bytes.length > 1_048_576 || process.exitValue() != 0) {
                 String detail = errors == null ? "" : "\n" + new String(errors.get(1, TimeUnit.SECONDS), StandardCharsets.UTF_8).trim();

@@ -107,12 +107,14 @@ repeats.
 A rule owns a typed target identifying what the learner wants to restrict;
 it also contains a display name, category, enabled state and action
 (`LOG`, `WARN`, `BLOCK`). Application targets identify an executable path or
-process name for a declared OS. Website targets identify a domain and include
+process name for a declared OS. FST-051 adds exact, namespaced application IDs
+for Windows packaged apps, macOS bundles, Flatpak and Snap; observed identities
+remain compatible with older path/process snapshots. Website targets identify a domain and include
 its subdomains. Window-title pattern matching is deferred.
 
 `BlockingPolicy` evaluates an adapter-supplied observation and returns a
 `BlockingDecision` without OS/browser access or persistence. App matching uses
-path before process name; website matching uses the most specific matching
+path before application ID before process name; website matching uses the most specific matching
 domain. Duplicate canonical targets within the same policy are rejected.
 Only enabled rules participate; empty or missing policies do nothing. The
 initial implementation has one active policy.
