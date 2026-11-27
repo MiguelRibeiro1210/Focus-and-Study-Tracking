@@ -99,6 +99,37 @@ jobs:
         run: ./mvnw -Dtest=GuardianApplicationSuspensionAdapterTest,ApplicationSuspensionGuardianTest test
         working-directory: backend
 
+      - name: Verify native persistent browser connection
+        if: runner.os == 'Windows' || runner.os == 'macOS'
+        shell: bash
+        run: |
+          export FOCUSDESKTOP_NATIVE_CONNECTION_TEST=1
+          if [ "$RUNNER_OS" = "Windows" ]; then
+            export FOCUSDESKTOP_NATIVE_BROWSER='C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe'
+          else
+            export FOCUSDESKTOP_NATIVE_BROWSER='/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'
+          fi
+          ./mvnw -Dtest=NativePlatformConnectionTest test
+        working-directory: backend
+
+      - name: Install native Brave for isolated Linux connection tests
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          sudo curl -fsSLo /usr/share/keyrings/brave-browser-archive-keyring.gpg https://brave-browser-apt-release.s3.brave.com/brave-browser-archive-keyring.gpg
+          sudo curl -fsSLo /etc/apt/sources.list.d/brave-browser-release.sources https://brave-browser-apt-release.s3.brave.com/brave-browser.sources
+          sudo apt-get update
+          sudo apt-get install -y brave-browser bubblewrap
+
+      - name: Verify native Linux browser policy relaunch
+        if: runner.os == 'Linux'
+        shell: bash
+        env:
+          FOCUSDESKTOP_BRAVE: /usr/bin/brave-browser
+          FOCUSDESKTOP_POLICY_SANDBOX: '1'
+        run: ./mvnw -Dtest=BraveProxyIntegrationTest test
+        working-directory: backend
+
       - name: Install frontend dependencies
         run: npm ci
         working-directory: frontend
@@ -114,6 +145,7 @@ jobs:
           if [ "$RUNNER_OS" = "Windows" ]; then guardian_java="$guardian_java.exe"; fi
           "$guardian_java" -Dloader.main=com.focusdesktop.infrastructure.desktop.ApplicationSuspensionGuardian -cp src-tauri/resources/backend/focusdesktop.jar org.springframework.boot.loader.launch.PropertiesLauncher --self-check
           "$guardian_java" -Dloader.main=com.focusdesktop.infrastructure.proxy.ProxySettingsGuardian -cp src-tauri/resources/backend/focusdesktop.jar org.springframework.boot.loader.launch.PropertiesLauncher --self-check
+          "$guardian_java" -Dloader.main=com.focusdesktop.infrastructure.proxy.PrivilegedProxyGuardian -cp src-tauri/resources/backend/focusdesktop.jar org.springframework.boot.loader.launch.PropertiesLauncher --self-check
         working-directory: frontend
 
       - name: Build native installer
@@ -192,6 +224,7 @@ jobs:
           test -n "$dependencies" || { echo "::error::DEB package dependency metadata is empty"; exit 1; }
           grep -q 'libwebkit2gtk-4.1-0' <<< "$dependencies" || { echo "::error::DEB is missing the WebKitGTK runtime dependency"; exit 1; }
           grep -q 'libgtk-3-0' <<< "$dependencies" || { echo "::error::DEB is missing the GTK runtime dependency"; exit 1; }
+          grep -q 'pkexec' <<< "$dependencies" || { echo "::error::DEB is missing the PolicyKit authorization dependency"; exit 1; }
 
       - name: Smoke-test the packaged AppImage without system Java
         if: runner.os == 'Linux'

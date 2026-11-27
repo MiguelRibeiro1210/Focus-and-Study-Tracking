@@ -378,3 +378,35 @@ address reuse before binding, matching the Brave listener. Clean Java 17 Maven
 verification passes 312 tests, with one optional Firefox test skipped (313
 discovered), including the native same-Brave reconnect checks. Frontend code and
 contracts are unchanged by this correction.
+
+### Persistent automatic browser connection (ADR-015)
+
+Cover fixed Linux policy paths, existing proxy policy conflicts, privileged path
+ownership, atomic policy publication and Firefox document merging. Unrelated
+policies survive both setup and restoration; a changed browser policy does not
+prevent restoring other owned browser policies. Windows tests cover all supported
+registry paths, machine-policy conflicts, batched snapshots/writes and validation
+of the entire batch before execution. Guardian tests authenticate over a private
+credential and loopback channel, retain parent identity, avoid permission-prompt
+loops, and require explicit restoration proof before reporting completion.
+Missing acknowledgement leaves forwarding off and enables explicit recovery.
+
+Native Brave policy tests use a private mount/user namespace and temporary
+profiles. No proxy launch flag is supplied: normal startup, normal relaunch and
+an additional profile must reach verification and block new requests. Existing
+native HTTP/HTTPS, HSTS/subdomain, focus/pause and crash-fallback tests remain.
+The normal installed Brave accepted `--refresh-platform-policy` without changing
+policy files or closing its existing windows. Live refresh inside the headless
+namespace was not established and is not claimed as native acceptance evidence.
+
+Windows/macOS CI runs NativePlatformConnectionTest on ephemeral machines, using
+real Edge/Chrome isolated profiles and real user registry/administrator network
+settings, then restores the connection. Packaged CI checks both guardian entry
+points with the pinned Java runtime. AppImage staging has focused runtime/JAR
+copy and cleanup coverage; GUI authorization remains a platform acceptance item.
+
+Local full Java 17 verification: 330 discovered, 329 passed, one platform-only
+native scenario skipped. Frontend: 123 tests, build, lint (two existing warnings)
+and privacy audit. Rust compilation/format, Java 17 packaged helper self-checks
+and the updated sequence diagram pass. Do not equate these local results with
+pending Windows/macOS or Safari acceptance.

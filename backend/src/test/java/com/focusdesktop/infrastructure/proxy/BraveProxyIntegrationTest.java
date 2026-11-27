@@ -109,6 +109,63 @@ class BraveProxyIntegrationTest {
             }
         }
     }
+    @Test
+    @EnabledIfEnvironmentVariable(named = "FOCUSDESKTOP_POLICY_SANDBOX", matches = "1")
+    void policiesSurviveNormalRelaunchWithoutProxyFlags() throws Exception {
+        Path policyRoot = Files.createDirectory(directory.resolve("policy-root"));
+        Path binary = policyRoot.resolve("usr/bin/brave"); Files.createDirectories(binary.getParent());
+        Files.writeString(binary, "native browser fixture"); assertTrue(binary.toFile().setExecutable(true));
+        Path etc = policyRoot.resolve("etc"); Files.createDirectories(etc.resolve("brave/policies/managed"));
+        for (String name : List.of("ld.so.cache", "nsswitch.conf", "passwd", "group", "hosts", "resolv.conf")) {
+            Path original = Path.of("/etc", name); if (Files.isRegularFile(original)) Files.copy(original, etc.resolve(name));
+        }
+        Path profile = Files.createTempDirectory(directory, "policy-profile-");
+        var isolated = List.of("/usr/bin/bwrap", "--unshare-user", "--uid", "0", "--gid", "0", "--unshare-pid",
+                "--ro-bind", "/usr", "/usr", "--ro-bind", "/opt", "/opt", "--ro-bind", "/lib", "/lib", "--ro-bind", "/lib64", "/lib64",
+                "--proc", "/proc", "--dev", "/dev", "--tmpfs", "/tmp", "--bind", profile.toString(), profile.toString(),
+                "--ro-bind", etc.toString(), "/etc", "--");
+        var denied = new AtomicInteger();
+        try (var proxy = new WebsiteProxy(host -> new WebsiteProxy.Decision(true, denied::incrementAndGet, () -> {}), true);
+             var settings = new OwnedProxySettings(new LinuxBrowserPolicies(policyRoot), directory.resolve("policy-journal"))) {
+            proxy.start();
+            settings.apply(proxy.pacUrl());
+            try (var browser = browser(null, profile, isolated)) {
+                checkRouting(browser, proxy);
+                browser.navigate("http://blocked.test/policy-block"); browser.awaitText("Website blocked");
+                assertTrue(denied.get() > 0);
+                browser.quit();
+            }
+            proxy.resetRoutingProof();
+            try (var reopened = browser(null, profile, isolated)) {
+                checkRouting(reopened, proxy);
+                int before = denied.get(); reopened.navigate("http://blocked.test/normal-launch"); reopened.awaitText("Website blocked");
+                assertTrue(denied.get() > before, "Normal browser relaunch must retain policy routing");
+                reopened.quit();
+            }
+            Path anotherProfile = Files.createTempDirectory(directory, "another-profile-");
+            var anotherNamespace = isolated.stream().map(argument -> argument.equals(profile.toString()) ? anotherProfile.toString() : argument).toList();
+            proxy.resetRoutingProof();
+            try (var another = browser(null, anotherProfile, anotherNamespace)) {
+                checkRouting(another, proxy);
+                int before = denied.get(); another.navigate("http://blocked.test/another-profile"); another.awaitText("Website blocked");
+                assertTrue(denied.get() > before, "Policies must cover another profile without repeating setup");
+                another.quit();
+            }
+        }
+        assertFalse(Files.exists(etc.resolve("brave/policies/managed/focusdesktop-proxy.json")));
+    }
+    private void checkRouting(Browser browser, WebsiteProxy proxy) throws Exception {
+        long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(20);
+        do { browser.navigate(proxy.verificationUrl()); Thread.sleep(250); }
+        while (!proxy.routingObserved() && System.nanoTime() < deadline);
+        if (!proxy.routingObserved()) {
+            browser.navigate("brave://policy/"); Thread.sleep(500);
+            var details = browser.command("Runtime.evaluate", Map.of("expression", "(function dump(r){return (r.textContent||'')+Array.from(r.querySelectorAll('*')).filter(n=>n.shadowRoot).map(n=>dump(n.shadowRoot)).join('\\n')})(document)", "returnByValue", true));
+            Files.writeString(directory.resolve("policy-debug.json"), details.toPrettyString());
+        }
+        assertTrue(proxy.routingObserved(), "Native browser did not load persistent proxy policy; isolated policy diagnostics: " + directory);
+        browser.awaitText("routing verified");
+    }
     public static class CrashFixture {
         public static void main(String[] args) throws Exception {
             try (var proxy = new WebsiteProxy(host -> host.equals("allowed.test") ? WebsiteProxy.Decision.allow()
@@ -137,12 +194,24 @@ class BraveProxyIntegrationTest {
     }
     private Browser browser(String pac) throws Exception {
         Path profile = Files.createTempDirectory(directory, "brave-profile-");
-        var builder = new ProcessBuilder(System.getenv("FOCUSDESKTOP_BRAVE"), "--headless=new", "--no-first-run", "--no-default-browser-check",
-                "--user-data-dir=" + profile, "--proxy-pac-url=" + pac, "--remote-debugging-port=0", "--disable-background-networking",
+        return browser(pac, profile, List.of());
+    }
+    private Browser browser(String pac, Path profile, List<String> prefix) throws Exception {
+        Files.deleteIfExists(profile.resolve("DevToolsActivePort"));
+        var command = new ArrayList<>(prefix);
+        command.addAll(List.of(System.getenv("FOCUSDESKTOP_BRAVE"), "--headless=new", "--no-first-run", "--no-default-browser-check",
+                "--user-data-dir=" + profile, "--remote-debugging-port=0", "--disable-background-networking",
                 "--disable-component-update", "--disable-sync", "--disable-quic", "--disable-extensions", "--ignore-certificate-errors",
                 "--host-resolver-rules=MAP allowed.test 127.0.0.1, MAP blocked.test 127.0.0.1, MAP *.youtube.com 127.0.0.1, MAP youtube.com 127.0.0.1, EXCLUDE 127.0.0.1, EXCLUDE localhost, MAP * ~NOTFOUND",
-                "about:blank").redirectErrorStream(true).redirectOutput(profile.resolve("browser.log").toFile());
-        builder.environment().put("XDG_CONFIG_HOME", Files.createDirectory(profile.resolve("xdg")).toString());
+                "about:blank"));
+        if (pac != null) command.add("--proxy-pac-url=" + pac);
+        // Only the private user/mount namespace runs as its mapped uid 0.
+        if (!prefix.isEmpty()) command.addAll(List.of("--no-sandbox", "--enable-logging=stderr", "--vmodule=config_dir_policy_loader=2"));
+        var builder = new ProcessBuilder(command).redirectErrorStream(true).redirectOutput(profile.resolve("browser.log").toFile());
+        Files.createDirectories(profile.resolve("xdg"));
+        builder.environment().put("XDG_CONFIG_HOME", profile.resolve("xdg").toString());
+        if (!prefix.isEmpty()) builder.environment().put("HOME", profile.toString());
+        for (String key : List.of("http_proxy", "https_proxy", "all_proxy", "HTTP_PROXY", "HTTPS_PROXY", "ALL_PROXY")) builder.environment().remove(key);
         var process = builder.start();
         try {
             await(() -> Files.exists(profile.resolve("DevToolsActivePort")));
@@ -181,6 +250,10 @@ class BraveProxyIntegrationTest {
             return promise.get(10, TimeUnit.SECONDS);
         }
         void navigate(String url) throws Exception { command("Page.navigate", Map.of("url", url)); }
+        void quit() throws Exception {
+            socket.sendText(mapper.writeValueAsString(Map.of("id", ++nextId, "method", "Browser.close")), true).get(3, TimeUnit.SECONDS);
+            assertTrue(process.waitFor(10, TimeUnit.SECONDS), "Native browser did not close normally");
+        }
         void awaitText(String text) throws Exception {
             long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(15);
             String lastText = "";

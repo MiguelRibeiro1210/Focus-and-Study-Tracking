@@ -133,23 +133,26 @@ On Windows, use `mvnw.cmd` with the same Maven goals.
    # From backend/, replacing the ordinary backend launch:
    ./mvnw spring-boot:run -Dspring-boot.run.arguments=--focusdesktop.blocking.monitor-enabled=true
    ```
-   Start `npm run dev` separately. Open **Settings → Blocking**. On Linux/Hyprland,
-   choose **Brave**, turn on **Block websites** and accept the forwarding dialog.
-   Choose **Connect browser → Set up Brave**, then close all Brave windows within
-   60 seconds, including
-   the dev UI if opened there. The backend reopens your existing Brave profile
-   with the verification page. Keep the backend running, start a focus interval,
-   and test an enabled Block rule for `youtube.com`. Saving rules alone does
-   not enable routing. If setup times out, retry after closing background Brave
-   processes yourself; FocusDesktop never closes your browser automatically.
-   Setup is not needed for each focus session. Brave's local connection address
-   is saved and reused when protection or the backend restarts. If Brave is
-   already open, FocusDesktop opens a fresh connection check automatically;
-   wait for **Connected** before relying on blocking. You can also choose
-   **Connect browser → Check connection** without closing Brave. If Brave
-   temporarily bypasses an interrupted proxy, verification stays unconfirmed.
-   A normal browser restart without its proxy flag may need setup again.
-   Turning website blocking off still stops forwarding immediately.
+   Start `npm run dev` separately. Open **Settings → Blocking**, use
+   **Automatic connection**, turn on **Block websites** and accept the connection
+   and forwarding consent. Linux (including Hyprland) uses native browser policies
+   and needs PolicyKit (`pkexec`) plus an authentication agent. macOS asks for
+   administrator permission to change network proxy settings. Windows uses user
+   browser policies and system proxy settings.
+   Choose **Connect browser** and open the connection-check address in each
+   browser you use. One check does not verify every browser or profile. Policies
+   keep normal browser relaunches connected while protection and the backend are
+   running; no special FocusDesktop browser window is required. Supported Chromium
+   browsers receive a local policy refresh without closing windows. If necessary,
+   use Reload policies on the browser's policy page once. Firefox may need one
+   initial restart. Flatpak/Snap and custom proxy overrides need separate setup.
+   Focus sessions, pauses and rule edits reuse the connection. Turning website
+   blocking off or stopping the app restores owned settings and stops forwarding.
+   Permission denial or a conflicting proxy is reported; retry explicitly in
+   Settings. If restoration cannot be confirmed, use **Retry restoration**.
+   After upgrading from launch-only setup, allow website blocking again: the new
+   permission scope needs fresh consent. Then test your enabled `youtube.com`
+   Block rule during a running work interval. Cached pages may remain visible.
    Starting a session checks enabled Block rules. If setup is missing, choose
    **Set up blocking**, **Start without blocking**, or **Cancel**. Opening Settings
    keeps your project name and timer choices; returning never auto-starts a session.

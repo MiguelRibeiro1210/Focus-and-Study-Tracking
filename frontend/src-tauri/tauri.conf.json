@@ -42,6 +42,11 @@
       "icons/icon.ico"
     ],
     "category": "Productivity",
+    "linux": {
+      "deb": {
+        "depends": ["pkexec"]
+      }
+    },
     "shortDescription": "Local focus timer",
     "longDescription": "A local-first focus timer for managing work sessions and breaks.",
     "windows": {
