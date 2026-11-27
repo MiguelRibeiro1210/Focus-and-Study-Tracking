@@ -169,9 +169,11 @@ Authenticated `POST /api/v1/website-protection/brave` accepts only
 HTTP 202. It schedules a 60-second wait for this user's Brave processes to exit,
 then launches a known native executable using fixed arguments for the current
 PAC and verification address. No shell, supplied executable, profile override,
-forced termination or automatic launch on startup is allowed. This also works
+forced termination or automatic launch of a closed browser on startup is allowed. This also works
 when the development UI itself is in Brave: the learner closes all windows,
 including the UI, and the backend performs the explicitly requested launch.
+ADR-014 supersedes the ephemeral Brave endpoint: reuse its saved local address
+and check an already-open Brave instance automatically, without waiting for exit.
 Timeout/cancellation/launch failure is visible on the next status read. Disabling
 protection or changing routing cancels any pending launch.
 

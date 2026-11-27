@@ -1,0 +1,33 @@
+@startuml
+title Reuse an existing Brave connection
+actor Learner
+participant Settings
+participant Runtime
+database "Local endpoint metadata" as Metadata
+participant "Loopback proxy" as Proxy
+participant Brave
+Learner -> Settings: Enable website protection with consent
+Settings -> Runtime: configure(BRAVE)
+Runtime -> Metadata: Read saved port and PAC identifier
+Runtime -> Proxy: Bind saved port with fresh verification challenge
+alt Saved port unavailable or metadata invalid
+  Runtime --> Settings: Unavailable; do not change endpoint
+else Saved connection and Brave already open
+  Runtime -> Brave: Open verification page once (no forced exit)
+  alt Browser still uses this proxy
+    Brave -> Proxy: Fresh verification request
+    Proxy --> Runtime: Routing observed
+    Runtime --> Settings: Connected
+  else Browser bypasses proxy
+    Runtime --> Settings: Connection unverified; offer check or explicit setup
+  end
+else First setup or browser closed
+  Runtime --> Settings: Explicit setup available; no automatic browser launch
+end
+Learner -> Runtime: Start / pause / stop session
+Runtime -> Proxy: Reevaluate rules; keep same connection
+Learner -> Settings: Disable website protection
+Settings -> Runtime: Revoke consent
+Runtime -> Proxy: Close listener and active connections
+note over Metadata: Keep only reusable endpoint metadata, never proof or consent
+@enduml
