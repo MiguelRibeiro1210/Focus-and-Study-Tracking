@@ -208,8 +208,8 @@ Every requirement is traced to a use case and to the project board in
 
 | ID | Requirement | Priority | Phase | UC | Board |
 |---|---|---|---|---|---|
-| FR-DIS-01 | The learner can create, edit, enable/disable and delete app and website blocking rules. | Should | Phase 2 | UC-12 | FST-048, FST-049 |
-| FR-DIS-02 | A typed rule identifies an app by executable path/process name or a website by domain including subdomains. | Should | Phase 2 | UC-12 | FST-008, FST-048 |
+| FR-DIS-01 | The learner can create, edit, enable/disable and delete app and website rules; select several recognized native/packaged apps or enter an app manually. | Should | Phase 2 | UC-12 | FST-048, FST-049, FST-051 |
+| FR-DIS-02 | A typed rule identifies an app by executable path, process name or namespaced application ID, or a website by domain including subdomains. | Should | Phase 2 | UC-12 | FST-008, FST-048, FST-051 |
 | FR-DIS-03 | The system detects the active application or website through a supported local adapter during running work intervals. | Should | Phase 2 | UC-13 | FST-027, FST-050 |
 | FR-DIS-04 | The active policy evaluates observations against enabled rules. | Should | Phase 2 | UC-13 | FST-008, FST-028, FST-050 |
 | FR-DIS-05 | A matched rule can log, warn or block the app or matched website. | Should | Phase 2 | UC-14 | FST-028, FST-050 |

@@ -146,6 +146,7 @@ case, diagram and task should be visible in one place.
 | FST-036 JSON/CSV data export | [Functional requirements](FunctionalRequirements.md) |
 | FST-048 Saved app/website rule management | [Domain review](../decisions/ADR-006-distraction-model.md), [planned API](../api/RESTAndWebSocket.md) |
 | FST-049 Distractions UI integration | [Frontend review](../decisions/ADR-006-distraction-model.md#frontend-design-review) |
+| FST-051 Installed application picker | [Approved design](../decisions/ADR-016-ApplicationPicker.md), [selection flow](../SD/SD_SelectApplications.puml), [API](../api/RESTAndWebSocket.md) |
 | FST-050 Website detection/enforcement | [Consented proxy decision](../decisions/ADR-011-WebsiteProtection.md), [website flow](../SD/SD_DetectAndBlockWebsite.puml), [cleanup](../SD/SD_ReleaseDistractionProtection.puml) |
 | FST-037 Distraction log projection and review | [Projection decision](../decisions/ADR-012-DistractionLogProjection.md), [review flow](../SD/SD_ReviewDistractionLog.puml), [queries](../api/RESTAndWebSocket.md#6-distraction-log-phase-2-read-model) |
 

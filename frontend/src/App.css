@@ -135,6 +135,17 @@
 .rule-editor label { display: grid; gap: 7px; font-size: 12px; }
 .rule-editor input:not([type="checkbox"]), .rule-editor select { width: 100%; min-height: 38px; padding: 8px; border: 1px solid #b7c7bb; border-radius: 6px; background: inherit; color: inherit; font: inherit; }
 .rule-editor small { color: #69766c; }
+.application-picker { margin-top: 16px; }
+.application-picker-tools { display: flex; gap: 12px; align-items: center; }
+.application-picker-tools input { flex: 1; min-width: 0; }
+.application-picker-list { max-height: 360px; overflow-y: auto; margin: 16px 0; padding: 0; list-style: none; border: 1px solid #b7c7bb; border-radius: 8px; }
+.rule-editor .application-picker-row { display: flex; align-items: center; gap: 12px; padding: 12px; cursor: pointer; border-bottom: 1px solid #b7c7bb55; }
+.application-picker-row > span:last-child { display: grid; gap: 4px; overflow-wrap: anywhere; }
+.application-picker-row input { flex: none; width: 18px; height: 18px; accent-color: #3c7050; }
+.application-picker-row.unavailable { opacity: .65; cursor: default; }
+.application-picker-icon { font-size: 24px; color: #69766c; }
+.application-picker .application-manual-button { margin-top: 14px; }
+.application-picker .rule-form-actions { flex-wrap: wrap; }
 .rule-editor .rule-enabled, .rule-form-actions, .rule-action, .rule-controls { display: flex; align-items: center; gap: 12px; }
 .rule-editor p, .rule-form-actions { grid-column: 1 / -1; }
 .rule-error { padding: 12px; border: 1px solid #b85949; border-radius: 8px; }

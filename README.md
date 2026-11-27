@@ -153,6 +153,15 @@ On Windows, use `mvnw.cmd` with the same Maven goals.
    After upgrading from launch-only setup, allow website blocking again: the new
    permission scope needs fresh consent. Then test your enabled `youtube.com`
    Block rule during a running work interval. Cached pages may remain visible.
+
+   To select apps, open **Distractions → Add distraction → Application**.
+   Search recognized apps, check several, and choose **Add selected**.
+   The catalog includes native apps and recognized Store/MSIX, macOS bundle,
+   Flatpak and Snap identities. **Refresh** picks up new installations;
+   **App not listed? Add manually** keeps executable/process entry available.
+   Saving rules does not turn protection on: enable **Block apps** in Settings.
+   Unresolved launchers remain manual. Browser web-app shortcuts are never
+   automatically treated as the entire browser. See [the picker design](docs/decisions/ADR-016-ApplicationPicker.md).
    Starting a session checks enabled Block rules. If setup is missing, choose
    **Set up blocking**, **Start without blocking**, or **Cancel**. Opening Settings
    keeps your project name and timer choices; returning never auto-starts a session.

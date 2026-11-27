@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
 import { createBlockingRulesApi, targetLabel } from '../api/blockingRulesApi'
 import type { ApplicationMatchKind, BlockingAction, BlockingRule, BlockingRuleInput, BlockingRulesApi, TargetPlatform } from '../api/blockingRulesApi'
+import { ApplicationPicker } from './ApplicationPicker'
 
 export function DistractionsPage({ api: suppliedApi, onOpenSettings }: { api?: BlockingRulesApi; onOpenSettings?: () => void }) {
   const [api] = useState(() => suppliedApi ?? createBlockingRulesApi())
@@ -41,6 +42,20 @@ export function DistractionsPage({ api: suppliedApi, onOpenSettings }: { api?: B
       closeEditor()
     })
   }
+  async function addApplications(inputs: BlockingRuleInput[]) {
+    setPending(true); setError('')
+    try {
+      if (!api.createBatch) throw new Error('Adding multiple apps is unavailable. Add an app manually.')
+      const saved = await api.createBatch(inputs)
+      setRules((previous) => [...previous, ...saved]); closeEditor(); return true
+    } catch (cause) {
+      setError(message(cause))
+      if (message(cause).includes('HTTP 409')) {
+        try { setRules(await api.list()) } catch { /* Preserve displayed rules and selections if reload also fails. */ }
+      }
+      return false
+    } finally { setPending(false) }
+  }
   const filtered = rules.filter((rule) => (filter === 'All' || (filter === 'Websites' ? rule.target.type === 'WEBSITE' : rule.target.type === 'APPLICATION'))
     && `${rule.displayName} ${targetLabel(rule.target)}`.toLocaleLowerCase().includes(search.toLocaleLowerCase()))
 
@@ -53,7 +68,7 @@ export function DistractionsPage({ api: suppliedApi, onOpenSettings }: { api?: B
     </section>
     {error && <div role="alert" className="rule-error">{error}{!loaded && <button type="button" disabled={loading} onClick={() => void retry()}>Retry</button>}</div>}
     {editor && <RuleEditor key={editor === 'new' ? 'new' : editor.id} rule={editor === 'new' ? undefined : editor}
-      pending={pending} onSave={save} onCancel={closeEditor} />}
+      api={api} rules={rules} pending={pending} onSave={save} onAdd={addApplications} onCancel={closeEditor} />}
     {deleting && <section role="alertdialog" aria-labelledby="delete-rule-title" className="rule-editor card-panel">
       <h2 id="delete-rule-title">Delete {deleting.displayName}?</h2><p>This removes the saved rule.</p>
       <button type="button" disabled={pending} onClick={() => void mutate(async () => {
@@ -75,7 +90,7 @@ export function DistractionsPage({ api: suppliedApi, onOpenSettings }: { api?: B
           <div className="distraction-row distraction-table-head" role="row"><span role="columnheader">DISTRACTION / TYPE</span><span role="columnheader">ACTION / ENABLED</span><span role="columnheader">MANAGE</span></div>
           {filtered.length === 0 ? <p className="future-empty-state table-empty-state">{rules.length === 0 ? 'No distraction rules have been added.' : 'No rules match these filters.'}</p>
             : filtered.map((rule) => <div className="distraction-row" role="row" key={rule.id}>
-              <span className="distraction-name" role="cell"><span className="distraction-icon" aria-hidden="true">{rule.target.type === 'WEBSITE' ? '◎' : '▣'}</span><span><strong>{rule.displayName}</strong><small>{targetLabel(rule.target)}</small><small>{rule.target.type === 'WEBSITE' ? 'Website · includes subdomains' : `${rule.target.platform} · ${rule.target.matchKind === 'PROCESS_NAME' ? 'Process name' : 'Executable path'}`}</small></span></span>
+              <span className="distraction-name" role="cell"><span className="distraction-icon" aria-hidden="true">{rule.target.type === 'WEBSITE' ? '◎' : '▣'}</span><span><strong>{rule.displayName}</strong><small>{targetLabel(rule.target)}</small><small>{rule.target.type === 'WEBSITE' ? 'Website · includes subdomains' : `${rule.target.platform} · ${rule.target.matchKind === 'APPLICATION_ID' ? 'Installed app' : rule.target.matchKind === 'PROCESS_NAME' ? 'Process name' : 'Executable path'}`}</small></span></span>
               <span className="rule-action" role="cell"><span>{actionLabel(rule.action)}</span><button type="button" className={`toggle-switch${rule.enabled ? ' on' : ''}`} role="switch" aria-checked={rule.enabled} aria-label={`Enable ${rule.displayName}`} disabled={pending || editor !== null || deleting !== null}
                 onClick={() => void mutate(async () => {
                   const saved = await api.patch(rule.id, { enabled: !rule.enabled })
@@ -91,12 +106,13 @@ export function DistractionsPage({ api: suppliedApi, onOpenSettings }: { api?: B
   </div>
 }
 
-function RuleEditor({ rule, pending, onSave, onCancel }: { rule?: BlockingRule; pending: boolean; onSave(input: BlockingRuleInput): Promise<void>; onCancel(): void }) {
+function RuleEditor({ rule, api, rules, pending, onSave, onAdd, onCancel }: { rule?: BlockingRule; api: BlockingRulesApi; rules: BlockingRule[]; pending: boolean; onSave(input: BlockingRuleInput): Promise<void>; onAdd(inputs: BlockingRuleInput[]): Promise<boolean>; onCancel(): void }) {
   const [name, setName] = useState(rule?.displayName ?? '')
   const [type, setType] = useState(rule?.target.type ?? 'WEBSITE')
   const [domain, setDomain] = useState(rule?.target.type === 'WEBSITE' ? rule.target.domain : '')
   const [value, setValue] = useState(rule?.target.type === 'APPLICATION' ? rule.target.value : '')
-  const [platform, setPlatform] = useState<TargetPlatform>(rule?.target.type === 'APPLICATION' ? rule.target.platform : 'WINDOWS')
+  const [platform, setPlatform] = useState<TargetPlatform>(rule?.target.type === 'APPLICATION' ? rule.target.platform : defaultPlatform())
+  const [manual, setManual] = useState(Boolean(rule))
   const [matchKind, setMatchKind] = useState<ApplicationMatchKind>(rule?.target.type === 'APPLICATION' ? rule.target.matchKind : 'EXECUTABLE_PATH')
   const [action, setAction] = useState<BlockingAction>(rule?.action ?? 'BLOCK')
   const [enabled, setEnabled] = useState(rule?.enabled ?? true)
@@ -110,6 +126,11 @@ function RuleEditor({ rule, pending, onSave, onCancel }: { rule?: BlockingRule; 
     void onSave({ displayName: name.trim(), target: type === 'WEBSITE' ? { type: 'WEBSITE', domain: domain.trim() }
       : { type: 'APPLICATION', platform, matchKind, value: value.trim() }, category: 'OTHER', action, enabled })
   }
+  if (type === 'APPLICATION' && !manual) return <section className="rule-editor card-panel" aria-label="Add distraction">
+    <h2>Choose applications</h2>
+    <label>Target type<select value={type} onChange={(event) => setType(event.target.value as typeof type)} disabled={pending}><option value="WEBSITE">Website</option><option value="APPLICATION">Application</option></select></label>
+    <ApplicationPicker api={api} rules={rules} pending={pending} onPlatform={setPlatform} onAdd={onAdd} onManual={() => setManual(true)} onCancel={onCancel} />
+  </section>
   return <form className="rule-editor card-panel" aria-label={rule ? 'Edit distraction' : 'Add distraction'} onSubmit={submit}>
     <h2>{rule ? 'Edit distraction' : 'Add distraction'}</h2>
     <fieldset disabled={pending}>
@@ -117,8 +138,9 @@ function RuleEditor({ rule, pending, onSave, onCancel }: { rule?: BlockingRule; 
       <label>Target type<select value={type} onChange={(event) => setType(event.target.value as typeof type)}><option value="WEBSITE">Website</option><option value="APPLICATION">Application</option></select></label>
       {type === 'WEBSITE' ? <label>Domain<input aria-label="Domain" required value={domain} onChange={(event) => setDomain(event.target.value)} aria-describedby="domain-help" /><small id="domain-help">Matches this domain and its subdomains.</small></label>
         : <><label>Platform<select value={platform} onChange={(event) => setPlatform(event.target.value as TargetPlatform)}><option value="WINDOWS">Windows</option><option value="MACOS">macOS</option><option value="LINUX">Linux</option></select></label>
-          <label>Identify by<select value={matchKind} onChange={(event) => setMatchKind(event.target.value as ApplicationMatchKind)}><option value="EXECUTABLE_PATH">Executable path</option><option value="PROCESS_NAME">Process name</option></select></label>
-          <label>Application identifier<input aria-label="Application identifier" required value={value} onChange={(event) => setValue(event.target.value)} /><small>{matchKind === 'EXECUTABLE_PATH' ? 'Full executable path on the selected platform.' : 'Exact process name, including its extension where applicable.'}</small></label></>}
+          <label>Identify by<select value={matchKind} onChange={(event) => setMatchKind(event.target.value as ApplicationMatchKind)}><option value="EXECUTABLE_PATH">Executable path</option><option value="PROCESS_NAME">Process name</option>{matchKind === 'APPLICATION_ID' && <option value="APPLICATION_ID">Installed app identity</option>}</select></label>
+          <label>Application identifier<input aria-label="Application identifier" required value={value} onChange={(event) => setValue(event.target.value)} /><small>{matchKind === 'APPLICATION_ID' ? 'The selected installed application.' : matchKind === 'EXECUTABLE_PATH' ? 'Full executable path on the selected platform.' : 'Exact process name, including its extension where applicable.'}</small></label>
+          {!rule && <button type="button" onClick={() => setManual(false)}>Choose from installed apps</button>}</>}
       <label>Action<select value={action} onChange={(event) => setAction(event.target.value as BlockingAction)}>{(['LOG', 'WARN', 'BLOCK'] as const).map((item) => <option key={item} value={item}>{actionLabel(item)}</option>)}</select></label>
       <label className="rule-enabled"><input type="checkbox" checked={enabled} onChange={(event) => setEnabled(event.target.checked)} />Enabled</label>
       <p>Category: Other. Saving a rule does not activate protection.</p>
@@ -130,3 +152,7 @@ function RuleEditor({ rule, pending, onSave, onCancel }: { rule?: BlockingRule; 
 
 function message(cause: unknown) { return cause instanceof Error ? cause.message : 'The local rule request failed.' }
 function actionLabel(action: BlockingAction) { return { LOG: 'Log', WARN: 'Warn', BLOCK: 'Block' }[action] }
+function defaultPlatform(): TargetPlatform {
+  const platform = navigator.platform.toLowerCase()
+  return platform.includes('mac') ? 'MACOS' : platform.includes('linux') ? 'LINUX' : 'WINDOWS'
+}

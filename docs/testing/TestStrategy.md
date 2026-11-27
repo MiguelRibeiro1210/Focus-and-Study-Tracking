@@ -428,3 +428,26 @@ The macOS packaging retry is checked for immediate success, busy-then-success,
 three busy failures, and an unrelated failure without retry. Windows's full
 installer/smoke job passed at `f43c12d`; macOS ARM connection/restoration passed
 there before its DMG resource-busy failure. The updated matrix remains pending.
+
+The persistent connection correction subsequently passed the full four-platform
+installer/smoke matrix at `58a2eb8` (run `45964299778`).
+
+### Installed application picker (FST-051)
+
+Discovery fixtures cover native executable symlinks, Flatpak and Snap metadata,
+hidden entries, oversized/malformed shortcuts, healthy partial results, shared
+launchers and browser web-app shortcuts. Windows/macOS fixtures cover typed
+catalog responses; native CI requires discovering its installed Edge/Chrome,
+and the Linux native Brave scenario requires discovering installed Brave.
+Package matching tests verify exact identities, platform validation, path/ID/name
+precedence and old AppIdentifier JSON compatibility. API integration verifies
+authentication/origin protection, persisted identity targets, exports, duplicate
+and invalid batch rollback, and transaction rollback after a successful batch.
+
+Frontend tests cover search, multi-selection across filters, already-added and
+unresolved apps, atomic save, duplicate races, refresh/retry/empty/partial states,
+manual platform defaults and editing saved identities. A headless UI check with
+demo catalog data verifies two checked apps and captures the picker visually.
+Local verification: 341 backend tests pass (one platform-only test skipped),
+130 frontend tests, build, privacy audit and lint (two existing warnings).
+Native platform and installer acceptance is required after the implementation push.

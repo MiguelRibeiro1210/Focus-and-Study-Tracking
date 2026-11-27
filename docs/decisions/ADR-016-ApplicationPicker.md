@@ -11,6 +11,8 @@ Keep manual path/process entry, defaulting to the backend platform, and website
 entry. Preserve selections on errors. Use existing generic icons and provide
 loading, empty, partial, retry and save-error states.
 
+[Picker preview with demo data](../screenshots/FST-051-application-picker.png).
+
 Windows reads Start-menu shortcuts, App Paths and current-user Store/MSIX
 manifests. macOS reads application bundles in system/user application directories.
 Linux reads XDG desktop entries and local Flatpak/Snap metadata. Do not enumerate
