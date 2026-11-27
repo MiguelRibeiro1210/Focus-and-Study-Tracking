@@ -1,0 +1,81 @@
+# ADR-015: Persistent browser routing across desktop platforms
+
+**Status:** Approved scope, 2026-11-27: make website blocking work across Windows,
+macOS and Linux without repeated browser closure. FST-050 remains In Progress
+until platform acceptance evidence is complete.
+
+## Routing and lifetime
+
+The automatic connection replaces temporary browser launch arguments as the
+normal setup. Windows uses per-user browser policies for Brave, Chrome, Chromium,
+Edge and Firefox, together with the user system PAC. Linux installs owned proxy
+policies for native desktop browsers, including on Hyprland; it does not pretend
+GNOME settings control other desktops. macOS applies PAC settings to active
+network services through an administrator-authorized helper, covering Safari
+and browsers configured to use system settings. Existing custom proxies and
+enterprise proxy policies are preserved; conflicting configuration is unavailable.
+
+Keep the stable loopback endpoint introduced by ADR-014. Browser policies remain
+installed while website protection is enabled, including across browser exits
+and ordinary relaunches. Session/rule changes only change proxy decisions.
+Do not launch or force-close a browser to apply automatic setup. Chromium policy
+refresh can update open browsers. Firefox may need one initial policy-load
+restart; it must not need restarting for each session or ordinary relaunch.
+
+Browser packaging and overriding preferences still matter: native system packages
+are supported on Linux; sandboxed Flatpak/Snap policy deployment is separate.
+macOS browsers with custom proxy overrides require correction/verification and
+are not silently reported protected. No verification request can reliably prove
+the identity or coverage of every executable/profile. Label proof as a browser
+connection check and require users to check each browser they use.
+
+## Permission and restoration
+
+The user authorized administrator prompts and persistent browser policies.
+In-product consent must explain that Linux policies affect all users/profiles,
+may show a managed-browser notice, and are restored when protection ends.
+Windows settings are per-user. Do not overwrite existing managed proxy policies.
+
+Use a separate lease guardian, with fixed setting keys and validated loopback
+PAC values. Linux uses PolicyKit (`pkexec`, with an authentication agent); macOS
+uses the OS administrator prompt. Elevated guardians connect to a temporary
+loopback control socket with a fresh secret, then watch parent identity and
+heartbeats. No API bearer token, browsing traffic or destination data enters
+this channel. Elevated journals live in a fixed administrator-owned directory;
+user-provided paths must never choose privileged destinations. Windows keeps
+the user-owned guardian/journal and needs no elevation for user policies.
+
+Restore owned values on disable, parent death, control disconnect and lease
+expiry. Independent browser policies restore independently: a user's change to
+one policy must not leave other owned policies installed. Firefox proxy updates
+merge into its policy document, retaining unrelated keys. Recover a stale owned
+journal before applying new settings. Never remove or replace another owner's
+configuration. Do not repeat permission prompts on a timer after denial; retry
+requires explicit setup. Preserve old routing API compatibility, but migrate
+saved launch-only setup to automatic connection with protection off until fresh
+consent. The old Brave-launch endpoint remains legacy, not the recommended UI.
+
+## Interface and verification
+
+Use one Automatic connection option by default. Capability status distinguishes
+missing runtime, missing authorization tools, saved consent, applied settings and
+observed browser routing. Explain permission scope, first-load restart limits,
+per-browser checking and conflicts in dialogs rather than permanent paragraphs.
+Do not equate a successful helper/registry write with verified routing.
+
+Backend tests precede frontend changes. Cover fixed native command construction,
+policy conflicts, atomic file updates, unrelated-policy preservation, independent
+restoration, authenticated helper control and lease recovery. Native browser
+tests must launch without proxy flags, apply policy and reopen the browser with
+the same profile. Use an isolated mount namespace for Linux policy tests, never
+the user's `/etc` or existing browser. Add packaged helper self-checks and platform
+CI checks. Record native tests actually run; adapter mocks cannot establish
+Windows/macOS browser acceptance. Keep unresolved gaps on the board.
+
+## Sources
+
+- [Brave platform policies](https://support.brave.app/hc/en-us/articles/360039248271-Group-Policy).
+- [Chromium ProxySettings and dynamic refresh](https://chromium.googlesource.com/chromium/src/+/refs/heads/main/components/policy/resources/templates/policy_definitions/Miscellaneous/ProxySettings.yaml).
+- [Edge ProxySettings](https://learn.microsoft.com/en-us/deployedge/microsoft-edge-policies/ProxySettings).
+- [Firefox proxy policy](https://firefox-admin-docs.mozilla.org/reference/policies/proxy/).
+- [Firefox Linux policy locations](https://support.mozilla.org/en-US/kb/customizing-firefox-using-policiesjson).

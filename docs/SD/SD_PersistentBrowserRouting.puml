@@ -1,0 +1,42 @@
+@startuml
+title Automatic browser connection across desktop platforms
+actor Learner
+participant Settings
+participant Runtime
+participant "OS permission prompt" as Permission
+participant "Settings guardian" as Guardian
+database "Owned settings journal" as Journal
+participant Browser
+participant "Stable local proxy" as Proxy
+Learner -> Settings: Allow website blocking and connection changes
+Settings -> Runtime: Enable automatic connection
+Runtime -> Proxy: Start stable loopback endpoint with fresh proof
+alt Linux or macOS
+  Runtime -> Permission: Request administrator-authorized guardian
+  Permission -> Guardian: Start after approval
+  Guardian -> Runtime: Authenticate over loopback control socket
+else Windows
+  Runtime -> Guardian: Start per-user guardian
+end
+Guardian -> Journal: Recover owned settings; record prior values
+Guardian -> Browser: Apply persistent policies / system PAC
+Guardian --> Runtime: Settings applied (not routing proof)
+Browser -> Proxy: Connection verification
+Proxy --> Runtime: Browser routing observed
+Runtime --> Settings: Connection checked; check each browser separately
+Learner -> Browser: Close and reopen normally
+Browser -> Proxy: Requests use persistent routing without launch flags
+Runtime -> Proxy: Evaluate current focus state and rules
+loop While application is alive
+  Runtime -> Guardian: Heartbeat
+  Guardian --> Runtime: Owned settings unchanged
+end
+alt Disable, disconnect or parent death
+  Guardian -> Browser: Restore only still-owned settings
+  Guardian -> Journal: Confirm restoration
+  Runtime -> Proxy: Stop forwarding
+else User replaces settings
+  Guardian -> Browser: Preserve replacement; restore other owned policies
+  Guardian --> Runtime: Configuration changed
+end
+@enduml
