@@ -1,10 +1,9 @@
 import { useEffect, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
 import { createBlockingRulesApi, targetLabel } from '../api/blockingRulesApi'
-import { WebsiteProtection } from './WebsiteProtection'
-import type { ApplicationMatchKind, BlockingAction, BlockingRule, BlockingRuleInput, BlockingRulesApi, BlockingStatus, TargetPlatform } from '../api/blockingRulesApi'
+import type { ApplicationMatchKind, BlockingAction, BlockingRule, BlockingRuleInput, BlockingRulesApi, TargetPlatform } from '../api/blockingRulesApi'
 
-export function DistractionsPage({ api: suppliedApi }: { api?: BlockingRulesApi }) {
+export function DistractionsPage({ api: suppliedApi, onOpenSettings }: { api?: BlockingRulesApi; onOpenSettings?: () => void }) {
   const [api] = useState(() => suppliedApi ?? createBlockingRulesApi())
   const [rules, setRules] = useState<BlockingRule[]>([])
   const [loaded, setLoaded] = useState(false)
@@ -48,8 +47,9 @@ export function DistractionsPage({ api: suppliedApi }: { api?: BlockingRulesApi 
   return <div className="distractions-page">
     <section className="boundaries-banner">
       <div><h2>Healthy boundaries for distractions.</h2><p>Set up rules for websites and applications.</p></div>
+      <div className="distraction-header-actions">{onOpenSettings && <button type="button" className="button button-secondary" onClick={onOpenSettings}>Open blocking settings</button>}
       <button ref={addButton} type="button" className="button button-primary" disabled={!loaded || pending || editor !== null || deleting !== null}
-        onClick={() => { setError(''); setEditor('new') }}>＋ Add distraction</button>
+        onClick={() => { setError(''); setEditor('new') }}>＋ Add distraction</button></div>
     </section>
     {error && <div role="alert" className="rule-error">{error}{!loaded && <button type="button" disabled={loading} onClick={() => void retry()}>Retry</button>}</div>}
     {editor && <RuleEditor key={editor === 'new' ? 'new' : editor.id} rule={editor === 'new' ? undefined : editor}
@@ -86,68 +86,9 @@ export function DistractionsPage({ api: suppliedApi }: { api?: BlockingRulesApi 
             </div>)}
         </div>}
       </section>
-      <aside className="distraction-side-column">
-        <ProtectionAvailability api={api} />
-        <WebsiteProtection api={api} />
-        <section className="profile-panel card-panel"><h2>Focus profiles</h2><p className="muted-copy">One rule set applies to this installation. Multiple rule profiles are not available yet.</p></section>
-        <section className="boundaries-info card-panel"><h2>You set the boundaries.</h2><div><strong>During focus time</strong><p>Protection will apply during running work intervals. Pauses and breaks release restrictions.</p></div><div><strong>Control stays local</strong><p>Your rules stay on your computer.</p></div></section>
-      </aside>
+
     </div>
   </div>
-}
-
-function ProtectionAvailability({ api }: { api: BlockingRulesApi }) {
-  const [status, setStatus] = useState<BlockingStatus | null>(null)
-  const [error, setError] = useState('')
-  const [acknowledged, setAcknowledged] = useState(false)
-  const [pending, setPending] = useState(false)
-  const [saveError, setSaveError] = useState('')
-  const configuring = useRef(false)
-  const revision = useRef(0)
-  useEffect(() => {
-    if (!api.status) return
-    let active = true
-    let timer: ReturnType<typeof setTimeout> | undefined
-    async function refresh() {
-      const ticket = ++revision.current
-      try {
-        if (configuring.current) return
-        const result = await api.status!()
-        if (active && ticket === revision.current && !configuring.current) { setStatus(result); setError('') }
-      } catch (cause) { if (active && ticket === revision.current && !configuring.current) { setStatus(null); setError(message(cause)) } }
-      finally { if (active) timer = setTimeout(() => void refresh(), 2000) }
-    }
-    void refresh()
-    return () => { active = false; clearTimeout(timer) }
-  }, [api])
-  async function configure(enabled: boolean) {
-    if (!api.setApplicationProtection) return
-    configuring.current = true; revision.current += 1; setPending(true); setSaveError('')
-    try {
-      const saved = await api.setApplicationProtection(enabled)
-      setStatus((previous) => previous ? { ...previous, applicationProtectionEnabled: saved.applicationsEnabled } : previous)
-      setAcknowledged(false)
-    } catch (cause) { setSaveError(message(cause)) }
-    finally { configuring.current = false; revision.current += 1; setPending(false) }
-  }
-  return <section className="profile-panel card-panel" aria-label="Protection availability">
-    <h2>Protection availability</h2>
-    {!api.status ? <p>Rules are saved locally. Runtime protection is not connected yet.</p>
-      : error ? <p role="status">Protection status unavailable: {error}</p>
-        : !status ? <p role="status">Checking protection status…</p>
-          : <><p role="status">{status.applicationReason}</p>
-            <p>Applications currently suspended: {status.ownedRestrictions ?? 0}. Configure website protection below.</p>
-            {status.applicationProtectionState === 'UNAVAILABLE' && <p role="status">Application protection is unavailable. Check permissions and native helper support.</p>}
-            {status.applicationProtectionState === 'RESTORING' && <p role="status">{status.notice?.message ?? 'Restoring applications. Keep FocusDesktop open.'}</p>}
-            {api.setApplicationProtection && <div className="protection-consent">
-              <p>Matched applications are temporarily suspended during running work intervals and restored when protection ends.</p>
-              {!status.applicationProtectionEnabled && <label><input type="checkbox" checked={acknowledged} disabled={pending} onChange={(event) => setAcknowledged(event.target.checked)} />Allow temporary suspension of matched applications and automatic restoration.</label>}
-              <button type="button" className="button button-primary" disabled={pending || (!status.applicationProtectionEnabled && !acknowledged)}
-                onClick={() => void configure(!status.applicationProtectionEnabled)}>{pending ? 'Saving…' : status.applicationProtectionEnabled ? 'Disable application protection' : 'Enable application protection'}</button>
-            </div>}
-          </>}
-    {saveError && <p role="alert">{saveError}</p>}
-  </section>
 }
 
 function RuleEditor({ rule, pending, onSave, onCancel }: { rule?: BlockingRule; pending: boolean; onSave(input: BlockingRuleInput): Promise<void>; onCancel(): void }) {

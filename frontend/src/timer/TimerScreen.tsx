@@ -1,4 +1,6 @@
-import { useEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent } from 'react'
+import { emptyTimerStartDraft } from './timerStartDraft'
+import type { TimerStartDraft } from './timerStartDraft'
+import { useEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent, type Dispatch, type SetStateAction } from 'react'
 import type { SessionResponse } from '../api/sessionTypes'
 import { sessionApi, type SessionApi, type TimerOverride } from '../api/sessionApi'
 import type { AppSettings } from '../api/settingsApi'
@@ -8,7 +10,11 @@ import { localDateKey, mapOverviewAnalytics, type OverviewAnalytics } from '../p
 import { formatFocusDuration, formatHistoryDateTime } from '../pages/historyRange'
 import { useSessionHistory } from '../pages/useSessionHistory'
 
-interface TimerScreenProps {
+export interface TimerScreenProps {
+  startDraft?: TimerStartDraft
+  onStartDraftChange?: Dispatch<SetStateAction<TimerStartDraft>>
+  onRequestStart?(name: string, override?: TimerOverride): void
+  checkingProtection?: boolean
   timer: TimerController
   onViewHistory?: () => void
   api?: Pick<SessionApi, 'getSessionHistory'> & Partial<Pick<SessionApi, 'getAnalyticsSummary'>>
@@ -58,10 +64,11 @@ function statusLabel(session: SessionResponse | null): string {
   }
 }
 
-export function TimerScreen({ timer, onViewHistory, api = sessionApi, settings = null }: TimerScreenProps) {
+export function TimerScreen({ timer, onViewHistory, api = sessionApi, settings = null, startDraft, onStartDraftChange, onRequestStart, checkingProtection = false }: TimerScreenProps) {
   const [confirmStop, setConfirmStop] = useState(false)
-  const [durations, setDurations] = useState({ work: '', short: '', long: '' })
-  const [projectDraft, setProjectDraft] = useState<{ sessionId: string | null; value: string }>({ sessionId: null, value: '' })
+  const [localDraft, setLocalDraft] = useState<TimerStartDraft>(emptyTimerStartDraft)
+  const { durations, projectDraft } = startDraft ?? localDraft
+  const setDraft = onStartDraftChange ?? setLocalDraft
   const [projectNameError, setProjectNameError] = useState('')
   const [durationError, setDurationError] = useState('')
   const cancelStopRef = useRef<HTMLButtonElement>(null)
@@ -179,7 +186,8 @@ export function TimerScreen({ timer, onViewHistory, api = sessionApi, settings =
       setDurationError('The long break must be at least as long as the short break.')
       return
     }
-    if (Object.keys(override).length) void timer.runAction('start', normalized, override)
+    if (onRequestStart) onRequestStart(normalized, Object.keys(override).length ? override : undefined)
+    else if (Object.keys(override).length) void timer.runAction('start', normalized, override)
     else void timer.runAction('start', normalized)
   }
 
@@ -203,9 +211,9 @@ export function TimerScreen({ timer, onViewHistory, api = sessionApi, settings =
 
   function actionButton(action: TimerAction, label: string, primary = false, accessibleName = label) {
     return <button className={`button ${primary ? 'button-primary' : 'button-secondary'}`} type="button"
-      aria-label={accessibleName} disabled={timer.pendingAction !== null}
+      aria-label={accessibleName} disabled={timer.pendingAction !== null || checkingProtection}
       onClick={() => action === 'start' ? startSession() : void timer.runAction(action)}>
-      {timer.pendingAction === action ? 'Please wait…' : label}
+      {checkingProtection && action === 'start' ? 'Checking blocking…' : timer.pendingAction === action ? 'Please wait…' : label}
     </button>
   }
 
@@ -257,13 +265,13 @@ export function TimerScreen({ timer, onViewHistory, api = sessionApi, settings =
               placeholder="Name your next project" value={projectName} disabled={!canEditProjectName}
               aria-invalid={projectNameError ? 'true' : undefined}
               aria-describedby={projectNameError ? 'project-name-error' : undefined}
-              onChange={(event) => { setProjectDraft({ sessionId: session?.sessionId ?? null, value: event.target.value }); setProjectNameError('') }} />
+              onChange={(event) => { setDraft((current) => ({ ...current, projectDraft: { sessionId: session?.sessionId ?? null, value: event.target.value } })); setProjectNameError('') }} />
             {projectNameError && <p className="field-error" id="project-name-error" role="alert">{projectNameError}</p>}
             <p className="field-label">Session duration</p>
             <div className="duration-options" aria-label="Session duration in minutes">
-              <label className="duration-field">Work<input className="duration-option" type="number" min="1" max="180" step="1" inputMode="numeric" aria-label="Work duration in minutes" placeholder={String(Math.round((defaultProfile?.workSeconds ?? 25 * 60) / 60))} value={durations.work} onChange={(event) => { setDurationError(''); setDurations((current) => ({ ...current, work: event.target.value })) }} /></label>
-              <label className="duration-field">Short<input className="duration-option" type="number" min="1" max="60" step="1" inputMode="numeric" aria-label="Short break duration in minutes" placeholder={String(Math.round((defaultProfile?.shortBreakSeconds ?? 5 * 60) / 60))} value={durations.short} onChange={(event) => { setDurationError(''); setDurations((current) => ({ ...current, short: event.target.value })) }} /></label>
-              <label className="duration-field">Long<input className="duration-option" type="number" min="1" max="120" step="1" inputMode="numeric" aria-label="Long break duration in minutes" placeholder={String(Math.round((defaultProfile?.longBreakSeconds ?? 15 * 60) / 60))} value={durations.long} onChange={(event) => { setDurationError(''); setDurations((current) => ({ ...current, long: event.target.value })) }} /></label>
+              <label className="duration-field">Work<input className="duration-option" type="number" min="1" max="180" step="1" inputMode="numeric" aria-label="Work duration in minutes" placeholder={String(Math.round((defaultProfile?.workSeconds ?? 25 * 60) / 60))} value={durations.work} onChange={(event) => { setDurationError(''); setDraft((current) => ({ ...current, durations: { ...current.durations, work: event.target.value } })) }} /></label>
+              <label className="duration-field">Short<input className="duration-option" type="number" min="1" max="60" step="1" inputMode="numeric" aria-label="Short break duration in minutes" placeholder={String(Math.round((defaultProfile?.shortBreakSeconds ?? 5 * 60) / 60))} value={durations.short} onChange={(event) => { setDurationError(''); setDraft((current) => ({ ...current, durations: { ...current.durations, short: event.target.value } })) }} /></label>
+              <label className="duration-field">Long<input className="duration-option" type="number" min="1" max="120" step="1" inputMode="numeric" aria-label="Long break duration in minutes" placeholder={String(Math.round((defaultProfile?.longBreakSeconds ?? 15 * 60) / 60))} value={durations.long} onChange={(event) => { setDurationError(''); setDraft((current) => ({ ...current, durations: { ...current.durations, long: event.target.value } })) }} /></label>
             </div>
             {durationError && <p className="field-error" role="alert">{durationError}</p>}
             <div className="session-meta">

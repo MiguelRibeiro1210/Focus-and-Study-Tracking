@@ -133,14 +133,18 @@ On Windows, use `mvnw.cmd` with the same Maven goals.
    # From backend/, replacing the ordinary backend launch:
    ./mvnw spring-boot:run -Dspring-boot.run.arguments=--focusdesktop.blocking.monitor-enabled=true
    ```
-   Start `npm run dev` separately. On Linux/Hyprland, choose **Brave** under
-   Website protection, acknowledge forwarding and enable protection. Choose
-   **Set up Brave**, then close all Brave windows within 60 seconds, including
+   Start `npm run dev` separately. Open **Settings → Blocking**. On Linux/Hyprland,
+   choose **Brave**, turn on **Block websites** and accept the forwarding dialog.
+   Choose **Connect browser → Set up Brave**, then close all Brave windows within
+   60 seconds, including
    the dev UI if opened there. The backend reopens your existing Brave profile
    with the verification page. Keep the backend running, start a focus interval,
    and test an enabled Block rule for `youtube.com`. Saving rules alone does
    not enable routing. If setup times out, retry after closing background Brave
    processes yourself; FocusDesktop never closes your browser automatically.
+   Starting a session checks enabled Block rules. If setup is missing, choose
+   **Set up blocking**, **Start without blocking**, or **Cancel**. Opening Settings
+   keeps your project name and timer choices; returning never auto-starts a session.
 
 4. **Build the desktop app:**
    ```bash

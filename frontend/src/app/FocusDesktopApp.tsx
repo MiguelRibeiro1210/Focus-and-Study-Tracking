@@ -1,6 +1,9 @@
 import { useEffect, useState } from 'react'
 import type { TimerController } from '../timer/useTimerSession'
-import { TimerScreen } from '../timer/TimerScreen'
+import { createBlockingRulesApi } from '../api/blockingRulesApi'
+import type { BlockingRulesApi } from '../api/blockingRulesApi'
+import { SessionStartGuard } from '../timer/SessionStartGuard'
+import { emptyTimerStartDraft } from '../timer/timerStartDraft'
 import { DistractionsPage } from '../pages/DistractionsPage'
 import { DistractionHistory } from '../pages/DistractionHistory'
 import { HistoryPage } from '../pages/HistoryPage'
@@ -25,11 +28,15 @@ const pageCopy: Record<Page, { title: string; subtitle: string }> = {
 }
 
 interface FocusDesktopAppProps {
+  blockingApi?: BlockingRulesApi
   timer: TimerController
   settings: AppSettingsController
 }
 
-export function FocusDesktopApp({ timer, settings }: FocusDesktopAppProps) {
+export function FocusDesktopApp({ timer, settings, blockingApi: suppliedBlockingApi }: FocusDesktopAppProps) {
+  const [blockingApi] = useState(() => suppliedBlockingApi ?? createBlockingRulesApi())
+  const [startDraft, setStartDraft] = useState(emptyTimerStartDraft)
+  const [returnToTimer, setReturnToTimer] = useState(false)
   const [page, setPage] = useState<Page>('overview')
   const copy = pageCopy[page]
 
@@ -86,11 +93,14 @@ export function FocusDesktopApp({ timer, settings }: FocusDesktopAppProps) {
           <div className="local-status"><img src="/figma/connected.svg" width="6" height="6" alt="" />Running locally</div>
         </header>
         <main className={`workspace-content page-${page}`}>
-          <ProtectionFeedback />
-          {page === 'overview' && <TimerScreen timer={timer} settings={settings.settings} onViewHistory={() => setPage('history')} />}
-          {page === 'distractions' && <><DistractionsPage /><DistractionHistory /></>}
+          <ProtectionFeedback api={blockingApi} />
+          {page === 'overview' && <SessionStartGuard api={blockingApi}
+            onStart={(name, override) => override ? timer.runAction('start', name, override) : timer.runAction('start', name)}
+            onSetup={() => { setReturnToTimer(true); setPage('settings') }}
+            timerProps={{ timer, settings: settings.settings, onViewHistory: () => setPage('history'), startDraft, onStartDraftChange: setStartDraft }} />}
+          {page === 'distractions' && <><DistractionsPage api={blockingApi} onOpenSettings={() => setPage('settings')} /><DistractionHistory /></>}
           {page === 'history' && <HistoryPage />}
-          {page === 'settings' && <SettingsPage controller={settings} />}
+          {page === 'settings' && <SettingsPage controller={settings} blockingApi={blockingApi} returnToSession={returnToTimer ? () => { setPage('overview'); setReturnToTimer(false) } : undefined} />}
         </main>
       </div>
     </div>

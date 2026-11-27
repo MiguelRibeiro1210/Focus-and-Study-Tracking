@@ -548,6 +548,23 @@ html[data-theme="DARK"] .outlined-control, html[data-theme="DARK"] .outlined-con
   .dialog-actions { flex-direction: column-reverse; }
 }
 
-.website-routing-choice { display: grid; gap: 6px; margin: 12px 0; }
-.website-routing-choice select { width: 100%; min-height: 36px; font: inherit; color: inherit; background: var(--panel-bg, transparent); border: 1px solid currentColor; border-radius: 6px; padding: 6px; }
-.website-runtime-help code { overflow-wrap: anywhere; }
+
+.blocking-settings { padding: 24px; }
+.blocking-settings-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.blocking-settings h2 { margin: 0; }
+.blocking-settings-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-top: 16px; }
+.blocking-settings select { max-width: 180px; padding: 8px 12px; font: inherit; }
+.blocking-dialog { width: min(100%, 34rem); max-height: 90vh; overflow-y: auto; }
+.blocking-dialog code { overflow-wrap: anywhere; }
+.blocking-dialog input { width: 100%; min-width: 0; padding: 8px; margin: 8px 0; }
+.blocking-dialog .dialog-actions { flex-wrap: wrap; }
+@media (max-width: 600px) {
+  .blocking-settings-heading { align-items: flex-start; flex-direction: column; }
+  .blocking-dialog { padding: 24px; }
+}
+html[data-theme="DARK"] .blocking-dialog h2 { color: var(--theme-text); }
+html[data-theme="DARK"] .blocking-dialog p { color: var(--theme-muted); }
+html[data-theme="DARK"] .blocking-dialog input { color: var(--theme-text); background: var(--theme-surface-soft); border: 1px solid var(--theme-border); }
+
+.distractions-page .distractions-layout { grid-template-columns: minmax(0, 1fr); }
+.distraction-header-actions { display: flex; flex-wrap: wrap; gap: 10px; }

@@ -323,3 +323,27 @@ frontend verification passes 111 tests, build, lint (two existing SettingsPage
 warnings) and privacy audit. Final focused checks also cover the fresh-response
 assertions and startup failure handling. Other native browser/OS authorization
 gaps remain open under FST-050.
+
+### Blocking settings and session-start guidance (ADR-013)
+
+Protection controls now live in compact Settings cards. Explanations, explicit
+app/website consent and voluntary browser setup are presented in dialogs.
+Frontend coverage verifies no setup controls remain on Distractions, permission
+is not saved before confirmation, failed saves can be retried, and browser setup
+requires its separate confirmation. Developer instructions and verification
+addresses are absent from the persistent Settings view.
+
+Before new sessions, fresh readiness checks consider only enabled Block rules.
+Tests cover no rules, Log/Warn/disabled rules, ready idle monitoring with zero
+suspensions, missing permissions/consent/browser routing, failed reads and bounded
+timeouts. Dialog tests cover all three choices, duplicate clicks, focus trapping,
+Escape/cancel focus restoration and late results after unmount. Navigation tests
+preserve the project/timer draft through Settings and prove returning never
+auto-starts the session. Existing pause/resume and interval behavior is unchanged.
+
+Verification: 119 frontend tests pass; production build, lint (only the two
+existing SettingsPage warnings) and privacy audit pass. Isolated Brave screenshots
+review the Settings card and light/dark responsive start dialogs against local
+fixtures only. No backend/domain/API behavior changed; backend tests are not
+repeated for this UI-only change. All 33 PlantUML sources pass syntax checks and
+render to valid SVGs without error diagrams.

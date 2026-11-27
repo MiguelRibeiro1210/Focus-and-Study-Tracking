@@ -1,9 +1,12 @@
 import { useEffect, useState, type FormEvent } from 'react'
+import { BlockingSettings } from './BlockingSettings'
+import { createBlockingRulesApi } from '../api/blockingRulesApi'
+import type { BlockingRulesApi } from '../api/blockingRulesApi'
 import { isDesktopShell } from '../api/nativeTransport'
 import type { ApplicationTheme, ExportFormat, TimerProfile } from '../api/settingsApi'
 import type { AppSettingsController } from './useAppSettings'
 
-interface SettingsPageProps { controller: AppSettingsController }
+interface SettingsPageProps { controller: AppSettingsController; blockingApi?: BlockingRulesApi; returnToSession?: () => void }
 type Confirmation = { kind: 'clear' | 'expired' | 'all' | 'profile'; profileId?: string } | null
 
 interface ProfileDraft {
@@ -42,7 +45,8 @@ function wholeNumber(value: string, minimum: number, maximum: number): number | 
   return Number.isInteger(parsed) && parsed >= minimum && parsed <= maximum ? parsed : null
 }
 
-export function SettingsPage({ controller }: SettingsPageProps) {
+export function SettingsPage({ controller, blockingApi: suppliedBlockingApi, returnToSession }: SettingsPageProps) {
+  const [blockingApi] = useState(() => suppliedBlockingApi ?? createBlockingRulesApi())
   const { settings, loading, pending, error, notice, retry } = controller
   const [profileDialog, setProfileDialog] = useState<TimerProfile | 'new' | null>(null)
   const [draft, setDraft] = useState<ProfileDraft>(emptyDraft)
@@ -142,6 +146,7 @@ export function SettingsPage({ controller }: SettingsPageProps) {
       <button type="button" className="retry-button" onClick={retry}>Retry</button>
     </div>}
     <div className="settings-main-column">
+      <BlockingSettings api={blockingApi} returnToSession={returnToSession} />
       <section className="saved-profiles card-panel">
         <div className="saved-profiles-heading">
           <div><h2>Saved timer profiles</h2><p>Choose a rhythm, then use it on Overview.</p></div>

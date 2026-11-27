@@ -50,3 +50,12 @@ preservation, concise settings, consent and browser setup. Verify no setup contr
 remain on Distractions, and no pending check creates a session automatically.
 Run frontend tests/build/lint/privacy checks and inspect the diff; update the
 board last. FST-050 stays open for its unrelated native-platform acceptance gaps.
+
+## Implementation verification
+
+Implemented with existing authenticated APIs and a five-second readiness bound.
+The timer draft is retained in app memory; setup is the emphasized dialog action
+and continuing without blocking remains an explicit secondary choice. Frontend
+verification passes 119 tests, build, lint (two pre-existing warnings) and privacy
+audit. Isolated browser previews cover compact Settings and responsive light/dark
+dialogs. All 33 PlantUML sources pass syntax validation and SVG rendering.

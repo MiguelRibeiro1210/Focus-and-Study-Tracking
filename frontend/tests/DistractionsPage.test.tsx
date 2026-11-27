@@ -15,36 +15,14 @@ function api(overrides: Partial<BlockingRulesApi> = {}): BlockingRulesApi {
 }
 
 describe('saved distraction rules', () => {
-  it('requires acknowledgement before enabling temporary suspension and preserves consent on failure', async () => {
-    const user = userEvent.setup()
-    const setProtection = vi.fn().mockRejectedValueOnce(new Error('Consent save failed'))
-      .mockResolvedValueOnce({ applicationsEnabled: true, applicationConsentAt: '2026-11-26T00:00:00Z' })
-    render(<DistractionsPage api={api({ status: vi.fn().mockResolvedValue({ monitorEnabled: true, applicationDetection: 'IDLE',
-      applicationReason: 'Waiting for focus.', applicationEnforcement: false, websiteEnforcement: false,
-      applicationProtectionEnabled: false, ownedRestrictions: 0, checkedAt: '2026-11-26T00:00:00Z' }), setApplicationProtection: setProtection })} />)
-    const enable = await screen.findByRole('button', { name: 'Enable application protection' })
-    expect((enable as HTMLButtonElement).disabled).toBe(true)
-    await user.click(screen.getByRole('checkbox', { name: /Allow temporary suspension/ }))
-    await user.click(enable)
-    expect(await screen.findByText('Consent save failed')).toBeTruthy()
-    expect(screen.queryByRole('button', { name: 'Disable application protection' })).toBeNull()
-    await user.click(enable)
-    expect(setProtection).toHaveBeenCalledWith(true)
-    expect(await screen.findByRole('button', { name: 'Disable application protection' })).toBeTruthy()
-  })
-  it('reports unavailable detection separately from rule configuration and enforcement', async () => {
-    render(<DistractionsPage api={api({ status: vi.fn().mockResolvedValue({ monitorEnabled: true,
-      applicationDetection: 'UNAVAILABLE', applicationReason: 'This Wayland desktop has no supported foreground adapter.',
-      applicationEnforcement: false, websiteEnforcement: false, checkedAt: '2026-11-26T00:00:00Z' }) })} />)
-    expect(await screen.findByText(/This Wayland desktop/)).toBeTruthy()
-    expect(screen.getByText(/Applications currently suspended: 0/)).toBeTruthy()
+  it('keeps saved rules separate from setup and links to Settings', async () => {
+    const user = userEvent.setup(); const open = vi.fn(); const status = vi.fn()
+    render(<DistractionsPage api={api({ status })} onOpenSettings={open} />)
     expect(await screen.findByText('Video')).toBeTruthy()
-  })
-
-  it('shows unknown protection availability when status requests fail', async () => {
-    render(<DistractionsPage api={api({ status: vi.fn().mockRejectedValue(new Error('Offline')) })} />)
-    expect(await screen.findByText('Protection status unavailable: Offline')).toBeTruthy()
-    expect(screen.queryByText(/Application blocking: available/)).toBeNull()
+    expect(screen.queryByRole('switch', { name: 'Block apps' })).toBeNull()
+    expect(screen.queryByRole('switch', { name: 'Block websites' })).toBeNull()
+    expect(status).not.toHaveBeenCalled()
+    await user.click(screen.getByRole('button', { name: 'Open blocking settings' })); expect(open).toHaveBeenCalledOnce()
   })
   it('disables concurrent mutations until a toggle is confirmed by storage', async () => {
     const user = userEvent.setup()
@@ -81,7 +59,6 @@ describe('saved distraction rules', () => {
     const user = userEvent.setup()
     render(<DistractionsPage api={api()} />)
     await screen.findByText('Video')
-    expect(screen.getByText(/Runtime protection is not connected/)).toBeTruthy()
     await user.click(screen.getByRole('button', { name: 'Apps' }))
     expect(screen.queryByText('Video')).toBeNull()
     await user.type(screen.getByRole('searchbox'), 'chat')
