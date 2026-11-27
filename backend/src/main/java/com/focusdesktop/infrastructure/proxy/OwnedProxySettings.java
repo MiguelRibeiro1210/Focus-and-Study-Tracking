@@ -12,6 +12,24 @@ final class OwnedProxySettings implements AutoCloseable {
         List<Change> prepare(String pacUrl);
         String read(String key);
         void write(String key, String value);
+        default boolean independentSettings() { return false; }
+        default Map<String, String> readAll(List<String> keys) {
+            var values = new LinkedHashMap<String, String>(); keys.forEach(key -> values.put(key, read(key))); return values;
+        }
+        default void writeAll(Map<String, String> values) { values.forEach(this::write); }
+        default void restore(List<Change> changes) {
+            RuntimeException failure = null;
+            for (int index = changes.size() - 1; index >= 0; index--) {
+                Change change = changes.get(index);
+                try {
+                    if (Objects.equals(read(change.key()), change.applied())) {
+                        write(change.key(), change.before());
+                        if (!Objects.equals(read(change.key()), change.before())) throw new IllegalStateException("Restoration not confirmed");
+                    }
+                } catch (RuntimeException exception) { failure = exception; }
+            }
+            if (failure != null) throw failure;
+        }
     }
     record Change(String key, String before, String applied) { }
     private final Store store;
@@ -39,9 +57,11 @@ final class OwnedProxySettings implements AutoCloseable {
             try (var file = FileChannel.open(temporary, StandardOpenOption.WRITE)) { file.force(true); }
             Files.move(temporary, journal, StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);
         } finally { Files.deleteIfExists(temporary); }
-        for (Change change : changes) store.write(change.key(), change.applied());
+        var applied = new LinkedHashMap<String, String>(); changes.forEach(change -> applied.put(change.key(), change.applied()));
+        store.writeAll(applied);
+        var current = store.readAll(changes.stream().map(Change::key).toList());
         for (Change change : changes)
-            if (!Objects.equals(store.read(change.key()), change.applied())) throw new IOException("Settings not confirmed");
+            if (!Objects.equals(current.get(change.key()), change.applied())) throw new IOException("Settings not confirmed");
     }
     synchronized void restore() throws IOException {
         if (closed) return;
@@ -50,29 +70,22 @@ final class OwnedProxySettings implements AutoCloseable {
         List<Change> changes = Arrays.asList(mapper.readValue(Files.readAllBytes(journal), Change[].class));
         // Proxy mode and URL form one configuration. Restoring only the mode after
         // a user changes the URL could disable their replacement proxy.
-        for (Change change : changes) {
+        for (Change change : store.independentSettings() ? List.<Change>of() : changes) {
             String current = store.read(change.key());
             if (!Objects.equals(current, change.before()) && !Objects.equals(current, change.applied())) {
                 Files.deleteIfExists(journal); return;
             }
         }
-        RuntimeException failure = null;
-        for (int index = changes.size() - 1; index >= 0; index--) {
-            Change change = changes.get(index);
-            try {
-                if (Objects.equals(store.read(change.key()), change.applied())) {
-                    store.write(change.key(), change.before());
-                    if (!Objects.equals(store.read(change.key()), change.before())) throw new IllegalStateException("Restoration not confirmed");
-                }
-            } catch (RuntimeException exception) { failure = exception; }
-        }
-        if (failure != null) throw new IOException("Proxy settings still need restoration", failure);
+        try { store.restore(changes); }
+        catch (RuntimeException exception) { throw new IOException("Proxy settings still need restoration", exception); }
         Files.deleteIfExists(journal);
     }
     synchronized boolean isApplied() throws IOException {
         if (closed || !Files.exists(journal) || Files.isSymbolicLink(journal) || Files.size(journal) > 65536) return false;
-        for (Change change : mapper.readValue(Files.readAllBytes(journal), Change[].class))
-            if (!Objects.equals(store.read(change.key()), change.applied())) return false;
+        List<Change> changes = Arrays.asList(mapper.readValue(Files.readAllBytes(journal), Change[].class));
+        var current = store.readAll(changes.stream().map(Change::key).toList());
+        for (Change change : changes)
+            if (!Objects.equals(current.get(change.key()), change.applied())) return false;
         return true;
     }
     @Override public synchronized void close() throws IOException {

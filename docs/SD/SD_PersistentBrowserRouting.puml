@@ -21,6 +21,7 @@ end
 Guardian -> Journal: Recover owned settings; record prior values
 Guardian -> Browser: Apply persistent policies / system PAC
 Guardian --> Runtime: Settings applied (not routing proof)
+Runtime -> Browser: Refresh local policies in supported existing Chromium instances
 Browser -> Proxy: Connection verification
 Proxy --> Runtime: Browser routing observed
 Runtime --> Settings: Connection checked; check each browser separately
@@ -32,9 +33,10 @@ loop While application is alive
   Guardian --> Runtime: Owned settings unchanged
 end
 alt Disable, disconnect or parent death
+  Runtime -> Proxy: Stop forwarding immediately
   Guardian -> Browser: Restore only still-owned settings
   Guardian -> Journal: Confirm restoration
-  Runtime -> Proxy: Stop forwarding
+  Guardian --> Runtime: RESTORED (or retain pending recovery)
 else User replaces settings
   Guardian -> Browser: Preserve replacement; restore other owned policies
   Guardian --> Runtime: Configuration changed

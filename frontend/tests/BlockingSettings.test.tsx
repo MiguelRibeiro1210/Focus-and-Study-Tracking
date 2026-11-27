@@ -20,11 +20,11 @@ it('keeps settings concise and asks for app consent before saving, with retry on
 })
 it('explains forwarding in its consent dialog and confirms existing-profile Brave setup separately', async () => {
   const user = userEvent.setup()
-  const off = { ...webReady, enabled: false, state: 'DISABLED', routingVerified: false, routingMethod: 'SYSTEM_PROXY', braveAvailable: true } as const
+  const off = { ...webReady, enabled: false, state: 'DISABLED', routingVerified: false, routingMethod: 'BRAVE', braveAvailable: true } as const
   const ready = { ...off, enabled: true, routingMethod: 'BRAVE', state: 'READY' } as const
   const save = vi.fn().mockResolvedValue(ready), launch = vi.fn().mockResolvedValue({ ...ready, braveLaunchPending: true })
   render(<BlockingSettings api={client([], { websiteStatus: vi.fn().mockResolvedValue(off), setWebsiteProtection: save, setupBrave: launch })} />)
-  await user.selectOptions(await screen.findByLabelText('Browser connection'), 'BRAVE')
+  await screen.findByLabelText('Browser connection')
   expect(screen.queryByText(/HTTPS stays encrypted/)).toBeNull()
   await user.click(screen.getByRole('switch', { name: 'Block websites' }))
   expect(screen.getByRole('dialog').textContent).toContain('HTTPS stays encrypted'); expect(save).not.toHaveBeenCalled()
@@ -48,6 +48,34 @@ it('offers a non-disruptive connection check and never asks to restart a connect
   expect(dialog.textContent).toContain('Brave is connected')
   expect(dialog.textContent).not.toContain('close all Brave windows')
   expect(launch).not.toHaveBeenCalled()
+})
+it('explains persistent automatic setup before consent and offers an explicit retry after permission failure', async () => {
+  const user = userEvent.setup()
+  const unavailable = { ...webReady, routingMethod: 'SYSTEM_PROXY', automaticAvailable: true, state: 'UNAVAILABLE', routingVerified: false } as const
+  const save = vi.fn().mockResolvedValue({ ...unavailable, state: 'READY' })
+  render(<BlockingSettings api={client([], { websiteStatus: vi.fn().mockResolvedValue(unavailable), setWebsiteProtection: save })} />)
+  await user.click(await screen.findByRole('button', { name: 'Retry connection' }))
+  expect(screen.getByRole('dialog').textContent).toContain('every profile and user')
+  expect(save).not.toHaveBeenCalled()
+  await user.click(screen.getByRole('button', { name: 'Allow website blocking' }))
+  expect(save).toHaveBeenCalledWith(true, 'SYSTEM_PROXY')
+  await user.click(screen.getByRole('button', { name: 'Connect browser' }))
+  expect(screen.getByRole('dialog').textContent).toContain('closing and reopening browsers')
+  expect(screen.getByRole('dialog').textContent).toContain('does not verify other browsers')
+  expect(screen.queryByRole('button', { name: 'Set up Brave' })).toBeNull()
+})
+it('disables unavailable automatic setup instead of offering a non-working system connection', async () => {
+  render(<BlockingSettings api={client([], { websiteStatus: vi.fn().mockResolvedValue({ ...webReady, enabled: false, routingMethod: 'SYSTEM_PROXY', automaticAvailable: false }) })} />)
+  expect((await screen.findByRole('switch', { name: 'Block websites' })).hasAttribute('disabled')).toBe(true)
+  expect((screen.getByRole('option', { name: 'Automatic connection' }) as HTMLOptionElement).disabled).toBe(true)
+  expect(screen.queryByRole('option', { name: 'Brave launch (legacy)' })).toBeNull()
+})
+it('retries restoration without enabling forwarding or asking for blocking consent', async () => {
+  const user = userEvent.setup(), save = vi.fn().mockResolvedValue({ ...webReady, enabled: false, state: 'DISABLED', routingVerified: false })
+  render(<BlockingSettings api={client([], { websiteStatus: vi.fn().mockResolvedValue({ ...webReady, enabled: false, state: 'RESTORING', routingVerified: false, routingMethod: 'SYSTEM_PROXY' }), setWebsiteProtection: save })} />)
+  await user.click(await screen.findByRole('button', { name: 'Retry restoration' }))
+  expect(save).toHaveBeenCalledWith(false, 'SYSTEM_PROXY')
+  expect(screen.queryByRole('dialog')).toBeNull()
 })
 it('keeps developer instructions in help and restores focus on Escape', async () => {
   const user = userEvent.setup()

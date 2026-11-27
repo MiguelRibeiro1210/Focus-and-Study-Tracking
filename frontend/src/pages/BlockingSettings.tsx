@@ -53,9 +53,11 @@ export function BlockingSettings({ api, returnToSession }: { api: BlockingRulesA
   const appState = !apps ? 'Checking…' : !apps.monitorEnabled ? 'Desktop connection needed'
     : !appEnabled ? 'Off' : apps.applicationProtectionState === 'RESTORING' ? 'Restoring apps…'
       : ['UNAVAILABLE', 'DISABLED'].includes(apps.applicationDetection) || !['READY', 'ACTIVE'].includes(apps.applicationProtectionState ?? '') ? 'Setup needed' : 'On'
-  const webState = !web ? 'Checking…' : web.runtimeEnabled === false ? 'Desktop connection needed' : !web.enabled ? 'Off'
-    : web.braveLaunchPending ? 'Waiting for Brave to close…' : web.state === 'RESTORING' ? 'Restoring connection…'
-      : web.state === 'VERIFIED' && web.routingVerified ? 'Connected' : web.state === 'READY' ? 'Browser setup needed' : 'Setup needed'
+  const webState = !web ? 'Checking…' : web.runtimeEnabled === false ? 'Desktop connection needed'
+    : web.state === 'RESTORING' ? 'Restoring connection…'
+    : web.routingMethod !== 'BRAVE' && web.automaticAvailable === false ? 'Permission setup needed' : !web.enabled ? 'Off'
+    : web.braveLaunchPending ? 'Waiting for Brave to close…'
+      : web.state === 'VERIFIED' && web.routingVerified ? 'Connection checked' : web.state === 'READY' ? 'Check your browsers' : 'Setup needed'
   const unavailable = readError ? 'Unavailable' : 'Checking…'
   const method = route ?? web?.routingMethod ?? 'SYSTEM_PROXY'
   function close() { if (!pending) { setDialog(null); setError('') } }
@@ -68,25 +70,30 @@ export function BlockingSettings({ api, returnToSession }: { api: BlockingRulesA
         onClick={() => appEnabled ? void change(async () => { await api.setApplicationProtection!(false); if (active.current) setApps((value) => value ? { ...value, applicationProtectionEnabled: false } : value) }) : setDialog('apps')}><span /></button></div>
     <div className="preference-row"><div><strong>Block websites</strong><small role="status">{web ? webState : unavailable}</small></div>
       <button type="button" className={`toggle-switch${web?.enabled ? ' on' : ''}`} role="switch" aria-label="Block websites" aria-checked={web?.enabled ?? false}
-        disabled={pending || !web || !api.setWebsiteProtection || web.state === 'RESTORING' || (!web.enabled && web.runtimeEnabled === false)}
+        disabled={pending || !web || !api.setWebsiteProtection || web.state === 'RESTORING' || (!web.enabled && (web.runtimeEnabled === false || (method === 'SYSTEM_PROXY' && web.automaticAvailable === false)))}
         onClick={() => web?.enabled ? void change(() => configureWeb(false)) : setDialog('websites')}><span /></button></div>
-    {web && (web.braveAvailable || web.routingMethod === 'BRAVE') && <div className="preference-row"><label htmlFor="blocking-browser"><strong>Browser connection</strong></label>
+    {web && (web.automaticAvailable !== undefined || web.routingMethod === 'BRAVE') && <div className="preference-row"><label htmlFor="blocking-browser"><strong>Browser connection</strong></label>
       <select id="blocking-browser" className="outlined-control" value={method} disabled={pending || web.braveLaunchPending || web.state === 'RESTORING'}
         onChange={(event) => setRoute(event.target.value as WebsiteRoutingMethod)}>
-        <option value="SYSTEM_PROXY">System settings</option><option value="BRAVE" disabled={!web.braveAvailable}>Brave</option>
+        <option value="SYSTEM_PROXY" disabled={web.automaticAvailable === false}>Automatic connection</option>
+        {web.routingMethod === 'BRAVE' && <option value="BRAVE" disabled={!web.braveAvailable}>Brave launch (legacy)</option>}
       </select></div>}
     <div className="blocking-settings-actions">
       {web?.enabled && route && route !== web.routingMethod && <button type="button" className="button button-secondary" disabled={pending || web.runtimeEnabled === false || web.state === 'RESTORING'}
         onClick={() => void change(() => configureWeb(true))}>Apply connection</button>}
       {web?.enabled && <button type="button" className="button button-secondary" disabled={pending || web.braveLaunchPending || !['READY', 'VERIFIED'].includes(web.state)}
         onClick={() => { setCopied(false); setDialog('browser') }}>Connect browser</button>}
+      {web?.enabled && web.state === 'UNAVAILABLE' && web.runtimeEnabled !== false && web.automaticAvailable !== false && <button type="button" className="button button-secondary" disabled={pending}
+        onClick={() => setDialog('websites')}>Retry connection</button>}
+      {web?.state === 'RESTORING' && <button type="button" className="button button-secondary" disabled={pending} onClick={() => void change(() => configureWeb(false))}>Retry restoration</button>}
       <button type="button" className="button button-quiet" onClick={() => setDialog('help')}>Setup help</button>
     </div>
     {error && !dialog && <p role="alert">{error}</p>}
     {dialog && <Modal title={dialog === 'apps' ? 'Turn on app blocking?' : dialog === 'websites' ? 'Turn on website blocking?' : dialog === 'browser' ? 'Connect your browser' : 'How blocking works'} onClose={close}>
       {dialog === 'apps' && <p>During focus time, FocusDesktop temporarily pauses the apps you marked Block. It resumes them when you pause, take a break or stop. Allow this?</p>}
       {dialog === 'websites' && <><p>During focus time, your selected websites and their subdomains are blocked. Pauses and breaks allow browsing.</p>
-        <p>Your browser, and other apps using the configured proxy, send requests through FocusDesktop. HTTPS stays encrypted. No certificates, telemetry, cloud service or autonomous requests are used. Allow temporary connection changes with automatic restoration?</p></>}
+        <p>To keep browsers connected when reopened, FocusDesktop changes browser or system connection settings. Your computer may ask for an administrator password. On Linux, this affects every profile and user of supported browsers, which may show a managed-browser notice. Only FocusDesktop’s changes are restored when blocking is turned off or the app stops.</p>
+        <p>Your browser, and other apps using the configured proxy, send requests through FocusDesktop. HTTPS stays encrypted. No certificates, telemetry, cloud service or autonomous requests are used. Allow these connection changes and forwarding?</p></>}
       {dialog === 'browser' && (web?.routingMethod === 'BRAVE' ? <>
         <p>Your saved connection is reused across focus sessions and checked automatically when protection restarts with Brave open. You don’t need to close Brave for each session.</p>
         {web.verificationUrl && <p><a className="button button-secondary" href={web.verificationUrl} target="_blank" rel="noreferrer">Check connection</a></p>}
@@ -94,12 +101,15 @@ export function BlockingSettings({ api, returnToSession }: { api: BlockingRulesA
           <p>Not connected yet? Try the connection check in Brave first. After an interruption, Brave may take a few minutes to use the connection again.</p>
           <p>For first-time setup, or if Brave was reopened without its connection, save your work and choose Set up Brave. Then close all Brave windows within 60 seconds, including this app’s browser tab. We’ll reopen your existing profile. Nothing is force-closed.</p>
         </>}
-      </> : <><p>Open this address in the browser you want to protect. A confirmation page means it is connected. Check each browser separately.</p>
+      </> : <><p>Your browser connection stays set up while website blocking is on, including after closing and reopening browsers. You don’t need to close every browser to start a session.</p>
+        <p>Open this address in each browser you use. A confirmation checks that browser’s connection; it does not verify other browsers or profiles.</p>
+        <p>If an already-open Brave, Chrome, Chromium or Edge hasn’t connected, open its policy page and choose Reload policies once. Use <code>brave://policy</code>, <code>chrome://policy</code> or <code>edge://policy</code>. Firefox may need one initial restart to load its policy.</p>
         {web?.verificationUrl && <><label>Connection check<input readOnly aria-label="Browser connection check" value={web.verificationUrl} /></label>
           <button type="button" className="button button-secondary" onClick={() => { void navigator.clipboard.writeText(web.verificationUrl!).then(() => setCopied(true)).catch(() => setError('Copy the address from the field and open it in your browser.')) }}>{copied ? 'Copied' : 'Copy address'}</button></>}
       </>)}
       {dialog === 'help' && <><p>Mark distractions as Block, turn on the matching option here, then start a focus session. App blocking pauses selected apps; website blocking stops new requests to selected websites. Both release during pauses and breaks.</p>
-        <p>Choose System settings for a supported system connection, or Brave for Linux desktops such as Hyprland. Brave setup keeps your profile and doesn’t edit system settings. Cached pages may still be visible.</p>
+        <p>Automatic connection uses browser policies on Linux, user policies and system settings on Windows, and system network settings on macOS. Native Linux browsers are supported on Hyprland too; Flatpak and Snap need separate configuration. macOS browsers must use the system connection. Cached pages may still be visible.</p>
+        <p>Check every browser you use. One successful check doesn’t prove another browser is connected. Linux needs PolicyKit and an authentication agent for the permission prompt.</p>
         <p>{web?.state === 'UNAVAILABLE' || web?.runtimeEnabled === false ? web.reason : apps?.applicationDetection === 'UNAVAILABLE' ? apps.applicationReason : 'Connect and check your browser before relying on website blocking.'}</p>
         {web?.runtimeEnabled === false && <p>For browser development, restart the backend with <code>./mvnw spring-boot:run -Dspring-boot.run.arguments=--focusdesktop.blocking.monitor-enabled=true</code>. The desktop app connects automatically.</p>}
         {web?.braveLaunchPending && <p>Close Brave within 60 seconds. If setup times out, retry after closing its background processes yourself.</p>}

@@ -687,8 +687,13 @@ fn api_request(
         _ => return Err("Unsupported API method".to_owned()),
     };
     let token = api_token(&supervisor)?;
+    let timeout = if path == "/api/v1/website-protection" && method == reqwest::Method::PATCH {
+        Duration::from_secs(180)
+    } else {
+        Duration::from_secs(15)
+    };
     let client = Client::builder()
-        .timeout(Duration::from_secs(15))
+        .timeout(timeout)
         .build()
         .map_err(|e| e.to_string())?;
     let mut request = client

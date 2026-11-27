@@ -81,7 +81,7 @@ class JpaFocusSessionRepositoryAdapterTest {
     void flywayAppliesSessionAndOutboxRetryMigrations() {
         var currentMigration = flyway.info().current();
         assertNotNull(currentMigration);
-        assertEquals("10", currentMigration.getVersion().getVersion());
+        assertEquals("11", currentMigration.getVersion().getVersion());
         assertNotNull(jdbc.queryForObject("SELECT COUNT(*) FROM focus_session", Long.class));
         assertNotNull(jdbc.queryForObject("SELECT COUNT(*) FROM session_interval", Long.class));
         assertNotNull(jdbc.queryForObject("SELECT COUNT(*) FROM domain_event_outbox", Long.class));

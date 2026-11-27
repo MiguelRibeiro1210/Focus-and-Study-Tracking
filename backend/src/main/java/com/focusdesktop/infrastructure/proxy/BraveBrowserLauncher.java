@@ -10,8 +10,7 @@ class BraveBrowserLauncher {
     boolean available() { return executable().isPresent(); }
     boolean systemProxySupported() {
         if (!System.getProperty("os.name").toLowerCase(Locale.ROOT).contains("linux")) return true;
-        return Arrays.stream(System.getenv().getOrDefault("XDG_CURRENT_DESKTOP", "").split(":"))
-                .anyMatch(value -> value.toLowerCase(Locale.ROOT).contains("gnome"));
+        return Files.isExecutable(Path.of("/usr/bin/pkexec"));
     }
     Optional<Path> executable() {
         if (!System.getProperty("os.name").toLowerCase(Locale.ROOT).contains("linux")) return Optional.empty();

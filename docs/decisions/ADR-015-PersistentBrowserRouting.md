@@ -21,6 +21,12 @@ and ordinary relaunches. Session/rule changes only change proxy decisions.
 Do not launch or force-close a browser to apply automatic setup. Chromium policy
 refresh can update open browsers. Firefox may need one initial policy-load
 restart; it must not need restarting for each session or ordinary relaunch.
+For supported Chromium executables, send `--refresh-platform-policy` to the
+current user's existing instance, retaining only its absolute user-data directory
+argument. Verify switch support before invoking it: older binaries must not be
+launched with an unknown switch. This operation neither opens a new window nor
+requests cloud policy. Older/unsupported instances can use Reload policies on
+their policy page. Never pass browsing URLs or proxy flags from process arguments.
 
 Browser packaging and overriding preferences still matter: native system packages
 are supported on Linux; sandboxed Flatpak/Snap policy deployment is separate.
@@ -44,6 +50,13 @@ heartbeats. No API bearer token, browsing traffic or destination data enters
 this channel. Elevated journals live in a fixed administrator-owned directory;
 user-provided paths must never choose privileged destinations. Windows keeps
 the user-owned guardian/journal and needs no elevation for user policies.
+The new acknowledgement is `CONFIGURE_BROWSER_ROUTING_AND_FORWARD_TRAFFIC`;
+old forwarding-only consent is rejected for automatic routing. V11 clears saved
+consent/enabled state and selects automatic connection while preserving rules.
+Control secrets are read from private temporary files owned by the live parent,
+not exposed on command lines; delete them after the handshake. AppImage Java and
+JAR resources are staged outside FUSE when necessary so the elevated helper can
+read them, then removed after helper exit. Debian declares its `pkexec` dependency.
 
 Restore owned values on disable, parent death, control disconnect and lease
 expiry. Independent browser policies restore independently: a user's change to
@@ -54,6 +67,10 @@ configuration. Do not repeat permission prompts on a timer after denial; retry
 requires explicit setup. Preserve old routing API compatibility, but migrate
 saved launch-only setup to automatic connection with protection off until fresh
 consent. The old Brave-launch endpoint remains legacy, not the recommended UI.
+Stop forwarding immediately on revocation, then complete restoration. Require
+an explicit `RESTORED` acknowledgement from elevated guardians; if it is missing,
+retain a pending recovery state and offer an explicit restoration retry without
+enabling forwarding. A helper process exit alone is not restoration proof.
 
 ## Interface and verification
 
@@ -72,6 +89,31 @@ the user's `/etc` or existing browser. Add packaged helper self-checks and platf
 CI checks. Record native tests actually run; adapter mocks cannot establish
 Windows/macOS browser acceptance. Keep unresolved gaps on the board.
 
+Linux native automation verifies policy routing on normal first launch, same
+profile relaunch and a different profile without proxy flags. Automated headless
+live-refresh IPC in the private mount namespace is not acceptance evidence;
+the installed Brave accepted the local refresh command in its existing normal
+instance without changing policy files or closing windows. Full live policy
+refresh across browser versions still needs platform evidence. Windows/macOS
+CI executes real Edge/Chrome launch and relaunch with isolated profiles and real
+temporary registry/network configuration, restoring it afterward. This does not
+establish Safari or every Firefox/package variant acceptance.
+
+Local implementation verification: full Java 17 verification discovers 330
+tests, with 329 passing and the Windows/macOS-only native scenario skipped on
+Linux. Native Brave tests cover policy-based normal relaunch and a second
+profile, HTTPS/subdomains, focus transitions and shutdown fallback. The existing
+native Firefox transport test also passes. Frontend: 123 tests, production build,
+privacy audit and lint (two existing SettingsPage warnings). Rust check/format,
+both packaged website guardian self-checks and the revised diagram pass.
+
+Windows registry updates, snapshots and normal restoration are batched to avoid
+spawning one PowerShell process per key on every heartbeat. A failed batch falls
+back to independent restoration. Desktop setup PATCH requests allow time for the
+OS permission prompt; ordinary requests retain their shorter timeout. Elevated
+policy paths must be root-controlled and new policy files/directories readable
+by browser users. Root journals remain private.
+
 ## Sources
 
 - [Brave platform policies](https://support.brave.app/hc/en-us/articles/360039248271-Group-Policy).
@@ -79,3 +121,4 @@ Windows/macOS browser acceptance. Keep unresolved gaps on the board.
 - [Edge ProxySettings](https://learn.microsoft.com/en-us/deployedge/microsoft-edge-policies/ProxySettings).
 - [Firefox proxy policy](https://firefox-admin-docs.mozilla.org/reference/policies/proxy/).
 - [Firefox Linux policy locations](https://support.mozilla.org/en-US/kb/customizing-firefox-using-policiesjson).
+- [Chromium's local-only refresh switch](https://github.com/chromium/chromium/blob/main/chrome/common/chrome_switches.h).

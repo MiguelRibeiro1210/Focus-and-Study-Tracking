@@ -73,28 +73,28 @@ class SettingsControllerIntegrationTest {
         mvc.perform(get(path)).andExpect(status().isUnauthorized());
         mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch(path)
                         .header("Authorization", "Bearer test-token").header("Origin", "https://untrusted.example")
-                        .contentType("application/json").content("{\"enabled\":true,\"consent\":\"FORWARD_SYSTEM_PROXY_TRAFFIC\"}"))
+                        .contentType("application/json").content("{\"enabled\":true,\"consent\":\"CONFIGURE_BROWSER_ROUTING_AND_FORWARD_TRAFFIC\"}"))
                 .andExpect(status().isForbidden());
-        for (String body : java.util.List.of("{\"enabled\":true,\"consent\":\"FORWARD_BROWSER_TRAFFIC\"}", "{\"enabled\":true}", "{\"enabled\":true,\"consent\":\"SUSPEND_MATCHED_APPS\"}",
-                "{\"enabled\":true,\"consent\":\"FORWARD_SYSTEM_PROXY_TRAFFIC\",\"extra\":1}")) {
+        for (String body : java.util.List.of("{\"enabled\":true,\"consent\":\"FORWARD_BROWSER_TRAFFIC\"}", "{\"enabled\":true,\"consent\":\"FORWARD_SYSTEM_PROXY_TRAFFIC\"}", "{\"enabled\":true}", "{\"enabled\":true,\"consent\":\"SUSPEND_MATCHED_APPS\"}",
+                "{\"enabled\":true,\"consent\":\"CONFIGURE_BROWSER_ROUTING_AND_FORWARD_TRAFFIC\",\"extra\":1}")) {
             mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch(path)
                             .header("Authorization", "Bearer test-token").contentType("application/json").content(body))
                     .andExpect(status().isBadRequest());
         }
         mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch(path)
                         .header("Authorization", "Bearer test-token").contentType("application/json")
-                        .content("{\"enabled\":true,\"consent\":\"FORWARD_SYSTEM_PROXY_TRAFFIC\"}"))
+                        .content("{\"enabled\":true,\"consent\":\"CONFIGURE_BROWSER_ROUTING_AND_FORWARD_TRAFFIC\"}"))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.enabled").value(true))
                 .andExpect(jsonPath("$.state").value("UNAVAILABLE"))
                 .andExpect(jsonPath("$.routingVerified").value(false));
         mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch(path)
                         .header("Authorization", "Bearer test-token").contentType("application/json")
-                        .content("{\"enabled\":true,\"consent\":\"FORWARD_SYSTEM_PROXY_TRAFFIC\",\"routingMethod\":\"BRAVE\"}"))
+                        .content("{\"enabled\":true,\"consent\":\"CONFIGURE_BROWSER_ROUTING_AND_FORWARD_TRAFFIC\",\"routingMethod\":\"BRAVE\"}"))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.routingMethod").value("BRAVE"))
                 .andExpect(jsonPath("$.runtimeEnabled").value(false));
         mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch(path)
                         .header("Authorization", "Bearer test-token").contentType("application/json")
-                        .content("{\"enabled\":true,\"consent\":\"FORWARD_SYSTEM_PROXY_TRAFFIC\",\"routingMethod\":\"ARBITRARY\"}"))
+                        .content("{\"enabled\":true,\"consent\":\"CONFIGURE_BROWSER_ROUTING_AND_FORWARD_TRAFFIC\",\"routingMethod\":\"ARBITRARY\"}"))
                 .andExpect(status().isBadRequest());
         mvc.perform(get("/api/v1/settings/export?format=json").header("Authorization", "Bearer test-token"))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.websiteProtectionPreferences.enabled").value(true))

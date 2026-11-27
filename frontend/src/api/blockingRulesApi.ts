@@ -33,6 +33,7 @@ export interface WebsiteProtectionStatus {
   routingMethod?: WebsiteRoutingMethod
   braveAvailable?: boolean
   braveLaunchPending?: boolean
+  automaticAvailable?: boolean
   enabled: boolean
   state: 'DISABLED' | 'STARTING' | 'READY' | 'VERIFIED' | 'RESTORING' | 'UNAVAILABLE'
   routingVerified: boolean
@@ -93,7 +94,7 @@ export function createBlockingRulesApi(fetcher?: typeof fetch): BlockingRulesApi
   return {
     websiteStatus: async () => validateWebsiteStatus(await request('', 'GET', undefined, '/api/v1/website-protection')),
     setWebsiteProtection: async (enabled, routingMethod) => validateWebsiteStatus(await request('', 'PATCH', { enabled,
-      ...(routingMethod ? { routingMethod } : {}), ...(enabled ? { consent: 'FORWARD_SYSTEM_PROXY_TRAFFIC' } : {}) }, '/api/v1/website-protection')),
+      ...(routingMethod ? { routingMethod } : {}), ...(enabled ? { consent: 'CONFIGURE_BROWSER_ROUTING_AND_FORWARD_TRAFFIC' } : {}) }, '/api/v1/website-protection')),
     setupBrave: async () => validateWebsiteStatus(await request('/brave', 'POST', { confirmation: 'OPEN_EXISTING_BRAVE_PROFILE' }, '/api/v1/website-protection')),
     status: async () => {
       const body = await request('', 'GET', undefined, '/api/v1/blocking-status') as Partial<BlockingStatus> | null
@@ -144,6 +145,7 @@ function validateWebsiteStatus(value: unknown): WebsiteProtectionStatus {
     || (body.routingMethod !== undefined && !['SYSTEM_PROXY', 'BRAVE'].includes(body.routingMethod))
     || (body.braveAvailable !== undefined && typeof body.braveAvailable !== 'boolean')
     || (body.braveLaunchPending !== undefined && typeof body.braveLaunchPending !== 'boolean')
+    || (body.automaticAvailable !== undefined && typeof body.automaticAvailable !== 'boolean')
     || (body.routingVerified && body.state !== 'VERIFIED') || !validUrl || typeof body.reason !== 'string'
     || (body.notice != null && (typeof body.notice.id !== 'string' || !['WARN', 'ERROR'].includes(body.notice.kind)
       || typeof body.notice.message !== 'string' || !Number.isFinite(Date.parse(body.notice.occurredAt)))))

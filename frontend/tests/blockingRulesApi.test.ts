@@ -53,7 +53,7 @@ it('sends separate website consent and rejects arbitrary verification links', as
   const api = createBlockingRulesApi(fetcher)
   await api.setWebsiteProtection!(true)
   expect(fetcher.mock.calls[0][0]).toBe('/api/v1/website-protection')
-  expect(JSON.parse(fetcher.mock.calls[0][1].body)).toEqual({ enabled: true, consent: 'FORWARD_SYSTEM_PROXY_TRAFFIC' })
+  expect(JSON.parse(fetcher.mock.calls[0][1].body)).toEqual({ enabled: true, consent: 'CONFIGURE_BROWSER_ROUTING_AND_FORWARD_TRAFFIC' })
   await expect(api.websiteStatus!()).rejects.toThrow('invalid website protection status')
 })
 
@@ -65,7 +65,7 @@ it('sends explicit Brave routing and the fixed existing-profile setup confirmati
     .mockResolvedValueOnce(Response.json({ ...status, routingMethod: 'ARBITRARY' }))
   const api = createBlockingRulesApi(fetcher)
   await api.setWebsiteProtection!(true, 'BRAVE')
-  expect(JSON.parse(fetcher.mock.calls[0][1].body)).toEqual({ enabled: true, consent: 'FORWARD_SYSTEM_PROXY_TRAFFIC', routingMethod: 'BRAVE' })
+  expect(JSON.parse(fetcher.mock.calls[0][1].body)).toEqual({ enabled: true, consent: 'CONFIGURE_BROWSER_ROUTING_AND_FORWARD_TRAFFIC', routingMethod: 'BRAVE' })
   expect((await api.setupBrave!()).braveLaunchPending).toBe(true)
   expect(fetcher.mock.calls[1]).toEqual(['/api/v1/website-protection/brave', expect.objectContaining({ method: 'POST', body: '{"confirmation":"OPEN_EXISTING_BRAVE_PROFILE"}' })])
   await expect(api.websiteStatus!()).rejects.toThrow('invalid website protection status')
