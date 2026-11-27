@@ -29,6 +29,7 @@ public final class WebsiteProxy implements AutoCloseable {
     private volatile boolean running;
     private volatile boolean routingObserved;
     private ServerSocket listener;
+    private Thread acceptor;
 
     public WebsiteProxy(Function<String, Decision> gate) { this(gate, WebsiteProxy::connectPublic); }
     WebsiteProxy(Function<String, Decision> gate, Connector connector) { this(gate, connector, false); }
@@ -51,7 +52,7 @@ public final class WebsiteProxy implements AutoCloseable {
         try { listener.bind(new InetSocketAddress(InetAddress.getByName("127.0.0.1"), requestedPort), 16); }
         catch (IOException exception) { listener.close(); workers.shutdownNow(); throw exception; }
         running = true;
-        workers.execute(() -> {
+        acceptor = new Thread(() -> {
             while (running) {
                 try {
                     Socket socket = listener.accept();
@@ -62,7 +63,9 @@ public final class WebsiteProxy implements AutoCloseable {
                     catch (RejectedExecutionException exception) { close(socket); sockets.remove(socket); slots.release(); }
                 } catch (IOException exception) { if (running) close(); }
             }
-        });
+        }, "website-proxy-accept");
+        acceptor.setDaemon(true);
+        acceptor.start();
     }
     public int port() { return listener == null ? 0 : listener.getLocalPort(); }
     public String pacUrl() { return "http://127.0.0.1:" + port() + "/pac/" + pacToken; }
@@ -234,10 +237,29 @@ public final class WebsiteProxy implements AutoCloseable {
         output.write(body); output.flush();
     }
     private static void close(Socket socket) { try { socket.close(); } catch (IOException ignored) { } }
-    @Override public synchronized void close() {
-        running = false;
-        try { if (listener != null) listener.close(); } catch (IOException ignored) { }
-        sockets.forEach(WebsiteProxy::close); workers.shutdownNow();
+    @Override public void close() {
+        Thread accepting;
+        synchronized (this) {
+            running = false;
+            try { if (listener != null) listener.close(); } catch (IOException ignored) { }
+            sockets.forEach(WebsiteProxy::close); workers.shutdownNow();
+            accepting = acceptor;
+        }
+        // Java may defer native listener release until accept exits. Do not hand
+        // the saved port to another runtime before that happens, or join while
+        // holding the monitor needed by an accept-side failure's own close().
+        if (accepting != null && accepting != Thread.currentThread()) {
+            boolean interrupted = false;
+            long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(5);
+            try {
+                while (accepting.isAlive()) {
+                    long remaining = deadline - System.nanoTime();
+                    if (remaining <= 0) throw new IllegalStateException("Proxy listener shutdown is pending");
+                    try { TimeUnit.NANOSECONDS.timedJoin(accepting, remaining); }
+                    catch (InterruptedException exception) { interrupted = true; }
+                }
+            } finally { if (interrupted) Thread.currentThread().interrupt(); }
+        }
     }
     private record Request(String method, String target, Map<String, List<String>> headers) { }
     private record Endpoint(String host, int port, String authority, String path, long bodyLength) { }

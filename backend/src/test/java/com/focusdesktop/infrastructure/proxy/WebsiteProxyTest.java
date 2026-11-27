@@ -10,6 +10,26 @@ import org.junit.jupiter.api.Test;
 
 class WebsiteProxyTest {
     @Test
+    void closeReleasesListenerAndConnectedClientsBeforeImmediateRebind() throws Exception {
+        for (int attempt = 0; attempt < 50; attempt++) {
+            try (var proxy = new WebsiteProxy(host -> WebsiteProxy.Decision.allow(), true)) {
+                proxy.start();
+                int port = proxy.port();
+                try (var browser = new Socket("127.0.0.1", port)) {
+                    browser.setSoTimeout(3000);
+                    proxy.close();
+                    try (var replacement = new ServerSocket()) {
+                        replacement.setReuseAddress(true);
+                        replacement.bind(new InetSocketAddress("127.0.0.1", port));
+                    }
+                    // A connection racing accept must also be closed, never left queued.
+                    try { assertEquals(-1, browser.getInputStream().read()); }
+                    catch (SocketException expectedReset) { }
+                }
+            }
+        }
+    }
+    @Test
     void deniesBlockedConnectBeforeOpeningAnyRemoteConnection() throws Exception {
         var connections = new AtomicInteger();
         var denied = new AtomicInteger();

@@ -370,3 +370,11 @@ skipped, no errors/failures. Frontend: 120 tests, build, privacy audit and lint
 (two existing SettingsPage warnings). The new reconnection sequence diagram
 passes syntax validation and renders to SVG. Use a full Java 17 JDK for Maven
 verification: the bundled JRE lacks Mockito's required instrumentation tooling.
+
+CI shutdown follow-up: proxy close waits for its dedicated accept thread outside
+the proxy monitor before releasing the saved endpoint. A regression runs 50
+close/rebind cycles with a connected client; the occupied-port fixture enables
+address reuse before binding, matching the Brave listener. Clean Java 17 Maven
+verification passes 312 tests, with one optional Firefox test skipped (313
+discovered), including the native same-Brave reconnect checks. Frontend code and
+contracts are unchanged by this correction.

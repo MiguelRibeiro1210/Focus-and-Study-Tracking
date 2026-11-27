@@ -69,3 +69,27 @@ Frontend verification passes 120 tests, build and privacy audit; lint retains
 only two existing SettingsPage warnings. The new sequence diagram validates and
 renders successfully. The full JDK is required for Mockito; the bundled JRE
 cannot run the full test suite. No browser extension or profile edits are added.
+
+## CI shutdown correction
+
+CI exposed a gap between marking the listener closed and releasing its native
+socket: Java 17 can defer the latter until a blocked accept operation exits.
+Proxy shutdown must wait for the accept thread before returning or releasing
+endpoint ownership. Join outside the proxy monitor so an accept failure cannot
+deadlock shutdown; bound the wait and preserve interruption. Refuse to report a
+completed shutdown if the accept thread cannot terminate.
+
+The occupied-port fixture must enable address reuse before binding, as the
+production Brave listener does. Otherwise TCP timeout state can stop the fixture
+itself from binding before it tests a live port conflict. Add rapid close/rebind
+coverage with a connected client and retain the runtime disable/re-enable,
+fresh-proof and native same-browser reconnect tests. UI/API flows are unchanged.
+
+Verification after the correction: clean Maven verification on a full Java 17
+JDK discovers 313 tests, with 312 passing and one optional Firefox test skipped.
+All three native Brave tests pass. The new regression exercises 50 rapid
+close/rebind cycles with a connected client. The race did not reproduce in the
+local baseline run; the correction explicitly waits for the previously unjoined
+accept operation rather than relying on local scheduling or adding sleeps.
+See [OpenJDK's deferred socket close](https://raw.githubusercontent.com/openjdk/jdk17u/master/src/java.base/share/classes/sun/nio/ch/NioSocketImpl.java)
+and [Java 17 address reuse](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/net/ServerSocket.html#setReuseAddress(boolean)).

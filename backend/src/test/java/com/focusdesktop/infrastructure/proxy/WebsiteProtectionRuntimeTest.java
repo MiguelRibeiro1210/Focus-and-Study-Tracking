@@ -116,8 +116,10 @@ class WebsiteProtectionRuntimeTest {
             verify(browser, never()).launch(anyString(), anyString());
         }
         int port = Integer.parseInt(endpoint.lines().findFirst().orElseThrow());
-        try (var occupied = new java.net.ServerSocket(port, 16, java.net.InetAddress.getByName("127.0.0.1"));
+        try (var occupied = new java.net.ServerSocket();
              var runtime = new WebsiteProtectionRuntime(preferences, mock(EvaluateWebsiteRequestUseCase.class), directory.toString(), true, browser)) {
+            occupied.setReuseAddress(true);
+            occupied.bind(new java.net.InetSocketAddress("127.0.0.1", port));
             runtime.reconcile(); assertEquals("UNAVAILABLE", runtime.status().state());
             assertFalse(runtime.status().routingVerified()); assertNull(runtime.status().verificationUrl());
             assertEquals(endpoint, Files.readString(directory.resolve("brave-proxy-endpoint")));
