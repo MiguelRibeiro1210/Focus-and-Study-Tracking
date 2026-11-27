@@ -70,6 +70,109 @@ class WebsiteProtectionRuntimeTest {
             verify(browser, times(1)).launch(anyString(), anyString());
         }
     }
+    @Test void braveReusesEndpointAcrossDisableAndRestartButRequiresFreshProof() throws Exception {
+        var preferences = new MemoryPreferences();
+        var browser = mock(BraveBrowserLauncher.class);
+        when(browser.available()).thenReturn(true); when(browser.running()).thenReturn(true);
+        String endpoint, firstChallenge;
+        try (var runtime = new WebsiteProtectionRuntime(preferences, mock(EvaluateWebsiteRequestUseCase.class), directory.toString(), true, browser)) {
+            var first = runtime.configure(true, "FORWARD_SYSTEM_PROXY_TRAFFIC", WebsiteProtectionPreferences.RoutingMethod.BRAVE);
+            endpoint = Files.readString(directory.resolve("brave-proxy-endpoint"));
+            firstChallenge = first.verificationUrl();
+            int port = Integer.parseInt(endpoint.lines().findFirst().orElseThrow());
+            verify(browser, never()).launch(anyString(), anyString());
+            prove(port, firstChallenge);
+            assertEquals("VERIFIED", runtime.status().state());
+            assertFalse(runtime.requestBraveSetup().braveLaunchPending()); // Never restart a working connection.
+            runtime.reconcile();
+            assertEquals(firstChallenge, runtime.status().verificationUrl());
+            runtime.configure(false, null);
+            assertNull(preferences.get().consentAt());
+            assertThrows(java.io.IOException.class, () -> new Socket("127.0.0.1", port).close());
+            var second = runtime.configure(true, "FORWARD_SYSTEM_PROXY_TRAFFIC");
+            assertEquals(endpoint, Files.readString(directory.resolve("brave-proxy-endpoint")));
+            assertNotEquals(firstChallenge, second.verificationUrl()); assertFalse(second.routingVerified());
+            runtime.reconcile(); runtime.reconcile();
+            verify(browser, times(1)).launch(contains("/pac/"), eq(second.verificationUrl()));
+            prove(port, firstChallenge); assertFalse(runtime.status().routingVerified());
+            prove(port, second.verificationUrl()); assertTrue(runtime.status().routingVerified());
+        }
+        try (var restarted = new WebsiteProtectionRuntime(preferences, mock(EvaluateWebsiteRequestUseCase.class), directory.toString(), true, browser)) {
+            restarted.reconcile();
+            assertEquals(endpoint, Files.readString(directory.resolve("brave-proxy-endpoint")));
+            assertFalse(restarted.status().routingVerified()); assertFalse(restarted.status().braveLaunchPending());
+            verify(browser, times(2)).launch(anyString(), anyString());
+        }
+    }
+    @Test void savedEndpointDoesNotLaunchAClosedBrowserOrChangeAnOccupiedPort() throws Exception {
+        var preferences = new MemoryPreferences(); var browser = mock(BraveBrowserLauncher.class);
+        when(browser.available()).thenReturn(true);
+        try (var first = new WebsiteProtectionRuntime(preferences, mock(EvaluateWebsiteRequestUseCase.class), directory.toString(), true, browser)) {
+            first.configure(true, "FORWARD_SYSTEM_PROXY_TRAFFIC", WebsiteProtectionPreferences.RoutingMethod.BRAVE);
+        }
+        String endpoint = Files.readString(directory.resolve("brave-proxy-endpoint"));
+        try (var second = new WebsiteProtectionRuntime(preferences, mock(EvaluateWebsiteRequestUseCase.class), directory.toString(), true, browser)) {
+            second.reconcile(); assertEquals("READY", second.status().state());
+            verify(browser, never()).launch(anyString(), anyString());
+        }
+        int port = Integer.parseInt(endpoint.lines().findFirst().orElseThrow());
+        try (var occupied = new java.net.ServerSocket(port, 16, java.net.InetAddress.getByName("127.0.0.1"));
+             var runtime = new WebsiteProtectionRuntime(preferences, mock(EvaluateWebsiteRequestUseCase.class), directory.toString(), true, browser)) {
+            runtime.reconcile(); assertEquals("UNAVAILABLE", runtime.status().state());
+            assertFalse(runtime.status().routingVerified()); assertNull(runtime.status().verificationUrl());
+            assertEquals(endpoint, Files.readString(directory.resolve("brave-proxy-endpoint")));
+        }
+    }
+    @Test void unsafeEndpointMetadataNeverStartsOrLaunchesBrave() throws Exception {
+        var preferences = new MemoryPreferences(); var browser = mock(BraveBrowserLauncher.class);
+        when(browser.available()).thenReturn(true); when(browser.running()).thenReturn(true);
+        Path file = directory.resolve("brave-proxy-endpoint");
+        for (String content : List.of("garbage", "80\n" + UUID.randomUUID(), "x".repeat(257))) {
+            Files.writeString(file, content);
+            try (var runtime = new WebsiteProtectionRuntime(preferences, mock(EvaluateWebsiteRequestUseCase.class), directory.toString(), true, browser)) {
+                var status = runtime.configure(true, "FORWARD_SYSTEM_PROXY_TRAFFIC", WebsiteProtectionPreferences.RoutingMethod.BRAVE);
+                assertEquals("UNAVAILABLE", status.state()); assertNull(status.verificationUrl());
+            }
+        }
+        verify(browser, never()).launch(anyString(), anyString());
+    }
+    @Test void aSecondRuntimeCannotReplaceOrReleaseTheActiveBraveConnection() throws Exception {
+        var preferences = new MemoryPreferences(); var browser = mock(BraveBrowserLauncher.class);
+        when(browser.available()).thenReturn(true);
+        try (var first = new WebsiteProtectionRuntime(preferences, mock(EvaluateWebsiteRequestUseCase.class), directory.toString(), true, browser)) {
+            var ready = first.configure(true, "FORWARD_SYSTEM_PROXY_TRAFFIC", WebsiteProtectionPreferences.RoutingMethod.BRAVE);
+            String endpoint = Files.readString(directory.resolve("brave-proxy-endpoint"));
+            try (var second = new WebsiteProtectionRuntime(preferences, mock(EvaluateWebsiteRequestUseCase.class), directory.toString(), true, browser)) {
+                second.reconcile(); assertEquals("UNAVAILABLE", second.status().state());
+                assertEquals(endpoint, Files.readString(directory.resolve("brave-proxy-endpoint")));
+            }
+            prove(Integer.parseInt(endpoint.lines().findFirst().orElseThrow()), ready.verificationUrl());
+            assertTrue(first.status().routingVerified());
+        }
+    }
+    @Test
+    @org.junit.jupiter.api.condition.EnabledOnOs(org.junit.jupiter.api.condition.OS.LINUX)
+    void symbolicConnectionFilesAreRejectedWithoutModifyingTheirTargets() throws Exception {
+        var preferences = new MemoryPreferences(); var browser = mock(BraveBrowserLauncher.class);
+        when(browser.available()).thenReturn(true);
+        Path original = directory.resolve("untouched"); Files.writeString(original, "keep");
+        for (String name : List.of("brave-proxy-endpoint", "brave-proxy-endpoint.lock")) {
+            Path link = directory.resolve(name); Files.createSymbolicLink(link, original);
+            try (var runtime = new WebsiteProtectionRuntime(preferences, mock(EvaluateWebsiteRequestUseCase.class), directory.toString(), true, browser)) {
+                assertEquals("UNAVAILABLE", runtime.configure(true, "FORWARD_SYSTEM_PROXY_TRAFFIC", WebsiteProtectionPreferences.RoutingMethod.BRAVE).state());
+                assertEquals("keep", Files.readString(original));
+            }
+            Files.delete(link);
+        }
+        verify(browser, never()).launch(anyString(), anyString());
+    }
+    private void prove(int port, String url) throws Exception {
+        try (var browser = new Socket("127.0.0.1", port)) {
+            browser.setSoTimeout(3000);
+            browser.getOutputStream().write(("GET " + url + " HTTP/1.1\r\nHost: focusdesktop.invalid\r\n\r\n").getBytes(StandardCharsets.US_ASCII));
+            browser.getInputStream().readAllBytes();
+        }
+    }
     @Test void braveSetupExpiresAndLaunchFailuresRemainUnverified() throws Exception {
         var preferences = new MemoryPreferences(); var browser = mock(BraveBrowserLauncher.class);
         when(browser.available()).thenReturn(true); when(browser.running()).thenReturn(true);

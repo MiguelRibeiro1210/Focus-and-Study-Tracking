@@ -85,6 +85,30 @@ class BraveProxyIntegrationTest {
             }
         } finally { child.destroyForcibly(); origin.stop(0); }
     }
+    @Test void sameOpenBraveReconnectsToStableEndpointAndMustProveRoutingAgain() throws Exception {
+        String token = UUID.randomUUID().toString();
+        WebsiteProxy.Connector noNetwork = (host, port) -> { throw new IOException("No upstream expected"); };
+        var first = new WebsiteProxy(host -> new WebsiteProxy.Decision(true, () -> {}, () -> {}), noNetwork, true, 0, token);
+        first.start();
+        try (first; var browser = browser(first.pacUrl())) {
+            browser.navigate(first.verificationUrl()); browser.awaitText("routing verified");
+            assertTrue(first.routingObserved());
+            int port = first.port(); String pac = first.pacUrl(), oldProof = first.verificationUrl();
+            first.close();
+            var denied = new AtomicInteger();
+            try (var next = new WebsiteProxy(host -> new WebsiteProxy.Decision(true, denied::incrementAndGet, () -> {}), noNetwork, true, port, token)) {
+                next.start(); assertEquals(pac, next.pacUrl());
+                assertFalse(next.routingObserved()); assertNotEquals(oldProof, next.verificationUrl());
+                browser.navigate(oldProof); browser.awaitText("Website blocked");
+                assertFalse(next.routingObserved(), "An old verification page cannot prove the new connection");
+                browser.navigate(next.verificationUrl()); browser.awaitText("routing verified");
+                assertTrue(next.routingObserved());
+                int before = denied.get();
+                browser.navigate("http://blocked.test/after-reconnect"); browser.awaitText("Website blocked");
+                assertTrue(denied.get() > before, "Same browser must enforce rules after reconnection");
+            }
+        }
+    }
     public static class CrashFixture {
         public static void main(String[] args) throws Exception {
             try (var proxy = new WebsiteProxy(host -> host.equals("allowed.test") ? WebsiteProxy.Decision.allow()

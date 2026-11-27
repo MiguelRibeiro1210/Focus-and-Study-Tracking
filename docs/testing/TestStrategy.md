@@ -347,3 +347,26 @@ review the Settings card and light/dark responsive start dialogs against local
 fixtures only. No backend/domain/API behavior changed; backend tests are not
 repeated for this UI-only change. All 33 PlantUML sources pass syntax checks and
 render to valid SVGs without error diagrams.
+
+### Reusable Brave connection (ADR-014)
+
+Brave endpoint persistence is tested through runtime disable/re-enable and
+runtime replacement. Connection proof must be fresh, enabling must retain exact
+forwarding consent, disabling must close the listener, and an already verified
+setup request must not schedule a restart. Saved-port conflicts, malformed or
+symbolic-link metadata and concurrent runtimes never silently choose a new
+endpoint. Automatic verification opens an already-running Brave once; a closed
+browser remains closed. No tests change the learner's browser or proxy settings.
+
+The third native Brave test retains the same isolated process while replacing
+the proxy on the saved port/PAC identifier. It rejects the old challenge, observes
+fresh verification and denies a new blocked-site request after reconnection.
+This does not claim immediate recovery if Brave has cached DIRECT fallback or
+has been restarted without the proxy launch flag; routing stays unconfirmed
+until the browser reaches the fresh verification challenge.
+
+Full Java 17 verification: 312 discovered, 311 passed, one optional Firefox test
+skipped, no errors/failures. Frontend: 120 tests, build, privacy audit and lint
+(two existing SettingsPage warnings). The new reconnection sequence diagram
+passes syntax validation and renders to SVG. Use a full Java 17 JDK for Maven
+verification: the bundled JRE lacks Mockito's required instrumentation tooling.

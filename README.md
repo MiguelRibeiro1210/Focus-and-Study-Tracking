@@ -142,6 +142,14 @@ On Windows, use `mvnw.cmd` with the same Maven goals.
    and test an enabled Block rule for `youtube.com`. Saving rules alone does
    not enable routing. If setup times out, retry after closing background Brave
    processes yourself; FocusDesktop never closes your browser automatically.
+   Setup is not needed for each focus session. Brave's local connection address
+   is saved and reused when protection or the backend restarts. If Brave is
+   already open, FocusDesktop opens a fresh connection check automatically;
+   wait for **Connected** before relying on blocking. You can also choose
+   **Connect browser → Check connection** without closing Brave. If Brave
+   temporarily bypasses an interrupted proxy, verification stays unconfirmed.
+   A normal browser restart without its proxy flag may need setup again.
+   Turning website blocking off still stops forwarding immediately.
    Starting a session checks enabled Block rules. If setup is missing, choose
    **Set up blocking**, **Start without blocking**, or **Cancel**. Opening Settings
    keeps your project name and timer choices; returning never auto-starts a session.

@@ -34,6 +34,21 @@ it('explains forwarding in its consent dialog and confirms existing-profile Brav
   await user.click(screen.getByRole('button', { name: 'Set up Brave' })); expect(launch).toHaveBeenCalledOnce()
   expect(await screen.findByText('Waiting for Brave to close…')).toBeTruthy()
 })
+it('offers a non-disruptive connection check and never asks to restart a connected Brave instance', async () => {
+  const user = userEvent.setup()
+  const verificationUrl = 'http://focusdesktop.invalid/verify/00000000-0000-0000-0000-000000000001'
+  const launch = vi.fn()
+  render(<BlockingSettings api={client([], { websiteStatus: vi.fn().mockResolvedValue({ ...webReady, routingMethod: 'BRAVE', braveAvailable: true, verificationUrl }), setupBrave: launch })} />)
+  await user.click(await screen.findByRole('button', { name: 'Connect browser' }))
+  const dialog = screen.getByRole('dialog')
+  const check = within(dialog).getByRole('link', { name: 'Check connection' })
+  expect(check.getAttribute('href')).toBe(verificationUrl)
+  expect(check.getAttribute('target')).toBe('_blank')
+  expect(within(dialog).queryByRole('button', { name: 'Set up Brave' })).toBeNull()
+  expect(dialog.textContent).toContain('Brave is connected')
+  expect(dialog.textContent).not.toContain('close all Brave windows')
+  expect(launch).not.toHaveBeenCalled()
+})
 it('keeps developer instructions in help and restores focus on Escape', async () => {
   const user = userEvent.setup()
   render(<BlockingSettings api={client([], { websiteStatus: vi.fn().mockResolvedValue({ ...webReady, enabled: false, runtimeEnabled: false, reason: 'Desktop connection needed.' }) })} />)

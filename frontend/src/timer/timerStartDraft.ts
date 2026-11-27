@@ -3,4 +3,3 @@ export interface TimerStartDraft {
   projectDraft: { sessionId: string | null; value: string }
 }
 export const emptyTimerStartDraft: TimerStartDraft = { durations: { work: '', short: '', long: '' }, projectDraft: { sessionId: null, value: '' } }
-

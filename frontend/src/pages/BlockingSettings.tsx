@@ -88,8 +88,12 @@ export function BlockingSettings({ api, returnToSession }: { api: BlockingRulesA
       {dialog === 'websites' && <><p>During focus time, your selected websites and their subdomains are blocked. Pauses and breaks allow browsing.</p>
         <p>Your browser, and other apps using the configured proxy, send requests through FocusDesktop. HTTPS stays encrypted. No certificates, telemetry, cloud service or autonomous requests are used. Allow temporary connection changes with automatic restoration?</p></>}
       {dialog === 'browser' && (web?.routingMethod === 'BRAVE' ? <>
-        <p>We’ll reopen your existing Brave profile with blocking connected. Save your work, then close all Brave windows within 60 seconds, including this app’s browser tab. Nothing is force-closed.</p>
-        <p>Only Brave opened this way is covered. Connect again after restarting protection.</p>
+        <p>Your saved connection is reused across focus sessions and checked automatically when protection restarts with Brave open. You don’t need to close Brave for each session.</p>
+        {web.verificationUrl && <p><a className="button button-secondary" href={web.verificationUrl} target="_blank" rel="noreferrer">Check connection</a></p>}
+        {web.routingVerified && web.state === 'VERIFIED' ? <p>Brave is connected. You can start your focus session.</p> : <>
+          <p>Not connected yet? Try the connection check in Brave first. After an interruption, Brave may take a few minutes to use the connection again.</p>
+          <p>For first-time setup, or if Brave was reopened without its connection, save your work and choose Set up Brave. Then close all Brave windows within 60 seconds, including this app’s browser tab. We’ll reopen your existing profile. Nothing is force-closed.</p>
+        </>}
       </> : <><p>Open this address in the browser you want to protect. A confirmation page means it is connected. Check each browser separately.</p>
         {web?.verificationUrl && <><label>Connection check<input readOnly aria-label="Browser connection check" value={web.verificationUrl} /></label>
           <button type="button" className="button button-secondary" onClick={() => { void navigator.clipboard.writeText(web.verificationUrl!).then(() => setCopied(true)).catch(() => setError('Copy the address from the field and open it in your browser.')) }}>{copied ? 'Copied' : 'Copy address'}</button></>}
@@ -106,7 +110,7 @@ export function BlockingSettings({ api, returnToSession }: { api: BlockingRulesA
           const saved = await api.setApplicationProtection!(true); if (active.current) setApps((value) => value ? { ...value, applicationProtectionEnabled: saved.applicationsEnabled } : value)
         })}>{pending ? 'Saving…' : 'Allow app blocking'}</button>}
         {dialog === 'websites' && <button type="button" className="button button-primary" disabled={pending} onClick={() => void change(() => configureWeb(true))}>{pending ? 'Saving…' : 'Allow website blocking'}</button>}
-        {dialog === 'browser' && web?.routingMethod === 'BRAVE' && <button type="button" className="button button-primary" disabled={pending || !api.setupBrave || !web.braveAvailable || web.braveLaunchPending}
+        {dialog === 'browser' && web?.routingMethod === 'BRAVE' && !web.routingVerified && <button type="button" className="button button-primary" disabled={pending || !api.setupBrave || !web.braveAvailable || web.braveLaunchPending}
           onClick={() => void change(async () => { const value = await api.setupBrave!(); if (active.current) setWeb(value) })}>{pending ? 'Connecting…' : 'Set up Brave'}</button>}
       </div>
     </Modal>}

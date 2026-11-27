@@ -26,6 +26,7 @@ public class WebsiteProtectionRuntime implements AutoCloseable {
     private final BraveBrowserLauncher brave;
     private Instant braveLaunchUntil;
     private WebsiteProxy proxy;
+    private BraveProxyEndpoint braveEndpoint;
     private Process guardian;
     private BufferedWriter input;
     private BufferedReader output;
@@ -93,7 +94,15 @@ public class WebsiteProtectionRuntime implements AutoCloseable {
                     restoreAndClose();
                     startProxy(true);
                     state = "READY";
-                    reason = "Brave routing is ready for setup. Choose Set up Brave, then close all Brave windows within 60 seconds.";
+                    reason = "Connect Brave once. Session changes reuse the connection without closing your browser.";
+                    if (braveEndpoint.saved() && brave.running()) {
+                        try {
+                            brave.launch(proxy.pacUrl(), proxy.verificationUrl());
+                            reason = "Checking the saved Brave connection. If it stays unverified, check the connection or repeat first-time setup; Brave may temporarily bypass an unavailable proxy.";
+                        } catch (IOException exception) {
+                            reason = "The saved Brave connection could not be checked. Open the connection check before repeating setup.";
+                        }
+                    }
                 }
                 processBraveLaunch();
                 proxy.reconcile();
@@ -126,21 +135,30 @@ public class WebsiteProtectionRuntime implements AutoCloseable {
             retryAfter = now().plusSeconds(10);
             try { restoreAndClose(); } catch (Exception ignored) { }
             state = Files.exists(journal) ? "RESTORING" : "UNAVAILABLE";
-            reason = "Website setup or restoration could not be confirmed. Check OS proxy permissions and browser connection settings; existing custom proxies are preserved.";
+            reason = preferences.get().routingMethod() == RoutingMethod.BRAVE && !Files.exists(journal)
+                    ? "The saved Brave connection could not start. Its local port may be occupied or its saved configuration unavailable. The connection address was preserved; protection is not confirmed."
+                    : "Website setup or restoration could not be confirmed. Check OS proxy permissions and browser connection settings; existing custom proxies are preserved.";
         }
     }
     private void startProxy(boolean fallback) throws IOException {
-        proxy = new WebsiteProxy(host -> {
+        java.util.function.Function<String, WebsiteProxy.Decision> policy = host -> {
             if (!state.equals("READY")) return WebsiteProxy.Decision.allow();
             var decision = gate.execute(host);
             return new WebsiteProxy.Decision(decision.block(), decision.denied(), decision.failed());
-        }, fallback);
-        proxy.start();
+        };
+        if (fallback) {
+            braveEndpoint = new BraveProxyEndpoint(journal.resolveSibling("brave-proxy-endpoint"));
+            proxy = braveEndpoint.start(policy);
+        } else {
+            proxy = new WebsiteProxy(policy);
+            proxy.start();
+        }
     }
     public synchronized Status requestBraveSetup() {
         if (!managed || !preferences.get().enabled() || preferences.get().routingMethod() != RoutingMethod.BRAVE
                 || proxy == null || !state.equals("READY") || !brave.available())
             throw new IllegalArgumentException("Enable available Brave routing before requesting setup");
+        if (proxy.routingObserved()) return status();
         if (braveLaunchUntil == null) {
             proxy.resetRoutingProof();
             braveLaunchUntil = now().plusSeconds(60);
@@ -202,6 +220,7 @@ public class WebsiteProtectionRuntime implements AutoCloseable {
             closeGuardianStreams();
         }
         if (proxy != null) { proxy.close(); proxy = null; }
+        if (braveEndpoint != null) { braveEndpoint.close(); braveEndpoint = null; }
         state = "DISABLED"; reason = "Website protection is disabled; owned proxy settings have been restored.";
     }
     private void closeGuardianStreams() {

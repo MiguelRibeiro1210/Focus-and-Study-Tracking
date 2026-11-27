@@ -23,7 +23,9 @@ public final class WebsiteProxy implements AutoCloseable {
     private final Semaphore slots = new Semaphore(64);
     private final Map<Socket, String> active = new ConcurrentHashMap<>();
     private final Set<Socket> sockets = ConcurrentHashMap.newKeySet();
-    private final String pacToken = UUID.randomUUID().toString();
+    private final String pacToken;
+    private final String verificationToken = UUID.randomUUID().toString();
+    private final int requestedPort;
     private volatile boolean running;
     private volatile boolean routingObserved;
     private ServerSocket listener;
@@ -32,12 +34,22 @@ public final class WebsiteProxy implements AutoCloseable {
     WebsiteProxy(Function<String, Decision> gate, Connector connector) { this(gate, connector, false); }
     WebsiteProxy(Function<String, Decision> gate, boolean directFallback) { this(gate, WebsiteProxy::connectPublic, directFallback); }
     WebsiteProxy(Function<String, Decision> gate, Connector connector, boolean directFallback) {
+        this(gate, connector, directFallback, 0, UUID.randomUUID().toString());
+    }
+    WebsiteProxy(Function<String, Decision> gate, Connector connector, boolean directFallback, int port, String token) {
         this.gate = gate; this.connector = connector; this.directFallback = directFallback;
+        this.requestedPort = port; this.pacToken = UUID.fromString(token).toString();
+        if (port < 0 || port > 65535) throw new IllegalArgumentException("Invalid proxy port");
+    }
+    WebsiteProxy(Function<String, Decision> gate, int port, String token) {
+        this(gate, WebsiteProxy::connectPublic, true, port, token);
     }
     public synchronized void start() throws IOException {
         if (running) return;
         listener = new ServerSocket();
-        listener.bind(new InetSocketAddress(InetAddress.getByName("127.0.0.1"), 0), 16);
+        listener.setReuseAddress(directFallback);
+        try { listener.bind(new InetSocketAddress(InetAddress.getByName("127.0.0.1"), requestedPort), 16); }
+        catch (IOException exception) { listener.close(); workers.shutdownNow(); throw exception; }
         running = true;
         workers.execute(() -> {
             while (running) {
@@ -56,7 +68,7 @@ public final class WebsiteProxy implements AutoCloseable {
     public String pacUrl() { return "http://127.0.0.1:" + port() + "/pac/" + pacToken; }
     public boolean routingObserved() { return routingObserved; }
     void resetRoutingProof() { routingObserved = false; }
-    public String verificationUrl() { return "http://focusdesktop.invalid/verify/" + pacToken; }
+    public String verificationUrl() { return "http://focusdesktop.invalid/verify/" + verificationToken; }
 
     public void reconcile() {
         active.forEach((socket, host) -> {
@@ -88,7 +100,7 @@ public final class WebsiteProxy implements AutoCloseable {
             try { endpoint = endpoint(request); }
             catch (IllegalArgumentException exception) { respond(output, 400, "Invalid proxy authority or framing"); return; }
             if (endpoint.host().equals("focusdesktop.invalid") && request.method().equals("GET")
-                    && endpoint.path().equals("/verify/" + pacToken)) {
+                    && endpoint.path().equals("/verify/" + verificationToken)) {
                 routingObserved = true;
                 respond(output, 200, "FocusDesktop browser routing verified. Return to FocusDesktop."); return;
             }

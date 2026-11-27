@@ -51,3 +51,21 @@ without restarting the browser, plus fresh proof and denial after reconnection.
 Frontend tests cover the connection check and updated setup instructions.
 Run the backend suite, frontend tests/build/lint/privacy audit, and inspect the
 diff before updating the board. Existing FST-050 native acceptance gaps stay open.
+
+## Implementation evidence
+
+Implemented the saved loopback endpoint with an exclusive installation lock,
+atomic metadata publication and a fresh challenge per listener. Re-enabling or
+restarting checks an already-open Brave once; a verified setup request is a no-op.
+Other routing methods retain their ephemeral endpoint and restoration guardian.
+
+Full verification with Temurin Java 17 passes 311 tests, including three native
+isolated Brave tests; the optional Firefox test is skipped (312 discovered,
+zero failures/errors). The reconnect test keeps one Brave process open, rejects
+the old verification challenge and confirms blocking on the replacement proxy.
+Runtime tests additionally cover concurrent ownership, occupied ports, malformed
+and symbolic-link metadata, consent revocation and closed-browser preservation.
+Frontend verification passes 120 tests, build and privacy audit; lint retains
+only two existing SettingsPage warnings. The new sequence diagram validates and
+renders successfully. The full JDK is required for Mockito; the bundled JRE
+cannot run the full test suite. No browser extension or profile edits are added.
