@@ -11,7 +11,7 @@ final class WindowsBrowserPolicies implements OwnedProxySettings.Store {
             "firefox", "Software\\Policies\\Mozilla\\Firefox\\Proxy");
     private final NativeCommands commands;
     private final NativeProxySettings system;
-    WindowsBrowserPolicies() { this(NativeCommands::execute); }
+    WindowsBrowserPolicies() { this(arguments -> NativeCommands.execute(arguments, true)); }
     WindowsBrowserPolicies(NativeCommands commands) { this.commands = commands; system = new NativeProxySettings("Windows", commands); }
     @Override public boolean independentSettings() { return true; }
     @Override public Map<String, String> readAll(List<String> keys) {
@@ -37,7 +37,7 @@ final class WindowsBrowserPolicies implements OwnedProxySettings.Store {
     }
     @Override public void writeAll(Map<String, String> values) {
         var scripts = new ArrayList<String>();
-        var collector = new WindowsBrowserPolicies(args -> { scripts.add(args.get(args.size() - 1)); return ""; });
+        var collector = new WindowsBrowserPolicies(args -> { scripts.add(ConnectionPowerShell.script(args)); return ""; });
         values.forEach(collector::write); // Validate every value before executing any script.
         if (!scripts.isEmpty()) shell(String.join(";\n", scripts));
     }
@@ -116,7 +116,7 @@ final class WindowsBrowserPolicies implements OwnedProxySettings.Store {
         return browser;
     }
     private String shell(String script) {
-        return commands.run(List.of("powershell.exe", "-NoLogo", "-NoProfile", "-NonInteractive", "-Command", "$ErrorActionPreference='Stop'; " + script)).trim();
+        return commands.run(ConnectionPowerShell.command(script)).trim();
     }
     private String canonical(String value) {
         try { return BrowserProxyPolicy.JSON.writeValueAsString(BrowserProxyPolicy.JSON.convertValue(BrowserProxyPolicy.parse(value), TreeMap.class)); }

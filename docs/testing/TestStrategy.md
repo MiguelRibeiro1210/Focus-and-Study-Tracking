@@ -410,3 +410,12 @@ native scenario skipped. Frontend: 123 tests, build, lint (two existing warnings
 and privacy audit. Rust compilation/format, Java 17 packaged helper self-checks
 and the updated sequence diagram pass. Do not equate these local results with
 pending Windows/macOS or Safari acceptance.
+
+Platform CI correction regressions cover encoded Windows batches preserving
+JSON and C# interop quotes, macOS restoration of an empty or previously configured
+disabled PAC, and explicit bounded helper errors without changing ordinary
+desktop-query diagnostics. The Brave namespace exposes `/bin` for the official
+Debian launcher and reports startup output on failure. Focused verification
+passes all 29 tests, including four native Brave scenarios. Full Java 17 verify
+passes 332 tests with one platform-only native scenario skipped. Native runner
+and installer acceptance remain required before declaring the correction complete.

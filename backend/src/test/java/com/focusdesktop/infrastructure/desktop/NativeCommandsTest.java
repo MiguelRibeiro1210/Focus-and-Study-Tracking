@@ -21,6 +21,15 @@ class NativeCommandsTest {
         assertThrows(ActiveApplicationPort.Unavailable.class, () -> NativeCommands.execute(command("large")));
     }
 
+    @Test
+    void explicitConnectionDiagnosticsCaptureBoundedErrorsAndDrainThePipe() {
+        var failure = assertThrows(ActiveApplicationPort.Unavailable.class, () -> NativeCommands.execute(command("failure"), true));
+        assertTrue(failure.getMessage().contains("PRIVATE RAW ERROR"));
+        var large = assertThrows(ActiveApplicationPort.Unavailable.class, () -> NativeCommands.execute(command("large-error"), true));
+        assertTrue(large.getMessage().contains("Desktop query failed"));
+        assertTrue(large.getMessage().length() < 4300);
+    }
+
     private static List<String> command(String mode) {
         return List.of(ProcessHandle.current().info().command().orElseThrow(), "-cp", System.getProperty("java.class.path"),
                 Fixture.class.getName(), mode);
@@ -33,6 +42,7 @@ class NativeCommandsTest {
                 case "failure" -> { System.err.print("PRIVATE RAW ERROR"); System.exit(1); }
                 case "timeout" -> Thread.sleep(10000);
                 case "large" -> System.out.write(new byte[1_048_577]);
+                case "large-error" -> { System.err.print("E".repeat(100_000)); System.exit(1); }
                 default -> throw new IllegalArgumentException();
             }
         }

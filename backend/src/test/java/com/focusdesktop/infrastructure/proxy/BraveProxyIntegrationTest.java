@@ -121,7 +121,7 @@ class BraveProxyIntegrationTest {
         }
         Path profile = Files.createTempDirectory(directory, "policy-profile-");
         var isolated = List.of("/usr/bin/bwrap", "--unshare-user", "--uid", "0", "--gid", "0", "--unshare-pid",
-                "--ro-bind", "/usr", "/usr", "--ro-bind", "/opt", "/opt", "--ro-bind", "/lib", "/lib", "--ro-bind", "/lib64", "/lib64",
+                "--ro-bind", "/usr", "/usr", "--ro-bind", "/bin", "/bin", "--ro-bind", "/opt", "/opt", "--ro-bind", "/lib", "/lib", "--ro-bind", "/lib64", "/lib64",
                 "--proc", "/proc", "--dev", "/dev", "--tmpfs", "/tmp", "--bind", profile.toString(), profile.toString(),
                 "--ro-bind", etc.toString(), "/etc", "--");
         var denied = new AtomicInteger();
@@ -214,14 +214,19 @@ class BraveProxyIntegrationTest {
         for (String key : List.of("http_proxy", "https_proxy", "all_proxy", "HTTP_PROXY", "HTTPS_PROXY", "ALL_PROXY")) builder.environment().remove(key);
         var process = builder.start();
         try {
-            await(() -> Files.exists(profile.resolve("DevToolsActivePort")));
+            await(() -> Files.exists(profile.resolve("DevToolsActivePort")) || !process.isAlive());
+            assertTrue(Files.exists(profile.resolve("DevToolsActivePort")), "Native browser exited before opening DevTools");
             int port = Integer.parseInt(Files.readAllLines(profile.resolve("DevToolsActivePort")).get(0));
             var client = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(3)).build();
             var response = client.send(HttpRequest.newBuilder(URI.create("http://127.0.0.1:" + port + "/json/list")).build(), HttpResponse.BodyHandlers.ofString());
             String socket = mapper.readTree(response.body()).get(0).get("webSocketDebuggerUrl").asText();
             var browser = new Browser(process); browser.socket = client.newWebSocketBuilder().buildAsync(URI.create(socket), browser).get(5, TimeUnit.SECONDS);
             return browser;
-        } catch (Exception | AssertionError error) { process.descendants().forEach(ProcessHandle::destroyForcibly); process.destroyForcibly(); throw error; }
+        } catch (Exception | AssertionError error) {
+            process.descendants().forEach(ProcessHandle::destroyForcibly); process.destroyForcibly();
+            String log = Files.readString(profile.resolve("browser.log"));
+            throw new AssertionError(error.getMessage() + "\nNative browser diagnostics:\n" + log.substring(0, Math.min(log.length(), 4000)), error);
+        }
     }
     private static void await(java.util.function.BooleanSupplier condition) throws Exception {
         long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(15);

@@ -11,7 +11,7 @@ final class NativeProxySettings implements OwnedProxySettings.Store {
     private final String os;
     private final NativeCommands commands;
     private final ObjectMapper mapper = new ObjectMapper();
-    NativeProxySettings() { this(System.getProperty("os.name"), NativeCommands::execute); }
+    NativeProxySettings() { this(System.getProperty("os.name"), arguments -> NativeCommands.execute(arguments, true)); }
     NativeProxySettings(String os, NativeCommands commands) { this.os = os.toLowerCase(Locale.ROOT); this.commands = commands; }
     @Override public List<OwnedProxySettings.Change> prepare(String pacUrl) {
         URI pac = URI.create(pacUrl);
@@ -62,7 +62,7 @@ final class NativeProxySettings implements OwnedProxySettings.Store {
                 if (line.startsWith("Enabled: ")) enabled = line.substring(9).trim().equals("Yes");
             }
             if (url == null || enabled == null) throw new IllegalStateException("Cannot read proxy configuration");
-            if (url.equals("(null)")) url = "";
+            if (url.equals("(null)") || url.equals("\"\"")) url = "";
             try { return mapper.writeValueAsString(new MacValue(url, enabled)); }
             catch (java.io.IOException exception) { throw new IllegalStateException("Cannot encode native settings"); }
         }
@@ -83,7 +83,7 @@ final class NativeProxySettings implements OwnedProxySettings.Store {
         if (os.contains("mac") && key.startsWith("mac-service:")) {
             try {
                 MacValue target = mapper.readValue(value, MacValue.class);
-                commands.run(List.of("/usr/sbin/networksetup", "-setautoproxyurl", service(key), target.url()));
+                commands.run(List.of("/usr/sbin/networksetup", "-setautoproxyurl", service(key), target.url().isEmpty() ? "\"\"" : target.url()));
                 commands.run(List.of("/usr/sbin/networksetup", "-setautoproxystate", service(key), target.enabled() ? "on" : "off"));
                 return;
             } catch (java.io.IOException exception) { throw new IllegalArgumentException("Invalid native settings"); }
@@ -91,7 +91,7 @@ final class NativeProxySettings implements OwnedProxySettings.Store {
         throw new IllegalArgumentException("Invalid native proxy key");
     }
     private String powershell(String script) {
-        return commands.run(List.of("powershell.exe", "-NoLogo", "-NoProfile", "-NonInteractive", "-Command", "$ErrorActionPreference='Stop'; " + script)).trim();
+        return commands.run(ConnectionPowerShell.command(script)).trim();
     }
     private static String service(String key) {
         String value = key.substring("mac-service:".length());

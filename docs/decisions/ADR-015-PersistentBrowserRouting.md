@@ -114,6 +114,23 @@ OS permission prompt; ordinary requests retain their shorter timeout. Elevated
 policy paths must be root-controlled and new policy files/directories readable
 by browser users. Root journals remain private.
 
+## Native CI corrections
+
+Pass Windows connection scripts through UTF-16LE `-EncodedCommand` so JSON and
+C# interop quotes survive process invocation. Decode collected scripts before
+batching and validate the whole batch before execution. Native connection
+commands may include bounded stderr in helper diagnostics; other desktop
+queries retain their existing generic error behavior.
+
+Restore macOS's logically empty PAC using networksetup's literal quote-pair
+representation, normalize it alongside `(null)` on reads, and restore the saved
+enabled flag afterward. Require readback confirmation before reporting disabled;
+never discard a restoration journal just to make a test pass.
+
+The private Linux browser test namespace must include `/bin`, required by the
+official Debian Brave wrapper, and include browser startup output on failure.
+Native runner results remain the acceptance gate for these corrections.
+
 ## Sources
 
 - [Brave platform policies](https://support.brave.app/hc/en-us/articles/360039248271-Group-Policy).
@@ -122,3 +139,4 @@ by browser users. Root journals remain private.
 - [Firefox proxy policy](https://firefox-admin-docs.mozilla.org/reference/policies/proxy/).
 - [Firefox Linux policy locations](https://support.mozilla.org/en-US/kb/customizing-firefox-using-policiesjson).
 - [Chromium's local-only refresh switch](https://github.com/chromium/chromium/blob/main/chrome/common/chrome_switches.h).
+- [PowerShell encoded command transport](https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.core/about/about_powershell_exe?view=powershell-5.1).
