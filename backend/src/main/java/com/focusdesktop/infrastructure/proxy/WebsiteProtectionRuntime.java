@@ -212,7 +212,7 @@ public class WebsiteProtectionRuntime implements AutoCloseable {
         guardianStopping = false;
         Files.createDirectories(journal.getParent());
         if (useAdministratorGuardian()) { startAdministratorGuardian(pac); return; }
-        guardian = new ProcessBuilder(launcher(pac)).redirectError(ProcessBuilder.Redirect.DISCARD).start();
+        guardian = guardianProcess(launcher(pac)).start();
         input = new BufferedWriter(new OutputStreamWriter(guardian.getOutputStream(), java.nio.charset.StandardCharsets.UTF_8));
         output = new BufferedReader(new InputStreamReader(guardian.getInputStream(), java.nio.charset.StandardCharsets.UTF_8));
         reads = Executors.newSingleThreadExecutor(task -> { var thread = new Thread(task, "proxy-settings-response"); thread.setDaemon(true); return thread; });
@@ -231,9 +231,9 @@ public class WebsiteProtectionRuntime implements AutoCloseable {
             Files.writeString(credential, secret);
             Files.setPosixFilePermissions(credential, java.nio.file.attribute.PosixFilePermissions.fromString("rw-------"));
             var parent = ProcessHandle.current();
-            guardian = new ProcessBuilder(administratorLauncher(List.of(Integer.toString(server.getLocalPort()), credential.toString(), Long.toString(parent.pid()),
+            guardian = guardianProcess(administratorLauncher(List.of(Integer.toString(server.getLocalPort()), credential.toString(), Long.toString(parent.pid()),
                             Long.toString(parent.info().startInstant().orElseThrow().toEpochMilli()), pac)))
-                    .redirectOutput(ProcessBuilder.Redirect.DISCARD).redirectError(ProcessBuilder.Redirect.DISCARD).start();
+                    .redirectOutput(ProcessBuilder.Redirect.DISCARD).start();
             long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(60);
             while (guardianControl == null && guardian.isAlive() && System.nanoTime() < deadline) {
                 try {
@@ -260,6 +260,9 @@ public class WebsiteProtectionRuntime implements AutoCloseable {
             elevatedResources = ElevatedJavaResources.prepare(ProxyGuardianCommand.javaCommand(PrivilegedProxyGuardian.class, arguments), journal.getParent());
             return ProxyGuardianCommand.elevated(System.getProperty("os.name"), elevatedResources.command());
         } catch (IOException exception) { throw new UncheckedIOException(exception); }
+    }
+    ProcessBuilder guardianProcess(List<String> arguments) {
+        return new ProcessBuilder(arguments).redirectError(ProcessBuilder.Redirect.DISCARD);
     }
     List<String> launcher(String pac) {
         var args = new ArrayList<String>();

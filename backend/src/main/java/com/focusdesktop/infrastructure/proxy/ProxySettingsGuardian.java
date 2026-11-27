@@ -48,6 +48,7 @@ public final class ProxySettingsGuardian {
                 Runtime.getRuntime().removeShutdownHook(hook);
             }
         } catch (Exception exception) {
+            exception.printStackTrace(System.err);
             response.println("UNAVAILABLE");
             if (restored) response.println("RESTORED");
             else if (!acquired) response.println("NO_CHANGES");

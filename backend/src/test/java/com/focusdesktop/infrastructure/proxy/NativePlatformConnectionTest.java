@@ -31,7 +31,11 @@ class NativePlatformConnectionTest {
         when(gate.execute(anyString())).thenReturn(new EvaluateWebsiteRequestUseCase.Decision(true, count::incrementAndGet, () -> {}));
         var browser = mock(BraveBrowserLauncher.class); when(browser.systemProxySupported()).thenReturn(true);
         Path profile = Files.createDirectory(directory.resolve("browser-profile"));
+        Path helperLog = directory.resolve("connection-helper.log");
         try (var runtime = new WebsiteProtectionRuntime(preferences, gate, directory.toString(), true, browser) {
+            @Override ProcessBuilder guardianProcess(List<String> arguments) {
+                return super.guardianProcess(arguments).redirectError(ProcessBuilder.Redirect.appendTo(helperLog.toFile()));
+            }
             @Override List<String> administratorLauncher(List<String> arguments) {
                 // CI runners authorize sudo without a GUI; production uses the OS prompt.
                 var command = new ArrayList<>(List.of("/usr/bin/sudo", "-n"));
@@ -39,14 +43,20 @@ class NativePlatformConnectionTest {
             }
         }) {
             var ready = runtime.configure(true, "CONFIGURE_BROWSER_ROUTING_AND_FORWARD_TRAFFIC");
-            assertEquals("READY", ready.state(), ready.reason()); assertFalse(ready.routingVerified());
+            assertEquals("READY", ready.state(), () -> ready.reason() + "\n" + diagnostic(helperLog)); assertFalse(ready.routingVerified());
             browse(executable, profile, ready.verificationUrl(), "verify", runtime);
             assertTrue(runtime.status().routingVerified(), "Normal native browser launch must use automatic settings");
             int before = count.get();
             browse(executable, profile, "http://blocked.example/normal-relaunch", "blocked", runtime);
             assertTrue(count.get() > before, "The same profile must block after normal process exit and relaunch");
-            runtime.reconcile(); assertEquals("DISABLED", runtime.configure(false, null).state());
+            runtime.reconcile();
+            var disabled = runtime.configure(false, null);
+            assertEquals("DISABLED", disabled.state(), () -> disabled.reason() + "\n" + diagnostic(helperLog));
         }
+    }
+    private static String diagnostic(Path log) {
+        try { return Files.readString(log); }
+        catch (java.io.IOException exception) { return "Helper diagnostics unavailable: " + exception.getMessage(); }
     }
     private void browse(String executable, Path profile, String url, String label, WebsiteProtectionRuntime runtime) throws Exception {
         var process = new ProcessBuilder(executable, "--headless=new", "--no-first-run", "--no-default-browser-check",
