@@ -166,7 +166,23 @@ jobs:
         working-directory: frontend
 
       - name: Build native installer
+        if: runner.os != 'macOS'
         run: npm run tauri -- build
+        working-directory: frontend
+
+      - name: Build macOS installer with bounded hdiutil busy retry
+        if: runner.os == 'macOS'
+        shell: bash
+        run: |
+          set -o pipefail
+          build_log="$(mktemp)"
+          trap 'rm -f "$build_log"' EXIT
+          for attempt in 1 2 3; do
+            if npm run tauri -- build 2>&1 | tee "$build_log"; then exit 0; fi
+            if [ "$attempt" -eq 3 ] || ! grep -Fq 'hdiutil: create failed - Resource busy' "$build_log"; then exit 1; fi
+            echo "::warning::hdiutil is busy; retrying installer creation ($attempt/3)."
+            sleep 10
+          done
         working-directory: frontend
 
       - name: Verify and smoke-test macOS application and Java runtime

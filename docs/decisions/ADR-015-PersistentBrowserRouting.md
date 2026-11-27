@@ -131,6 +131,15 @@ The private Linux browser test namespace must include `/bin`, required by the
 official Debian Brave wrapper, and include browser startup output on failure.
 Native runner results remain the acceptance gate for these corrections.
 
+Resolve the Linux browser executable's symlinks before entering the private
+namespace: Debian's `/usr/bin/brave-browser` may traverse `/etc/alternatives`,
+which intentionally is not exposed by the isolated policy fixture. Native
+Windows/macOS probes navigate and verify page content through loopback DevTools,
+then request normal browser shutdown before relaunch; screenshot completion is
+not a reliable browser-exit signal. Retry macOS packaging at most three times
+only for the observed `hdiutil: create failed - Resource busy` failure; other
+failures stop immediately and no verification check is skipped.
+
 ## Sources
 
 - [Brave platform policies](https://support.brave.app/hc/en-us/articles/360039248271-Group-Policy).

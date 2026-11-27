@@ -419,3 +419,12 @@ Debian launcher and reports startup output on failure. Focused verification
 passes all 29 tests, including four native Brave scenarios. Full Java 17 verify
 passes 332 tests with one platform-only native scenario skipped. Native runner
 and installer acceptance remain required before declaring the correction complete.
+
+The Linux namespace correction also passes all four native Brave scenarios when
+the configured launcher is a symlink outside the exposed namespace. The native
+Windows/macOS probe checks the actual verification/block page through DevTools
+and requests normal shutdown rather than waiting for screenshot-driven exit.
+The macOS packaging retry is checked for immediate success, busy-then-success,
+three busy failures, and an unrelated failure without retry. Windows's full
+installer/smoke job passed at `f43c12d`; macOS ARM connection/restoration passed
+there before its DMG resource-busy failure. The updated matrix remains pending.

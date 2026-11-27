@@ -199,7 +199,7 @@ class BraveProxyIntegrationTest {
     private Browser browser(String pac, Path profile, List<String> prefix) throws Exception {
         Files.deleteIfExists(profile.resolve("DevToolsActivePort"));
         var command = new ArrayList<>(prefix);
-        command.addAll(List.of(System.getenv("FOCUSDESKTOP_BRAVE"), "--headless=new", "--no-first-run", "--no-default-browser-check",
+        command.addAll(List.of(Path.of(System.getenv("FOCUSDESKTOP_BRAVE")).toRealPath().toString(), "--headless=new", "--no-first-run", "--no-default-browser-check",
                 "--user-data-dir=" + profile, "--remote-debugging-port=0", "--disable-background-networking",
                 "--disable-component-update", "--disable-sync", "--disable-quic", "--disable-extensions", "--ignore-certificate-errors",
                 "--host-resolver-rules=MAP allowed.test 127.0.0.1, MAP blocked.test 127.0.0.1, MAP *.youtube.com 127.0.0.1, MAP youtube.com 127.0.0.1, EXCLUDE 127.0.0.1, EXCLUDE localhost, MAP * ~NOTFOUND",
