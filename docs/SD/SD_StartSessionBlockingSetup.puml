@@ -1,0 +1,26 @@
+@startuml
+title Session start with contextual blocking setup
+actor Learner
+participant "Timer UI" as Timer
+participant "Local rules + protection APIs" as API
+participant "Setup dialog" as Dialog
+participant Settings
+Learner -> Timer : Start session
+Timer -> Timer : validate project and timer inputs\nretain draft; prevent duplicate start
+Timer -> API : read enabled Block rules and relevant readiness
+API --> Timer : ready / missing setup / unavailable
+alt ready or no enabled Block rules
+  Timer -> API : start session once
+else missing setup or check unavailable
+  Timer -> Dialog : explain relevant app / website gap
+  alt Set up blocking
+    Dialog -> Settings : open compact blocking controls\nretain timer draft
+    Learner -> Settings : configure with explicit consent dialogs
+    Settings -> Timer : return to saved draft; no auto-start
+  else Start without blocking
+    Dialog -> API : start session once\nleave consent and rules unchanged
+  else Cancel / Escape
+    Dialog -> Timer : restore focus; do not start
+  end
+end
+@enduml
